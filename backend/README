@@ -1,0 +1,7 @@
+npm init -y
+npm install express cors dotenv
+[express: Khung sườn chính để chạy server.
+cors: Giúp Frontend (Happy Tails) gọi được API của Backend (rất quan trọng, không có cái này Frontend sẽ bị chặn).
+dotenv: Giúp quản lý các biến bí mật (như mật khẩu DB) sau này.]
+npm install -D nodemon
+npm install mongoose
