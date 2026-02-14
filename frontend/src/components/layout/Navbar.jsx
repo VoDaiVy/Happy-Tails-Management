@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { PawPrint, User, Menu } from 'lucide-react';
 
 const Navbar = () => {
