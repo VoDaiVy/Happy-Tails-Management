@@ -150,8 +150,8 @@ const validateRegistration = (data) => {
     sanitizedData.password = data.password;
   }
 
-  // Validate confirm password
-  if (data.password !== data.confirmPassword) {
+  // Validate confirm password (optional - only validate if provided)
+  if (data.confirmPassword !== undefined && data.password !== data.confirmPassword) {
     errors.confirmPassword = 'Passwords do not match';
   }
 
