@@ -131,7 +131,7 @@ const userSchema = new mongoose.Schema({
 
 // ==================== INDEXES ====================
 
-userSchema.index({ email: 1 });
+// Note: email index is already created by unique: true
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1, isDeleted: 1 });
 userSchema.index({ passwordResetToken: 1 });
@@ -150,34 +150,28 @@ userSchema.virtual('isLocked').get(function() {
 
 /**
  * Hash password before saving if modified
+ * Note: Mongoose 9 - no need for next() in async middleware
  */
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function() {
   // Only hash if password is modified
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
 
-  try {
-    const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
-    this.password = await bcrypt.hash(this.password, rounds);
-    
-    // Set passwordChangedAt for new passwords (except on creation)
-    if (!this.isNew) {
-      this.passwordChangedAt = Date.now() - 1000; // Subtract 1s to ensure token is created after
-    }
-    
-    next();
-  } catch (error) {
-    next(error);
+  const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+  this.password = await bcrypt.hash(this.password, rounds);
+  
+  // Set passwordChangedAt for new passwords (except on creation)
+  if (!this.isNew) {
+    this.passwordChangedAt = Date.now() - 1000; // Subtract 1s to ensure token is created after
   }
 });
 
 /**
  * Update timestamp before saving
  */
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function() {
   if (this.isModified() && !this.isNew) {
     this.updatedAt = Date.now();
   }
-  next();
 });
 
 // ==================== INSTANCE METHODS ====================
@@ -440,16 +434,8 @@ userSchema.statics.isRefreshTokenValid = async function(userId, token) {
 
 // ==================== QUERY MIDDLEWARE ====================
 
-/**
- * Exclude deleted users from find queries by default
- */
-userSchema.pre(/^find/, function(next) {
-  // Only apply if not explicitly querying deleted users
-  if (!this.getQuery().isDeleted) {
-    this.find({ isDeleted: { $ne: true } });
-  }
-  next();
-});
+// Removed pre-find middleware due to Mongoose 9 compatibility issues
+// isDeleted filtering is handled in static methods instead
 
 const User = mongoose.model('User', userSchema);
 

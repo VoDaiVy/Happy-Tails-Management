@@ -1,0 +1,430 @@
+{
+	"info": {
+		"_postman_id": "happy-tails-api-collection",
+		"name": "Happy Tails Management",
+		"description": "API Collection cho hệ thống Happy Tails Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "API Root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": ["{{baseUrl}}"],
+							"path": [""]
+						},
+						"description": "Kiểm tra API có đang chạy không"
+					},
+					"response": []
+				},
+				{
+					"name": "API Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Kiểm tra sức khỏe API"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Public Routes",
+					"item": [
+						{
+							"name": "Register",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.tokens) {",
+											"        pm.collectionVariables.set('accessToken', jsonData.data.tokens.accessToken);",
+											"        pm.collectionVariables.set('refreshToken', jsonData.data.tokens.refreshToken);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"Test@123456\",\n    \"confirmPassword\": \"Test@123456\",\n    \"name\": \"Test User\",\n    \"role\": \"user\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/register",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "register"]
+								},
+								"description": "Đăng ký tài khoản mới"
+							},
+							"response": []
+						},
+						{
+							"name": "Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data && jsonData.data.tokens) {",
+											"        pm.collectionVariables.set('accessToken', jsonData.data.tokens.accessToken);",
+											"        pm.collectionVariables.set('refreshToken', jsonData.data.tokens.refreshToken);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"Test@123456\",\n    \"rememberMe\": true\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "login"]
+								},
+								"description": "Đăng nhập"
+							},
+							"response": []
+						},
+						{
+							"name": "Refresh Token",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    if (jsonData.data) {",
+											"        pm.collectionVariables.set('accessToken', jsonData.data.accessToken);",
+											"        pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/refresh-token",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "refresh-token"]
+								},
+								"description": "Làm mới access token bằng refresh token"
+							},
+							"response": []
+						},
+						{
+							"name": "Forgot Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"test@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/forgot-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "forgot-password"]
+								},
+								"description": "Yêu cầu gửi email đặt lại mật khẩu"
+							},
+							"response": []
+						},
+						{
+							"name": "Reset Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"password\": \"NewPassword@123\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/reset-password/:resetToken",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "reset-password", ":resetToken"],
+									"variable": [
+										{
+											"key": "resetToken",
+											"value": "your_reset_token_here",
+											"description": "Token nhận được từ email"
+										}
+									]
+								},
+								"description": "Đặt lại mật khẩu với token từ email"
+							},
+							"response": []
+						},
+						{
+							"name": "Verify Email",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/verify-email/:token",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "verify-email", ":token"],
+									"variable": [
+										{
+											"key": "token",
+											"value": "your_verification_token_here",
+											"description": "Token xác thực email"
+										}
+									]
+								},
+								"description": "Xác thực địa chỉ email"
+							},
+							"response": []
+						},
+						{
+							"name": "Resend Verification Email",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"email\": \"test@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/resend-verification",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "resend-verification"]
+								},
+								"description": "Gửi lại email xác thực"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Protected Routes",
+					"item": [
+						{
+							"name": "Get Current User (Me)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/me",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "me"]
+								},
+								"description": "Lấy thông tin user hiện tại đang đăng nhập"
+							},
+							"response": []
+						},
+						{
+							"name": "Update Profile",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Updated Name\",\n    \"email\": \"newemail@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "profile"]
+								},
+								"description": "Cập nhật thông tin profile"
+							},
+							"response": []
+						},
+						{
+							"name": "Change Password",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"currentPassword\": \"Test@123456\",\n    \"newPassword\": \"NewTest@123456\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/change-password",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "change-password"]
+								},
+								"description": "Đổi mật khẩu (yêu cầu đăng nhập)"
+							},
+							"response": []
+						},
+						{
+							"name": "Logout",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/logout",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "logout"]
+								},
+								"description": "Đăng xuất khỏi thiết bị hiện tại"
+							},
+							"response": []
+						},
+						{
+							"name": "Logout All Devices",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{accessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/logout-all",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "auth", "logout-all"]
+								},
+								"description": "Đăng xuất khỏi tất cả thiết bị"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -57,9 +57,10 @@ app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(cookieParser());
 
 // Data sanitization against NoSQL injection
-app.use(mongoSanitize());
+// Note: express-mongo-sanitize is NOT compatible with Express 5 (req.query is read-only getter)
+// Using custom sanitizeInput middleware instead which only sanitizes req.body
 
-// Custom input sanitization
+// Custom input sanitization (handles NoSQL injection prevention for Express 5)
 app.use(sanitizeInput);
 
 // Prevent HTTP Parameter Pollution

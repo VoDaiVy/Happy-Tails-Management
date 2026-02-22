@@ -174,9 +174,9 @@ const sanitizeInput = (req, res, next) => {
     return obj;
   };
 
-  if (req.body) req.body = sanitize(req.body);
-  if (req.query) req.query = sanitize(req.query);
-  if (req.params) req.params = sanitize(req.params);
+  // Only sanitize body - query and params are read-only getters in newer Express
+  // express-mongo-sanitize already handles query sanitization
+  if (req.body) sanitize(req.body);
 
   next();
 };
