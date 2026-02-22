@@ -73,7 +73,7 @@ exports.register = catchAsync(async (req, res, next) => {
   const { email, password, name, role } = req.validatedData || req.body;
 
   // Check if email already exists
-  const existingUser = await User.findOne({ email: email.toLowerCase() });
+  const existingUser = await User.findOne({ email: email.toLowerCase(), isDeleted: false });
   if (existingUser) {
     return next(new AppError('Email already registered', 409, AUTH_ERROR_CODES.EMAIL_EXISTS));
   }
@@ -89,6 +89,11 @@ exports.register = catchAsync(async (req, res, next) => {
   // Generate email verification token
   const verificationToken = user.generateEmailVerificationToken();
   await user.save({ validateBeforeSave: false });
+
+  // Log verification token in development (for testing)
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`📧 Verification token for ${user.email}: ${verificationToken}`);
+  }
 
   // Send verification email (non-blocking)
   sendVerificationEmail(user.email, user.name, verificationToken).catch(err => {
@@ -421,8 +426,25 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
   // Hash token
   const hashedToken = hashToken(token);
 
+  // Debug log in development
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`🔍 Verifying token: ${token}`);
+    logger.info(`🔍 Hashed token: ${hashedToken}`);
+  }
+
   // Find user with valid token
   const user = await User.findByVerificationToken(hashedToken);
+
+  // Debug: Check if user found
+  if (process.env.NODE_ENV === 'development' && !user) {
+    // Try to find user without expiration check
+    const userDebug = await User.findOne({ emailVerificationToken: hashedToken });
+    if (userDebug) {
+      logger.info(`🔍 User found but token may be expired. Expire: ${userDebug.emailVerificationExpire}, Now: ${new Date()}`);
+    } else {
+      logger.info(`🔍 No user found with this hashed token`);
+    }
+  }
 
   if (!user) {
     return next(new AppError('Invalid or expired verification token', 400, 'INVALID_VERIFICATION_TOKEN'));
