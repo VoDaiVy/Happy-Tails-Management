@@ -1,14 +1,26 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home'; // Import file bạn vừa tạo
+import Home from './pages/Home';
+import DashboardLayout from './layout/DashboardLayout';
+import AdminDashboard from './pages/dashboard/AdminDashboard';
+import StaffDashboard from './pages/dashboard/StaffDashboard';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Thiết lập trang Home là trang chủ mặc định */}
         <Route path="/" element={<Home />} />
-        
-        {/* Sau này Thanh làm Login sẽ thêm vào đây */}
+
+        {/* Admin Dashboard */}
+        <Route path="/admin" element={<DashboardLayout />}>
+          <Route index element={<AdminDashboard />} />
+        </Route>
+
+        {/* Staff Dashboard */}
+        <Route path="/staff" element={<DashboardLayout />}>
+          <Route index element={<StaffDashboard />} />
+        </Route>
+
+        {/* Sau này thêm Login */}
         {/* <Route path="/login" element={<Login />} /> */}
       </Routes>
     </Router>
