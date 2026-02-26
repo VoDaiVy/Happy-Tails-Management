@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
-import Navbar from '../components/layout/Navbar'; // Giữ nguyên import Navbar của bạn
+import Navbar from '../components/layout/Navbar';
+import AuthModal from '../components/AuthModal';
 
 const Home = () => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
   const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
   
@@ -19,9 +22,26 @@ const Home = () => {
     setIsPlaying(!isPlaying);
   };
 
+  const openLoginModal = () => {
+    setAuthModalMode('login');
+    setIsAuthModalOpen(true);
+  };
+
+  const openRegisterModal = () => {
+    setAuthModalMode('register');
+    setIsAuthModalOpen(true);
+  };
+
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
+      
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        initialMode={authModalMode}
+      />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 
       {/* Widget Nhạc (Giữ nguyên) */}
@@ -63,7 +83,10 @@ const Home = () => {
               </p>
               
               <div className="flex flex-wrap gap-4">
-                <button className="px-8 py-3 bg-[#2D3436] text-white rounded-full font-bold text-sm hover:bg-[#D97853] transition-colors duration-300 shadow-lg">
+                <button 
+                  onClick={openLoginModal}
+                  className="px-8 py-3 bg-[#2D3436] text-white rounded-full font-bold text-sm hover:bg-[#D97853] transition-colors duration-300 shadow-lg"
+                >
                   Book Appointment
                 </button>
                 <button className="px-8 py-3 border border-[#2D3436]/20 rounded-full font-bold text-sm hover:bg-white transition-all flex items-center gap-2">

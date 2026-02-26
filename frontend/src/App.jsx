@@ -3,12 +3,18 @@ import Home from './pages/Home';
 import DashboardLayout from './layout/DashboardLayout';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+
+        {/* Auth Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Admin Dashboard */}
         <Route path="/admin" element={<DashboardLayout />}>
@@ -19,9 +25,6 @@ function App() {
         <Route path="/staff" element={<DashboardLayout />}>
           <Route index element={<StaffDashboard />} />
         </Route>
-
-        {/* Sau này thêm Login */}
-        {/* <Route path="/login" element={<Login />} /> */}
       </Routes>
     </Router>
   );
