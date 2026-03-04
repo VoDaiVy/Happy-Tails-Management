@@ -6,6 +6,28 @@
 const rateLimit = require('express-rate-limit');
 const { AppError } = require('../utils/AppError');
 
+// Disable rate limiting completely in development for easier testing
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔓 Rate limiter disabled for development testing');
+  
+  const noLimit = (req, res, next) => {
+    console.log(`🔓 Rate limiter bypassed for ${req.method} ${req.path}`);
+    next();
+  };
+  
+  module.exports = {
+    globalLimiter: noLimit,
+    loginLimiter: noLimit,
+    registerLimiter: noLimit,
+    forgotPasswordLimiter: noLimit,
+    resendVerificationLimiter: noLimit,
+    refreshTokenLimiter: noLimit,
+    changePasswordLimiter: noLimit,
+  };
+  
+  return; // Exit early, don't execute the rest of the code
+}
+
 /**
  * Create rate limiter with custom options
  * @param {Object} options - Rate limiter options
@@ -41,36 +63,48 @@ const globalLimiter = createRateLimiter();
 
 /**
  * Strict rate limiter for login
- * 5 requests per 15 minutes per IP
+ * 10 requests per 15 minutes per IP (increased for development)
  */
 const loginLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 10, // Increased from 5 to 10
   message: 'Too many login attempts. Please try again after 15 minutes',
   keyGenerator: (req) => {
     // Combine IP and email for more precise limiting
     return `${req.ip}-${req.body?.email || 'unknown'}`;
+  },
+  skip: (req) => {
+    // Skip in development for easier testing
+    return process.env.NODE_ENV === 'development';
   }
 });
 
 /**
  * Rate limiter for registration
- * 3 requests per hour per IP
+ * 10 requests per hour per IP (increased for development)
  */
 const registerLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,
-  message: 'Too many accounts created. Please try again after an hour'
+  max: 10, // Increased from 3 to 10
+  message: 'Too many accounts created. Please try again after an hour',
+  skip: (req) => {
+    // Skip in development for easier testing
+    return process.env.NODE_ENV === 'development';
+  }
 });
 
 /**
  * Rate limiter for forgot password
- * 3 requests per hour per IP
+ * 10 requests per hour per IP (increased for development)
  */
 const forgotPasswordLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3,
-  message: 'Too many password reset requests. Please try again after an hour'
+  max: 10, // Increased from 3 to 10
+  message: 'Too many password reset requests. Please try again after an hour',
+  skip: (req) => {
+    // Skip in development for easier testing
+    return process.env.NODE_ENV === 'development';
+  }
 });
 
 /**
