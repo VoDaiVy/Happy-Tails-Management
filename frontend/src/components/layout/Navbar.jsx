@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PawPrint, User, Menu, X } from 'lucide-react';
 
@@ -23,18 +23,17 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         </Link>
 
         <div className="hidden md:flex items-center gap-10 font-bold text-slate-700">
-          <a href="#services" className="hover:text-primary transition-colors">Dịch vụ</a>
-          <a href="#about" className="hover:text-primary transition-colors">Về chúng tôi</a>
-          <a href="#news" className="hover:text-primary transition-colors">Tin tức</a>
+          <a href="#services" className="hover:text-primary transition-colors">Dich vu</a>
+          <a href="#about" className="hover:text-primary transition-colors">Ve chung toi</a>
+          <a href="#news" className="hover:text-primary transition-colors">Tin tuc</a>
           <button 
             onClick={onLoginClick}
             className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
           >
-            <User size={18} /> Đăng nhập
+            <User size={18} /> Dang nhap
           </button>
         </div>
         
-        {/* Mobile Menu Button */}
         <button 
           className="md:hidden text-slate-900"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -43,13 +42,12 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         </button>
       </div>
 
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-white shadow-lg py-4 px-6">
           <div className="flex flex-col gap-4 font-bold text-slate-700">
-            <a href="#services" className="hover:text-primary transition-colors py-2">Dịch vụ</a>
-            <a href="#about" className="hover:text-primary transition-colors py-2">Về chúng tôi</a>
-            <a href="#news" className="hover:text-primary transition-colors py-2">Tin tức</a>
+            <a href="#services" className="hover:text-primary transition-colors py-2">Dich vu</a>
+            <a href="#about" className="hover:text-primary transition-colors py-2">Ve chung toi</a>
+            <a href="#news" className="hover:text-primary transition-colors py-2">Tin tuc</a>
             <button 
               onClick={() => {
                 setIsMobileMenuOpen(false);
@@ -57,7 +55,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
               }}
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
             >
-              <User size={18} /> Đăng nhập
+              <User size={18} /> Dang nhap
             </button>
             <button 
               onClick={() => {
@@ -66,7 +64,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
               }}
               className="flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full hover:bg-slate-900 hover:text-white transition-all"
             >
-              Đăng ký
+              Dang ky
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
@@ -11,7 +11,6 @@ const Home = () => {
   const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
   
-  // Parallax nhẹ hơn (giảm biên độ từ 100 xuống 50 để đỡ chóng mặt)
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
 
@@ -36,7 +35,6 @@ const Home = () => {
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
       <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
       
-      {/* Auth Modal */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
@@ -44,7 +42,6 @@ const Home = () => {
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 
-      {/* Widget Nhạc (Giữ nguyên) */}
       <div className="fixed bottom-6 left-6 z-50">
         <button 
           onClick={toggleMusic}
@@ -60,11 +57,8 @@ const Home = () => {
         </button>
       </div>
 
-      {/* SECTION 1: HERO - Đã thu nhỏ font và khoảng cách */}
       <section className="relative pt-28 pb-16 px-6 flex items-center">
         <div className="container mx-auto grid lg:grid-cols-12 gap-8 items-center">
-          
-          {/* Left Content */}
           <div className="lg:col-span-6 relative z-10">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#2D3436]/10 bg-white mb-6">
@@ -72,14 +66,13 @@ const Home = () => {
                 <span className="text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/60">The Future of Pet Wellness</span>
               </div>
               
-              {/* Giảm size từ text-[5.5rem] xuống 6xl */}
               <h1 className="text-5xl lg:text-6xl font-black leading-[1.1] mb-6 tracking-tight text-[#2D3436]">
                 Sanctuary for <br />
-                <span className="text-[#D97853] italic font-serif">Paws & Soul.</span>
+                <span className="text-[#D97853] italic font-serif">Paws and Soul.</span>
               </h1>
               
               <p className="text-base text-[#2D3436]/70 mb-8 max-w-md leading-relaxed font-medium">
-                Experience the perfect blend of luxurious spa treatments and cutting-edge AI health diagnostics. A retreat your pet deserves.
+                Experience the perfect blend of luxurious spa treatments and cutting-edge AI health diagnostics.
               </p>
               
               <div className="flex flex-wrap gap-4">
@@ -94,7 +87,6 @@ const Home = () => {
                 </button>
               </div>
 
-              {/* Trust Badge - Nhỏ gọn hơn */}
               <div className="mt-8 flex items-center gap-3">
                 <div className="flex -space-x-3">
                   {[1,2,3,4].map(i => (
@@ -109,7 +101,6 @@ const Home = () => {
             </motion.div>
           </div>
 
-          {/* Right Image - Giảm chiều cao từ 600px xuống 480px */}
           <div className="lg:col-span-6 relative lg:h-[480px]">
              <motion.div style={{ y: y1 }} className="relative z-10 h-full">
                <img 
@@ -118,7 +109,6 @@ const Home = () => {
                  alt="Spa Dog" 
                />
                
-               {/* Floating Glass Card - Nhỏ hơn */}
                <motion.div 
                  animate={{ y: [0, 8, 0] }}
                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -130,7 +120,7 @@ const Home = () => {
                    </div>
                    <div>
                      <p className="text-[10px] font-bold text-[#2D3436]/50 uppercase">AI Health Scan</p>
-                     <p className="text-sm font-bold text-[#2D3436]">"Rex is completely healthy!"</p>
+                     <p className="text-sm font-bold text-[#2D3436]">Rex is completely healthy!</p>
                    </div>
                  </div>
                </motion.div>
@@ -141,7 +131,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* SECTION 2: INFINITE MARQUEE - Đã sửa thành Animation trôi vô tận */}
       <div className="bg-[#D97853] py-4 overflow-hidden rotate-[-1deg] border-y-2 border-[#2D3436]">
         <div className="flex w-full overflow-hidden">
           <motion.div 
@@ -149,7 +138,6 @@ const Home = () => {
             animate={{ x: "-50%" }}
             transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
           >
-            {/* Render 2 lần nội dung để tạo vòng lặp không bị đứt quãng */}
             {[...Array(2)].map((_, i) => (
               <div key={i} className="flex items-center gap-12 mx-6">
                 <span className="text-2xl font-black text-white uppercase italic tracking-tighter">PREMIUM SPA</span>
@@ -166,12 +154,11 @@ const Home = () => {
         </div>
       </div>
 
-      {/* SECTION 3: PHILOSOPHY - Thu gọn khoảng cách */}
       <section className="py-20 px-6 bg-[#FDFBF7]">
         <div className="container mx-auto text-center max-w-3xl">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <h2 className="text-2xl md:text-4xl font-serif text-[#2D3436] mb-6 leading-tight">
-              "We believe pets are family, and family deserves the <span className="text-[#5B8C51] italic">ultimate relaxation</span>."
+              We believe pets are family, and family deserves the <span className="text-[#5B8C51] italic">ultimate relaxation</span>.
             </h2>
             <div className="grid md:grid-cols-3 gap-6 text-left mt-12">
               <PhilosophyItem title="Organic Products" desc="100% natural, chemical-free shampoos." />
@@ -182,7 +169,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* SECTION 4: SERVICES BENTO GRID - Đã thu nhỏ chiều cao */}
       <section className="py-16 px-6 bg-white rounded-t-[3rem]">
         <div className="container mx-auto">
           <div className="flex justify-between items-end mb-10">
@@ -196,7 +182,6 @@ const Home = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 h-auto md:h-[450px]">
-            {/* Card 1: Large - Spa - Giảm padding */}
             <motion.div 
               whileHover={{ scale: 0.98 }}
               className="md:col-span-1 bg-[#E8F3D6] rounded-[2.5rem] p-6 flex flex-col justify-between group cursor-pointer relative overflow-hidden"
@@ -209,16 +194,15 @@ const Home = () => {
                 <p className="text-[#2D3436]/70 font-medium text-sm mb-4">Aromatherapy baths, pawdicures, and deep tissue massages.</p>
                 <div className="inline-flex items-center gap-2 font-bold text-[#5B8C51] text-sm">Book Spa <ArrowRight size={14}/></div>
               </div>
-              <img src="https://images.unsplash.com/photo-1596272875729-ed2ff7d6d9c5?q=80&w=400" className="absolute bottom-[-20px] right-[-20px] w-40 h-40 object-cover rounded-full border-4 border-white shadow-lg opacity-80 group-hover:opacity-100 transition-opacity" />
+              <img src="https://images.unsplash.com/photo-1596272875729-ed2ff7d6d9c5?q=80&w=400" className="absolute bottom-[-20px] right-[-20px] w-40 h-40 object-cover rounded-full border-4 border-white shadow-lg opacity-80 group-hover:opacity-100 transition-opacity" alt="spa" />
             </motion.div>
 
-            {/* Middle Column - 2 Stacked Cards - Chiều cao cân đối */}
             <div className="md:col-span-1 flex flex-col gap-6">
               <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#2D3436] rounded-[2.5rem] p-6 flex flex-col justify-center text-white relative overflow-hidden cursor-pointer">
                  <div className="relative z-10">
                    <Activity className="text-[#D97853] mb-3" size={28} />
                    <h3 className="text-xl font-bold mb-1">AI Health Scan</h3>
-                   <p className="text-gray-400 text-xs">Instant dermatology & mood analysis.</p>
+                   <p className="text-gray-400 text-xs">Instant dermatology and mood analysis.</p>
                  </div>
                  <div className="absolute right-0 bottom-0 opacity-10"><Activity size={100}/></div>
               </motion.div>
@@ -230,7 +214,6 @@ const Home = () => {
               </motion.div>
             </div>
 
-            {/* Card 3: Large - Grooming */}
             <motion.div 
               whileHover={{ scale: 0.98 }}
               className="md:col-span-1 bg-[#D97853] rounded-[2.5rem] p-6 flex flex-col justify-between group cursor-pointer text-white relative overflow-hidden"
@@ -239,27 +222,26 @@ const Home = () => {
                 <PawPrint size={24} />
               </div>
               <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-2">Styling & Groom</h3>
+                <h3 className="text-2xl font-black mb-2">Styling and Groom</h3>
                 <p className="text-white/80 font-medium text-sm mb-4">Breed-specific cuts by award-winning stylists.</p>
                 <div className="inline-flex items-center gap-2 font-bold text-white border-b border-white pb-0.5 text-sm">View Lookbook <ArrowRight size={14}/></div>
               </div>
-              <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=400" className="absolute top-10 right-[-40px] w-60 h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity mix-blend-overlay" />
+              <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=400" className="absolute top-10 right-[-40px] w-60 h-full object-cover opacity-20 group-hover:opacity-40 transition-opacity mix-blend-overlay" alt="grooming" />
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* SECTION 5: AI SPOTLIGHT - Đã thu nhỏ layout */}
       <section className="py-20 px-6 bg-[#2D3436] text-white overflow-hidden rounded-b-[3rem]">
         <div className="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <motion.div style={{ y: y2 }}>
             <span className="text-[#D97853] font-bold tracking-widest uppercase text-xs mb-4 block">Powered by Google Gemini</span>
             <h2 className="text-4xl lg:text-5xl font-black mb-6 leading-none">
               It speaks <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D97853] to-[#F5E6CA]">"Dog" & "Cat".</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D97853] to-[#F5E6CA]">Dog and Cat.</span>
             </h2>
             <p className="text-gray-400 text-base mb-8 leading-relaxed max-w-md">
-              Our AI analyzes your pet's photos to detect skin conditions, suggests diet plans, and interprets body language.
+              Our AI analyzes your pet photos to detect skin conditions, suggests diet plans, and interprets body language.
             </p>
             <ul className="space-y-3 mb-8 text-sm">
               <li className="flex items-center gap-3"><CheckCircle size={18} className="text-[#5B8C51]" /> <span>Early Disease Detection</span></li>
@@ -278,9 +260,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* FOOTER - Thiết kế lại chi tiết 4 cột + Deco hình bóng thú cưng */}
       <footer className="bg-[#FDFBF7] pt-24 pb-12 px-6 relative overflow-hidden font-sans">
-        {/* Hình bóng trang trí - Độc lạ */}
         <div className="absolute bottom-0 right-0 opacity-[0.03] pointer-events-none">
             <PawPrint size={400} />
         </div>
@@ -288,93 +268,86 @@ const Home = () => {
         <div className="container mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
             
-            {/* Cột 1: Branding & Intro */}
             <div className="md:col-span-4">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="bg-[#D97853] p-2 rounded-xl"><PawPrint className="text-white" size={24} /></div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-[#2D3436] p-3 rounded-2xl"><PawPrint size={28} className="text-white" /></div>
                 <span className="text-2xl font-black tracking-tighter text-[#2D3436]">HAPPY<span className="text-[#D97853]">TAILS</span></span>
               </div>
-              <p className="text-[#2D3436]/70 leading-relaxed mb-8 pr-6 text-sm">
-                The premier AI-integrated pet care management system in Vietnam. We promise the best experience for your four-legged friends.
+              <p className="text-[#2D3436]/60 leading-relaxed mb-6 text-sm">
+                Your pet wellness sanctuary. Where luxury meets technology for the ultimate pet care experience.
               </p>
-              <div className="flex gap-4">
-                <SocialButton icon={<MapPin size={18} />} />
-                <SocialButton icon={<Mail size={18} />} />
-                <SocialButton icon={<Phone size={18} />} />
+              <div className="flex gap-3">
+                 {['facebook', 'instagram', 'twitter'].map(s => (
+                   <a key={s} href="#" className="w-10 h-10 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#D97853] hover:text-white transition-all text-[#2D3436]/60">
+                      <span className="text-xs font-bold uppercase">{s[0]}</span>
+                   </a>
+                 ))}
               </div>
             </div>
 
-            {/* Cột 2: Quick Links */}
             <div className="md:col-span-2">
-              <h4 className="text-lg font-bold text-[#2D3436] mb-6">Explore</h4>
-              <ul className="space-y-4 text-[#2D3436]/70 font-medium text-sm">
-                <li><a href="#" className="hover:text-[#D97853] transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors">Services</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors">Luxury Hotel</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors">AI Diagnostics</a></li>
+              <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Services</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</a></li>
               </ul>
             </div>
 
-            {/* Cột 3: Contact Info */}
-            <div className="md:col-span-3">
-              <h4 className="text-lg font-bold text-[#2D3436] mb-6">Contact Info</h4>
-              <ul className="space-y-4 text-[#2D3436]/70 text-sm">
+            <div className="md:col-span-2">
+               <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Company</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">About Us</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Our Team</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Blog and News</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Careers</a></li>
+              </ul>
+            </div>
+
+            <div className="md:col-span-4">
+              <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Get In Touch</h4>
+              <ul className="space-y-4 text-sm">
                 <li className="flex items-start gap-3">
-                  <MapPin size={18} className="text-[#D97853] shrink-0 mt-0.5" />
-                  <span>123 ABC Street, Hai Chau Dist, Da Nang</span>
+                  <MapPin size={18} className="text-[#D97853] mt-0.5 flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">123 Pet Wellness Ave, Suite 100<br/>Saigon, Vietnam</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <Phone size={18} className="text-[#D97853] shrink-0" />
-                  <span>Hotline: 0905 123 456</span>
+                  <Phone size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">+84 (28) 1234 5678</span>
                 </li>
-                <li className="flex items-start gap-3">
-                  <Clock size={18} className="text-[#D97853] shrink-0 mt-0.5" />
-                  <div>
-                    <p>Mon - Sat: 8:00 - 20:00</p>
-                    <p>Sunday: 9:00 - 17:00</p>
-                  </div>
+                <li className="flex items-center gap-3">
+                  <Mail size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">hello@happytails.vn</span>
+                </li>
+                 <li className="flex items-center gap-3">
+                  <Clock size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">Mon - Sat: 8AM - 8PM</span>
                 </li>
               </ul>
-            </div>
-
-            {/* Cột 4: Newsletter */}
-            <div className="md:col-span-3">
-              <h4 className="text-lg font-bold text-[#2D3436] mb-6">Newsletter</h4>
-              <p className="text-[#2D3436]/70 mb-4 text-sm">Subscribe to get 10% off your first spa booking.</p>
-              <div className="flex">
-                <input type="email" placeholder="Your email..." className="bg-white border border-[#2D3436]/10 px-4 py-3 rounded-l-xl focus:outline-none focus:border-[#D97853] w-full text-sm" />
-                <button className="bg-[#D97853] text-white px-4 py-3 rounded-r-xl font-bold hover:bg-[#c46a47] transition-colors">
-                  <ArrowRight size={18} />
-                </button>
-              </div>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-[#2D3436]/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-[#2D3436]/50 font-medium">
-            <p>© 2026 Happy Tails System.</p>
-            <div className="flex gap-6">
-              <a href="#" className="hover:text-[#D97853]">Terms of Service</a>
-              <a href="#" className="hover:text-[#D97853]">Privacy Policy</a>
+          <div className="border-t border-[#2D3436]/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-[#2D3436]/40">2024 HappyTails. All rights reserved.</p>
+            <div className="flex gap-6 text-xs">
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Privacy Policy</a>
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Terms of Service</a>
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Cookie Settings</a>
             </div>
           </div>
         </div>
       </footer>
+
     </div>
   );
 };
 
-// Sub-components
 const PhilosophyItem = ({ title, desc }) => (
   <div className="border-l-2 border-[#D97853] pl-4">
     <h4 className="text-lg font-bold text-[#2D3436] mb-1">{title}</h4>
     <p className="text-[#2D3436]/70 leading-relaxed text-sm">{desc}</p>
   </div>
-);
-
-const SocialButton = ({ icon }) => (
-  <a href="#" className="w-10 h-10 border border-[#2D3436]/10 rounded-full flex items-center justify-center text-[#2D3436]/70 hover:bg-[#D97853] hover:text-white hover:border-[#D97853] transition-all">
-    {icon}
-  </a>
 );
 
 export default Home;

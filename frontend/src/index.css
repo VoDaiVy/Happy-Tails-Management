@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @tailwind base;
 @tailwind components;
@@ -180,7 +180,6 @@
     line-height: 1.5;
   }
 
-  /* Progress component styling for pet care theme */
   [role="progressbar"] > div {
     background-color: #FF8C42;
     border-radius: 9999px;
@@ -188,17 +187,35 @@
   }
 }
 
-/* Utility class to hide scrollbar but keep scroll functionality */
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+}
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+  display: none;
 }
 
-/* Hide browser's native password reveal button */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
   display: none;
