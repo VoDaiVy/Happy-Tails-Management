@@ -41,7 +41,6 @@ const categorySchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-categorySchema.index({ name: 1 });
 categorySchema.index({ isActive: 1 });
 
 const Category = mongoose.model('Category', categorySchema);

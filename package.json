@@ -1,0 +1,34 @@
+{
+  "name": "happy-tails-management",
+  "version": "1.0.0",
+  "description": "Happy Tails Pet Management System - Full Stack Application",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "start:backend": "cd backend && node index.js",
+    "start:frontend": "cd frontend && npm run preview",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build:frontend": "cd frontend && npm run build",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "pet-management",
+    "booking-system",
+    "react",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
+  "author": "Happy Tails Team",
+  "license": "MIT"
+}

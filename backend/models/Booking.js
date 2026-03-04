@@ -121,7 +121,6 @@ bookingSchema.pre('save', async function(next) {
 });
 
 // Indexes
-bookingSchema.index({ bookingNumber: 1 });
 bookingSchema.index({ customer: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ bookingDate: 1 });

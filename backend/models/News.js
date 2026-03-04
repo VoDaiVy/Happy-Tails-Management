@@ -81,7 +81,6 @@ newsSchema.pre('save', function(next) {
 });
 
 // Indexes
-newsSchema.index({ slug: 1 });
 newsSchema.index({ isPublished: 1, publishedAt: -1 });
 newsSchema.index({ category: 1 });
 newsSchema.index({ author: 1 });
