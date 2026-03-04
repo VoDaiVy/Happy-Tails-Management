@@ -23,6 +23,19 @@ const logger = require("./utils/logger");
 
 // Import routes
 const authRoutes = require("./routes/auth");
+const profileRoutes = require("./routes/profile");
+const petRoutes = require("./routes/pet");
+const cartRoutes = require("./routes/cart");
+const serviceRoutes = require("./routes/service");
+const categoryRoutes = require("./routes/category");
+const bookingRoutes = require("./routes/booking");
+const roomRoutes = require("./routes/room");
+const transactionRoutes = require("./routes/transaction");
+const notificationRoutes = require("./routes/notification");
+const newsRoutes = require("./routes/news");
+const policyRoutes = require("./routes/policy");
+const feedbackRoutes = require("./routes/feedback");
+const adminRoutes = require("./routes/admin");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -38,14 +51,22 @@ app.use(helmet());
 
 // Enable CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:5000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5000",
+    process.env.FRONTEND_URL || "http://localhost:5173"
+  ],
   credentials: true, // Allow cookies
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 
-// Rate limiting
-if (process.env.NODE_ENV !== "test") {
+// Rate limiting - Disable in development for easier testing
+if (process.env.NODE_ENV === "production") {
   app.use("/api", globalLimiter);
 }
 
@@ -106,6 +127,43 @@ app.get("/api/health", (req, res) => {
 
 // Auth routes
 app.use("/api/auth", authRoutes);
+
+// Profile routes
+app.use("/api/profile", profileRoutes);
+
+// Pet routes  
+app.use("/api/pets", petRoutes);
+
+// Cart routes
+app.use("/api/cart", cartRoutes);
+
+// Service & Category routes
+app.use("/api/services", serviceRoutes);
+app.use("/api/categories", categoryRoutes);
+
+// Booking routes
+app.use("/api/bookings", bookingRoutes);
+
+// Room routes
+app.use("/api/rooms", roomRoutes);
+
+// Transaction routes
+app.use("/api/transactions", transactionRoutes);
+
+// Notification routes
+app.use("/api/notifications", notificationRoutes);
+
+// News routes
+app.use("/api/news", newsRoutes);
+
+// Policy routes
+app.use("/api/policies", policyRoutes);
+
+// Feedback routes
+app.use("/api/feedback", feedbackRoutes);
+
+// Admin routes
+app.use("/api/admin", adminRoutes);
 
 // ==================== ERROR HANDLING ====================
 
