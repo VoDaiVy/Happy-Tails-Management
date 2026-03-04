@@ -68,7 +68,6 @@ policySchema.pre('save', function(next) {
 });
 
 // Indexes
-policySchema.index({ slug: 1 });
 policySchema.index({ type: 1 });
 policySchema.index({ isActive: 1 });
 

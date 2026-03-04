@@ -61,8 +61,5 @@ cartSchema.pre('save', function(next) {
   next();
 });
 
-// Indexes
-cartSchema.index({ userID: 1 });
-
 const Cart = mongoose.model('Cart', cartSchema);
 module.exports = Cart;
