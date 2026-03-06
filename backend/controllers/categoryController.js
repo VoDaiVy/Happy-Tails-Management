@@ -3,9 +3,9 @@
  * Handles category management operations
  */
 
-const Category = require('../models/Category');
+const categoryService = require('../services/category.service');
 const { catchAsync } = require('../utils/catchAsync');
-const AppError = require('../utils/AppError');
+const ApiResponse = require('../utils/ApiResponse');
 
 /**
  * Get all categories
@@ -13,22 +13,15 @@ const AppError = require('../utils/AppError');
  * @access Public
  */
 exports.getAllCategories = catchAsync(async (req, res, next) => {
-  const { isActive = 'true' } = req.query;
+  const query = req.validatedQuery || req.query;
   
-  const filter = {};
-  if (isActive !== 'all') {
-    filter.isActive = isActive === 'true';
-  }
+  const { data, pagination } = await categoryService.getAllCategories(query);
 
-  const categories = await Category.find(filter)
-    .populate('createdBy', 'name email')
-    .sort('name');
-
-  res.status(200).json({
-    status: 'success',
-    results: categories.length,
-    data: { categories }
-  });
+  res.status(200).json(ApiResponse.success(
+    'Categories fetched successfully',
+    data,
+    pagination
+  ));
 });
 
 /**
@@ -37,17 +30,12 @@ exports.getAllCategories = catchAsync(async (req, res, next) => {
  * @access Public
  */
 exports.getCategoryById = catchAsync(async (req, res, next) => {
-  const category = await Category.findById(req.params.id)
-    .populate('createdBy', 'name email');
+  const category = await categoryService.getCategoryById(req.params.id);
 
-  if (!category) {
-    return next(new AppError('Category not found', 404, 'CATEGORY_NOT_FOUND'));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: { category }
-  });
+  res.status(200).json(ApiResponse.success(
+    'Category fetched successfully',
+    category
+  ));
 });
 
 /**
@@ -56,20 +44,12 @@ exports.getCategoryById = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.createCategory = catchAsync(async (req, res, next) => {
-  const { name, description, icon } = req.body;
+  const category = await categoryService.createCategory(req.body, req.user.id);
 
-  const category = await Category.create({
-    name,
-    description,
-    icon,
-    createdBy: req.user.id
-  });
-
-  res.status(201).json({
-    status: 'success',
-    message: 'Category created successfully',
-    data: { category }
-  });
+  res.status(201).json(ApiResponse.success(
+    'Category created successfully',
+    category
+  ));
 });
 
 /**
@@ -78,23 +58,16 @@ exports.createCategory = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.updateCategory = catchAsync(async (req, res, next) => {
-  const { name, description, icon, isActive } = req.body;
-
-  const category = await Category.findByIdAndUpdate(
+  const category = await categoryService.updateCategory(
     req.params.id,
-    { name, description, icon, isActive, updatedBy: req.user.id },
-    { new: true, runValidators: true }
+    req.body,
+    req.user.id
   );
 
-  if (!category) {
-    return next(new AppError('Category not found', 404, 'CATEGORY_NOT_FOUND'));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Category updated successfully',
-    data: { category }
-  });
+  res.status(200).json(ApiResponse.success(
+    'Category updated successfully',
+    category
+  ));
 });
 
 /**
@@ -103,19 +76,10 @@ exports.updateCategory = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.deleteCategory = catchAsync(async (req, res, next) => {
-  const category = await Category.findByIdAndUpdate(
-    req.params.id,
-    { isActive: false, updatedBy: req.user.id },
-    { new: true }
-  );
+  await categoryService.deleteCategory(req.params.id, req.user.id);
 
-  if (!category) {
-    return next(new AppError('Category not found', 404, 'CATEGORY_NOT_FOUND'));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Category deleted successfully',
-    data: null
-  });
+  res.status(200).json(ApiResponse.success(
+    'Category deleted successfully',
+    null
+  ));
 });

@@ -1,6 +1,6 @@
 /**
  * Category Routes
- * Category management
+ * Category management with Joi validation
  */
 
 const express = require('express');
@@ -13,21 +13,27 @@ const {
 } = require('../controllers/categoryController');
 
 const { protect, restrictTo, optionalAuth } = require('../middleware/auth');
+const { validate, validateQuery } = require('../middleware/validate');
+const {
+  createCategorySchema,
+  updateCategorySchema,
+  getCategoriesQuerySchema
+} = require('../validations/category.validation');
 
 const router = express.Router();
 
 // Public routes
-router.get('/', optionalAuth, getAllCategories);  // GET /api/categories - Get all categories
-router.get('/:id', optionalAuth, getCategoryById);  // GET /api/categories/:id - Get category details
+router.get('/', optionalAuth, validateQuery(getCategoriesQuerySchema), getAllCategories);
+router.get('/:id', optionalAuth, getCategoryById);
 
-// Protected routes - Staff and Admin only
+// Protected routes - Admin only
 router.use(protect);
-router.use(restrictTo('staff', 'admin'));
+router.use(restrictTo('admin'));
 
-router.post('/', createCategory);  // POST /api/categories - Create category
+router.post('/', validate(createCategorySchema), createCategory);
 
 router.route('/:id')
-  .put(updateCategory)      // PUT /api/categories/:id - Update category
-  .delete(restrictTo('admin'), deleteCategory);  // DELETE /api/categories/:id - Delete category (Admin only)
+  .put(validate(updateCategorySchema), updateCategory)
+  .delete(deleteCategory);
 
 module.exports = router;
