@@ -261,16 +261,21 @@ userSchema.methods.generatePasswordResetToken = function() {
 };
 
 /**
- * Generate email verification token
- * @returns {string} Plain verification token
+ * Generate email verification OTP (6 digits)
+ * @returns {string} 6-digit OTP code
  */
-userSchema.methods.generateEmailVerificationToken = function() {
-  const { token, hashedToken } = generateRandomToken();
+userSchema.methods.generateEmailVerificationOTP = function() {
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Hash OTP before storing
+  const crypto = require('crypto');
+  const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
 
-  this.emailVerificationToken = hashedToken;
-  this.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  this.emailVerificationToken = hashedOTP;
+  this.emailVerificationExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-  return token;
+  return otp;
 };
 
 /**

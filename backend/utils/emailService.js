@@ -71,15 +71,14 @@ const sendWelcomeEmail = async (to, name) => {
 };
 
 /**
- * Send email verification
+ * Send email verification OTP
  * @param {string} to - Recipient email
  * @param {string} name - User's name
- * @param {string} token - Verification token
+ * @param {string} otp - 6-digit OTP code
  * @returns {Promise<Object>}
  */
-const sendVerificationEmail = async (to, name, token) => {
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
-  const template = emailTemplates.verification(name, verificationUrl);
+const sendVerificationEmail = async (to, name, otp) => {
+  const template = emailTemplates.verification(name, otp);
   return sendEmail({ to, ...template });
 };
 

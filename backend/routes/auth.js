@@ -92,12 +92,12 @@ router.post(
 );
 
 /**
- * @route   GET /api/auth/verify-email/:token
- * @desc    Verify email address
+ * @route   POST /api/auth/verify-email
+ * @desc    Verify email with OTP
  * @access  Public
  */
-router.get(
-  '/verify-email/:token',
+router.post(
+  '/verify-email',
   authController.verifyEmail
 );
 

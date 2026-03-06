@@ -86,17 +86,17 @@ exports.register = catchAsync(async (req, res, next) => {
     role: role === 'admin' ? 'user' : role // Prevent admin registration
   });
 
-  // Generate email verification token
-  const verificationToken = user.generateEmailVerificationToken();
+  // Generate email verification OTP
+  const otp = user.generateEmailVerificationOTP();
   await user.save({ validateBeforeSave: false });
 
-  // Log verification token in development (for testing)
+  // Log OTP in development (for testing)
   if (process.env.NODE_ENV === 'development') {
-    logger.info(`📧 Verification token for ${user.email}: ${verificationToken}`);
+    logger.info(`📧 OTP for ${user.email}: ${otp}`);
   }
 
   // Send verification email (non-blocking)
-  sendVerificationEmail(user.email, user.name, verificationToken).catch(err => {
+  sendVerificationEmail(user.email, user.name, otp).catch(err => {
     logger.error('Failed to send verification email', { error: err.message });
   });
 
@@ -416,38 +416,36 @@ exports.changePassword = catchAsync(async (req, res, next) => {
 // ==================== EMAIL VERIFICATION ====================
 
 /**
- * @desc    Verify email with token
- * @route   GET /api/auth/verify-email/:token
+ * @desc    Verify email with OTP
+ * @route   POST /api/auth/verify-email
  * @access  Public
  */
 exports.verifyEmail = catchAsync(async (req, res, next) => {
-  const { token } = req.params;
+  const { email, otp } = req.body;
 
-  // Hash token
-  const hashedToken = hashToken(token);
+  if (!email || !otp) {
+    return next(new AppError('Email and OTP are required', 400, 'MISSING_FIELDS'));
+  }
+
+  // Hash OTP to compare
+  const crypto = require('crypto');
+  const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
 
   // Debug log in development
   if (process.env.NODE_ENV === 'development') {
-    logger.info(`🔍 Verifying token: ${token}`);
-    logger.info(`🔍 Hashed token: ${hashedToken}`);
+    logger.info(`🔍 Verifying OTP for: ${email}`);
   }
 
-  // Find user with valid token
-  const user = await User.findByVerificationToken(hashedToken);
-
-  // Debug: Check if user found
-  if (process.env.NODE_ENV === 'development' && !user) {
-    // Try to find user without expiration check
-    const userDebug = await User.findOne({ emailVerificationToken: hashedToken });
-    if (userDebug) {
-      logger.info(`🔍 User found but token may be expired. Expire: ${userDebug.emailVerificationExpire}, Now: ${new Date()}`);
-    } else {
-      logger.info(`🔍 No user found with this hashed token`);
-    }
-  }
+  // Find user with valid OTP
+  const user = await User.findOne({
+    email: email.toLowerCase(),
+    emailVerificationToken: hashedOTP,
+    emailVerificationExpire: { $gt: Date.now() },
+    isDeleted: false
+  });
 
   if (!user) {
-    return next(new AppError('Invalid or expired verification token', 400, 'INVALID_VERIFICATION_TOKEN'));
+    return next(new AppError('Mã OTP không hợp lệ hoặc đã hết hạn', 400, 'INVALID_OTP'));
   }
 
   // Verify email
@@ -465,7 +463,7 @@ exports.verifyEmail = catchAsync(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Email verified successfully'
+    message: 'Xác thực email thành công'
   });
 });
 
@@ -480,7 +478,7 @@ exports.resendVerification = catchAsync(async (req, res, next) => {
   // Always return success to prevent email enumeration
   const successResponse = {
     success: true,
-    message: 'If your email is registered and unverified, you will receive a verification link'
+    message: 'Nếu email đã đăng ký và chưa xác thực, bạn sẽ nhận được mã OTP mới'
   };
 
   const user = await User.findOne({ 
@@ -493,12 +491,17 @@ exports.resendVerification = catchAsync(async (req, res, next) => {
     return res.status(200).json(successResponse);
   }
 
-  // Generate new token
-  const verificationToken = user.generateEmailVerificationToken();
+  // Generate new OTP
+  const otp = user.generateEmailVerificationOTP();
   await user.save({ validateBeforeSave: false });
 
+  // Log OTP in development
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`📧 OTP for ${user.email}: ${otp}`);
+  }
+
   // Send email
-  sendVerificationEmail(user.email, user.name, verificationToken).catch(err => {
+  sendVerificationEmail(user.email, user.name, otp).catch(err => {
     logger.error('Failed to send verification email', { error: err.message });
   });
 
