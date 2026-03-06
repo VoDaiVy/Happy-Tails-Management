@@ -157,7 +157,7 @@ const validateRegistration = (data) => {
 
   // Validate role if provided
   if (data.role) {
-    const validRoles = ['user', 'admin', 'moderator'];
+    const validRoles = ['customer', 'staff', 'admin'];
     if (!validRoles.includes(data.role)) {
       errors.role = 'Invalid role';
     } else {
