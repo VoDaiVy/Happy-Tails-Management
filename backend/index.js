@@ -36,6 +36,7 @@ const newsRoutes = require("./routes/news");
 const policyRoutes = require("./routes/policy");
 const feedbackRoutes = require("./routes/feedback");
 const adminRoutes = require("./routes/admin");
+const aiRoutes = require("./routes/ai");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -164,6 +165,9 @@ app.use("/api/feedback", feedbackRoutes);
 
 // Admin routes
 app.use("/api/admin", adminRoutes);
+
+// AI routes
+app.use("/api/ai", aiRoutes);
 
 // ==================== ERROR HANDLING ====================
 
