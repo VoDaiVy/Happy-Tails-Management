@@ -1,6 +1,6 @@
 /**
  * Service Routes
- * Service management and browsing
+ * Service management with Joi validation
  */
 
 const express = require('express');
@@ -13,21 +13,27 @@ const {
 } = require('../controllers/serviceController');
 
 const { protect, restrictTo, optionalAuth } = require('../middleware/auth');
+const { validate, validateQuery } = require('../middleware/validate');
+const {
+  createServiceSchema,
+  updateServiceSchema,
+  getServicesQuerySchema
+} = require('../validations/service.validation');
 
 const router = express.Router();
 
 // Public routes (with optional auth for better experience)
-router.get('/', optionalAuth, getAllServices);  // GET /api/services - Get all services
-router.get('/:id', optionalAuth, getServiceById);  // GET /api/services/:id - Get service details
+router.get('/', optionalAuth, validateQuery(getServicesQuerySchema), getAllServices);
+router.get('/:id', optionalAuth, getServiceById);
 
-// Protected routes - Staff and Admin only
+// Protected routes - Admin only
 router.use(protect);
-router.use(restrictTo('staff', 'admin'));
+router.use(restrictTo('admin'));
 
-router.post('/', createService);  // POST /api/services - Create service
+router.post('/', validate(createServiceSchema), createService);
 
 router.route('/:id')
-  .put(updateService)       // PUT /api/services/:id - Update service
-  .delete(restrictTo('admin'), deleteService);  // DELETE /api/services/:id - Delete service (Admin only)
+  .put(validate(updateServiceSchema), updateService)
+  .delete(deleteService);
 
 module.exports = router;
