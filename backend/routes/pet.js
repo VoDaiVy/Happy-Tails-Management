@@ -15,15 +15,19 @@ const {
   addMedicalRecord,
   addVaccination,
   getVaccinationReminders,
-  getPetStatistics
+  getPetStatistics,
+  quickCreatePet
 } = require('../controllers/petController');
 
-const { protect } = require('../middleware/auth');
+const { protect, restrictTo } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes in this router
 router.use(protect);
+
+// Staff / Admin — quick-create a pet for a walk-in guest (must be before /:id)
+router.post('/staff/quick-create', restrictTo('staff', 'admin'), quickCreatePet);  // POST /api/pets/staff/quick-create
 
 // Pet Statistics & Reminders (before parameterized routes)
 router.get('/statistics', getPetStatistics);           // GET /api/pets/statistics - Get pet statistics
