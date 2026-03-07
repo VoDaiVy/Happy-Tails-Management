@@ -222,3 +222,143 @@ exports.getStaffList = catchAsync(async (req, res, next) => {
     data: { staff }
   });
 });
+
+// ==================== NEW ADMIN DASHBOARD APIs ====================
+
+const adminService = require('../services/admin.service');
+const ApiResponse = require('../utils/ApiResponse');
+const { validate, validateQuery } = require('../middleware/validate');
+const {
+  blockUserSchema,
+  getUsersQuerySchema,
+  getRevenueQuerySchema,
+  getTopServicesQuerySchema
+} = require('../validations/admin.validation');
+
+/**
+ * Get users list with filter, search, and pagination
+ * @route GET /api/admin/users/list
+ * @access Private (Admin)
+ */
+exports.getUsersList = catchAsync(async (req, res, next) => {
+  // Validate query
+  const { error, value } = getUsersQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    const errors = error.details.map(d => ({
+      field: d.path.join('.'),
+      message: d.message.replace(/['"]/g, '')
+    }));
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const result = await adminService.getUsers(value);
+  
+  res.status(200).json(ApiResponse.success('Users fetched successfully', result.data, result.pagination));
+});
+
+/**
+ * Get user detail by ID
+ * @route GET /api/admin/users/:id/detail
+ * @access Private (Admin)
+ */
+exports.getUserDetail = catchAsync(async (req, res, next) => {
+  const user = await adminService.getUserById(req.params.id);
+  
+  res.status(200).json(ApiResponse.success('User fetched successfully', { user }));
+});
+
+/**
+ * Block a user account
+ * @route PUT /api/admin/users/:id/block
+ * @access Private (Admin)
+ */
+exports.blockUserAccount = catchAsync(async (req, res, next) => {
+  // Validate body
+  const { error, value } = blockUserSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true
+  });
+  
+  if (error) {
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const result = await adminService.blockUser(req.params.id, req.user._id, value.reason);
+  
+  res.status(200).json(ApiResponse.success(result.message, { user: result.user }));
+});
+
+/**
+ * Unblock a user account
+ * @route PUT /api/admin/users/:id/unblock
+ * @access Private (Admin)
+ */
+exports.unblockUserAccount = catchAsync(async (req, res, next) => {
+  const result = await adminService.unblockUser(req.params.id, req.user._id);
+  
+  res.status(200).json(ApiResponse.success(result.message, { user: result.user }));
+});
+
+/**
+ * Get dashboard overview statistics
+ * @route GET /api/admin/stats/overview
+ * @access Private (Admin)
+ */
+exports.getOverview = catchAsync(async (req, res, next) => {
+  const data = await adminService.getOverview();
+  
+  res.status(200).json(ApiResponse.success('Overview fetched successfully', data));
+});
+
+/**
+ * Get revenue statistics with chart data
+ * @route GET /api/admin/stats/revenue
+ * @access Private (Admin)
+ */
+exports.getRevenueStats = catchAsync(async (req, res, next) => {
+  // Validate query
+  const { error, value } = getRevenueQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    const customError = error.details.find(d => d.type === 'any.custom');
+    if (customError) {
+      return next(new AppError(customError.context.message, 400, 'VALIDATION_ERROR'));
+    }
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const data = await adminService.getRevenueStats(value);
+  
+  res.status(200).json(ApiResponse.success('Revenue stats fetched successfully', data));
+});
+
+/**
+ * Get top services by revenue
+ * @route GET /api/admin/stats/top-services
+ * @access Private (Admin)
+ */
+exports.getTopServices = catchAsync(async (req, res, next) => {
+  // Validate query
+  const { error, value } = getTopServicesQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const data = await adminService.getTopServices(value);
+  
+  res.status(200).json(ApiResponse.success('Top services fetched successfully', data));
+});

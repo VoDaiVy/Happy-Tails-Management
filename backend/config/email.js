@@ -73,31 +73,33 @@ const emailTemplates = {
   }),
 
   /**
-   * Email verification template
+   * Email verification OTP template
    * @param {string} name - User's name
-   * @param {string} verificationUrl - Verification link
+   * @param {string} otp - 6-digit OTP code
    * @returns {Object} Email template
    */
-  verification: (name, verificationUrl) => ({
-    subject: 'Verify Your Email - Happy Tails 🐾',
+  verification: (name, otp) => ({
+    subject: 'Mã xác thực Email - Happy Tails 🐾',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #D97853, #5B8C51); padding: 30px; text-align: center;">
           <h1 style="color: white; margin: 0;">🐾 Happy Tails</h1>
         </div>
         <div style="padding: 30px; background: #FDFBF7;">
-          <h2 style="color: #2D3436;">Verify Your Email</h2>
+          <h2 style="color: #2D3436;">Xác thực Email của bạn</h2>
           <p style="color: #666; line-height: 1.6;">
-            Hi ${name}, please click the button below to verify your email address.
+            Xin chào ${name}, đây là mã OTP để xác thực email của bạn:
           </p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" 
-               style="background: #5B8C51; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">
-              Verify Email
-            </a>
+            <div style="background: #5B8C51; color: white; padding: 20px 40px; display: inline-block; border-radius: 10px; font-size: 32px; font-weight: bold; letter-spacing: 8px;">
+              ${otp}
+            </div>
           </div>
-          <p style="color: #999; font-size: 12px;">
-            This link will expire in 24 hours. If you didn't create an account, please ignore this email.
+          <p style="color: #666; line-height: 1.6; text-align: center;">
+            Nhập mã này vào ứng dụng để hoàn tất đăng ký.
+          </p>
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            Mã này sẽ hết hạn sau 10 phút. Nếu bạn không tạo tài khoản, vui lòng bỏ qua email này.
           </p>
         </div>
         <div style="background: #2D3436; padding: 20px; text-align: center;">

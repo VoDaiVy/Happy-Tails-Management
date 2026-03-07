@@ -1,18 +1,26 @@
 /**
  * Cart Routes
- * Shopping cart operations for customers
+ * Shopping cart operations with Joi validation
  */
 
 const express = require('express');
 const {
-  getMyCart,
+  getCart,
   addToCart,
   updateCartItem,
-  removeFromCart,
-  clearCart
+  removeCartItem,
+  clearCart,
+  checkout
 } = require('../controllers/cartController');
 
 const { protect, restrictTo } = require('../middleware/auth');
+const { validate, validateParams } = require('../middleware/validate');
+const {
+  addToCartSchema,
+  updateCartItemSchema,
+  checkoutSchema,
+  itemIdParamSchema
+} = require('../validations/cart.validation');
 
 const router = express.Router();
 
@@ -22,13 +30,14 @@ router.use(restrictTo('customer'));
 
 // Cart routes
 router.route('/')
-  .get(getMyCart)           // GET /api/cart - Get my cart
-  .delete(clearCart);       // DELETE /api/cart - Clear cart
+  .get(getCart)              // GET /api/cart - Get my cart
+  .delete(clearCart);        // DELETE /api/cart - Clear cart
 
-router.post('/items', addToCart);  // POST /api/cart/items - Add item to cart
+router.post('/add', validate(addToCartSchema), addToCart);  // POST /api/cart/add - Add item to cart
+router.post('/checkout', validate(checkoutSchema), checkout); // POST /api/cart/checkout - Checkout
 
 router.route('/items/:itemId')
-  .put(updateCartItem)      // PUT /api/cart/items/:itemId - Update cart item
-  .delete(removeFromCart);  // DELETE /api/cart/items/:itemId - Remove item from cart
+  .put(validateParams(itemIdParamSchema), validate(updateCartItemSchema), updateCartItem)      // PUT /api/cart/items/:itemId - Update cart item
+  .delete(validateParams(itemIdParamSchema), removeCartItem);  // DELETE /api/cart/items/:itemId - Remove item from cart
 
 module.exports = router;

@@ -24,12 +24,6 @@ const protect = catchAsync(async (req, res, next) => {
     token = req.cookies.accessToken;
   }
 
-  // Debug: Log token info
-  console.log('🔍 Auth Debug:');
-  console.log('- Headers:', req.headers.authorization?.substring(0, 50) + '...');
-  console.log('- Token exists:', !!token);
-  console.log('- Token preview:', token?.substring(0, 20) + '...');
-
   // 2. Check if token exists
   if (!token) {
     return next(new AppError('Please log in to access this resource', 401, AUTH_ERROR_CODES.TOKEN_MISSING));
@@ -57,14 +51,20 @@ const protect = catchAsync(async (req, res, next) => {
   }
 
   // 4. Check if user still exists
-  console.log('- Looking for user with ID:', decoded.id);
-  const user = await User.findById(decoded.id);
-  console.log('- User found:', !!user);
-  console.log('- User active:', user?.isActive);
-  console.log('- User deleted:', user?.isDeleted);
+  const user = await User.findById(decoded.id).select('+password');
   
   if (!user || user.isDeleted || !user.isActive) {
     return next(new AppError('User no longer exists or is inactive', 401, AUTH_ERROR_CODES.USER_NOT_FOUND));
+  }
+
+  // 5. Check if user is blocked
+  if (user.isBlocked) {
+    const error = new AppError('Your account has been blocked', 403, 'ACCOUNT_BLOCKED');
+    error.errors = {
+      reason: user.blockReason,
+      blockAt: user.blockAt
+    };
+    return next(error);
   }
 
   // 6. Check if user changed password after token was issued

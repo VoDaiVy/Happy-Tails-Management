@@ -5,61 +5,115 @@
 
 const mongoose = require('mongoose');
 
+/**
+ * Cart Item Subdocument Schema
+ * Stores snapshot of service data at time of adding to cart
+ */
 const cartItemSchema = new mongoose.Schema({
-  service: {
+  serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
     required: true
   },
-  pet: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'UserPet',
-    required: true
-  },
-  quantity: {
-    type: Number,
-    default: 1,
-    min: [1, 'Quantity must be at least 1']
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
   price: {
     type: Number,
     required: true,
     min: [0, 'Price cannot be negative']
   },
-  notes: {
+  duration: {
+    type: Number,
+    required: true,
+    min: [1, 'Duration must be at least 1 minute']
+  },
+  imageUrl: {
     type: String,
+    default: null
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    default: 1,
+    min: [1, 'Quantity must be at least 1'],
+    max: [99, 'Maximum quantity is 99']
+  },
+  subtotal: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  note: {
+    type: String,
+    default: '',
     trim: true,
-    maxlength: [500, 'Notes must be less than 500 characters']
+    maxlength: [200, 'Note must be less than 200 characters']
+  },
+  addedAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
-  _id: true,
-  timestamps: true
+  _id: true
 });
 
 const cartSchema = new mongoose.Schema({
-  userID: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
     unique: true
   },
   items: [cartItemSchema],
-  totalAmount: {
+  totalPrice: {
     type: Number,
     default: 0,
-    min: [0, 'Total amount cannot be negative']
+    min: [0, 'Total price cannot be negative']
+  },
+  totalItems: {
+    type: Number,
+    default: 0,
+    min: [0, 'Total items cannot be negative']
   }
 }, {
   timestamps: true
 });
 
-// Calculate total amount before saving
-cartSchema.pre('save', function(next) {
-  this.totalAmount = this.items.reduce((total, item) => {
-    return total + (item.price * item.quantity);
-  }, 0);
-  next();
-});
+// Index for fast lookup by userId
+cartSchema.index({ userId: 1 }, { unique: true });
+
+/**
+ * Recalculate cart totals
+ * Computes subtotal for each item and updates totalPrice/totalItems
+ * @returns {this} Cart instance for chaining
+ */
+cartSchema.methods.recalculate = function() {
+  let totalPrice = 0;
+  let totalItems = 0;
+
+  this.items.forEach(item => {
+    item.subtotal = item.price * item.quantity;
+    totalPrice += item.subtotal;
+    totalItems += item.quantity;
+  });
+
+  this.totalPrice = totalPrice;
+  this.totalItems = totalItems;
+  
+  return this;
+};
+
+/**
+ * Find cart by user ID with populated service data
+ * @param {ObjectId} userId - User's ID
+ * @returns {Promise<Cart>} Cart document
+ */
+cartSchema.statics.findByUser = function(userId) {
+  return this.findOne({ userId }).populate('items.serviceId', 'name isActive price imageUrl');
+};
 
 const Cart = mongoose.model('Cart', cartSchema);
 module.exports = Cart;
