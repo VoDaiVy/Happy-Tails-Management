@@ -5,12 +5,14 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Service from './pages/Service';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/service" element={<Service />} />
 
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />

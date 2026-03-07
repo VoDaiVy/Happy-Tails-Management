@@ -23,7 +23,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         </Link>
 
         <div className="hidden md:flex items-center gap-10 font-bold text-slate-700">
-          <a href="#services" className="hover:text-primary transition-colors">Dich vu</a>
+          <Link to="/service" className="hover:text-primary transition-colors">Dich vu</Link>
           <a href="#about" className="hover:text-primary transition-colors">Ve chung toi</a>
           <a href="#news" className="hover:text-primary transition-colors">Tin tuc</a>
           <button 
@@ -45,7 +45,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-white shadow-lg py-4 px-6">
           <div className="flex flex-col gap-4 font-bold text-slate-700">
-            <a href="#services" className="hover:text-primary transition-colors py-2">Dich vu</a>
+            <Link to="/service" className="hover:text-primary transition-colors py-2">Dich vu</Link>
             <a href="#about" className="hover:text-primary transition-colors py-2">Ve chung toi</a>
             <a href="#news" className="hover:text-primary transition-colors py-2">Tin tuc</a>
             <button 
