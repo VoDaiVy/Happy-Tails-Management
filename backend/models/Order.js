@@ -109,6 +109,7 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ orderCode: 1 }, { unique: true });
 orderSchema.index({ status: 1 });
+orderSchema.index({ status: 1, createdAt: -1 }); // For revenue stats aggregation
 
 /**
  * Generate unique order code

@@ -111,6 +111,30 @@ const userSchema = new mongoose.Schema({
   },
   deletedAt: Date,
 
+  // Block Status
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  blockReason: {
+    type: String,
+    default: null,
+    maxlength: [500, 'Block reason must be less than 500 characters']
+  },
+  blockAt: {
+    type: Date,
+    default: null
+  },
+  unblockedAt: {
+    type: Date,
+    default: null
+  },
+  blockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+
   // Tracking
   lastLogin: Date,
   lastLoginIP: String,
@@ -183,6 +207,34 @@ userSchema.pre('save', function() {
  */
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+/**
+ * Block user account
+ * @param {ObjectId} adminId - ID of admin performing the block
+ * @param {string} reason - Reason for blocking
+ * @returns {Promise<User>} Updated user document
+ */
+userSchema.methods.block = async function(adminId, reason) {
+  this.isBlocked = true;
+  this.blockReason = reason || 'No reason provided';
+  this.blockAt = new Date();
+  this.blockedBy = adminId;
+  this.unblockedAt = null;
+  return this.save({ validateBeforeSave: false });
+};
+
+/**
+ * Unblock user account
+ * @returns {Promise<User>} Updated user document
+ */
+userSchema.methods.unblock = async function() {
+  this.isBlocked = false;
+  this.blockReason = null;
+  this.blockAt = null;
+  this.unblockedAt = new Date();
+  this.blockedBy = null;
+  return this.save({ validateBeforeSave: false });
 };
 
 /**

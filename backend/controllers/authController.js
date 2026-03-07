@@ -316,6 +316,18 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
+  // Log reset token for development/testing (Postman)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('========================================');
+    console.log('🔑 PASSWORD RESET TOKEN (DEV ONLY)');
+    console.log('========================================');
+    console.log('Email:', user.email);
+    console.log('Reset Token:', resetToken);
+    console.log('Reset URL:', `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`);
+    console.log('Expires in: 10 minutes');
+    console.log('========================================');
+  }
+
   // Send email
   try {
     await sendPasswordResetEmail(user.email, user.name, resetToken);
@@ -327,6 +339,18 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     logger.error('Failed to send reset email', { error: error.message });
+  }
+
+  // In development, include resetToken in response for Postman testing
+  if (process.env.NODE_ENV !== 'production') {
+    return res.status(200).json({
+      ...successResponse,
+      devOnly: {
+        resetToken,
+        resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`,
+        expiresIn: '10 minutes'
+      }
+    });
   }
 
   res.status(200).json(successResponse);

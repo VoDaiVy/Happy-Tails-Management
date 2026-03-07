@@ -57,6 +57,16 @@ const protect = catchAsync(async (req, res, next) => {
     return next(new AppError('User no longer exists or is inactive', 401, AUTH_ERROR_CODES.USER_NOT_FOUND));
   }
 
+  // 5. Check if user is blocked
+  if (user.isBlocked) {
+    const error = new AppError('Your account has been blocked', 403, 'ACCOUNT_BLOCKED');
+    error.errors = {
+      reason: user.blockReason,
+      blockAt: user.blockAt
+    };
+    return next(error);
+  }
+
   // 6. Check if user changed password after token was issued
   if (user.changedPasswordAfter && user.changedPasswordAfter(decoded.iat)) {
     return next(new AppError('Password recently changed. Please log in again', 401, AUTH_ERROR_CODES.TOKEN_INVALID));
