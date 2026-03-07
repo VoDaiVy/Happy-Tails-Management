@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import DashboardLayout from './layout/DashboardLayout';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
+import AdminNewsManagement from './pages/dashboard/admin/AdminNewsManagement';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -23,6 +24,7 @@ function App() {
         {/* Admin Dashboard */}
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="news" element={<AdminNewsManagement />} />
         </Route>
 
         {/* Staff Dashboard */}

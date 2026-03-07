@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Newspaper } from 'lucide-react';
 
 const adminMenuItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Tổng quan' },
+  { path: '/admin/news', icon: Newspaper, label: 'Tin tức' },
 ];
 
 const AdminSidebar = ({ collapsed }) => {
