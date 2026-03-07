@@ -579,8 +579,8 @@ const ServicePage = () => {
         <div className="flex flex-col w-full">
           
         {/* NEW AI HEALTH SCAN SECTION */}
-        <section id="ai-health" className={`relative z-10 w-full max-w-[900px] mx-auto px-4 ${sortBy === 'Name (A - Z)' ? 'order-1 mt-8 mb-8' : sortBy === 'Name (Z - A)' ? 'order-4 mt-20 mb-8' : 'order-2 mt-8 mb-8'}`}>
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+        <section id="ai-health" className={`relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 ${sortBy === 'Name (A - Z)' ? 'order-1 mt-2 mb-2' : sortBy === 'Name (Z - A)' ? 'order-4 mt-6 mb-2' : 'order-2 mt-4 mb-4'}`}>
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             
             {/* Left Content */}
             <div className="pr-2">
@@ -590,11 +590,11 @@ const ServicePage = () => {
               <h2 className="text-3xl md:text-4xl font-serif font-black text-[#1F2A37] mb-3 leading-tight">
                 AI Health Scan <br/> for Your Pet
               </h2>
-              <p className="text-[#1F2A37]/70 mb-8 text-[13px] md:text-[14px] leading-relaxed max-w-[90%]">
+              <p className="text-[#1F2A37]/70 mb-10 text-[14px] md:text-[15px] leading-relaxed max-w-[95%]">
                 Experience the future of pet wellness. Our state-of-the-art AI technology helps identify potential health concerns before they become serious. Upload an image, and let our system provide an instant preliminary diagnosis.
               </p>
 
-              <div className="space-y-5 mb-8">
+              <div className="space-y-6 mb-10">
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-[#1F2A37]/5 flex items-center justify-center text-[#7FB069] shrink-0">
                      <Upload size={18} />
@@ -632,8 +632,8 @@ const ServicePage = () => {
             </div>
 
             {/* Right UI Card */}
-            <div className="relative w-full ml-auto">
-              <div className="bg-white rounded-[24px] p-4 shadow-[0_15px_40px_rgba(0,0,0,0.06)] border border-[#1F2A37]/5 relative z-10 w-full max-w-[420px] mx-auto">
+            <div className="relative w-full ml-auto lg:pl-4">
+              <div className="bg-white rounded-[24px] p-5 lg:p-6 shadow-[0_15px_40px_rgba(0,0,0,0.06)] border border-[#1F2A37]/5 relative z-10 w-full max-w-[480px] mx-auto">
                 
                 {/* Header */}
                 <div className="flex items-center gap-2.5 px-2 py-0.5 mb-3">
@@ -649,7 +649,7 @@ const ServicePage = () => {
                 </div>
 
                 {/* Image w/ Scan Overlay */}
-                <div className="relative rounded-[16px] overflow-hidden aspect-[4/3] mb-4 border border-[#1F2A37]/5 h-[200px] w-full">
+                <div className="relative rounded-[16px] overflow-hidden aspect-[4/3] mb-5 border border-[#1F2A37]/5 h-[240px] w-full">
                   <img 
                     src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800" 
                     alt="Dog on beach" 
@@ -719,20 +719,20 @@ const ServicePage = () => {
         </section>
 
         {/* VETERINARY SERVICES */}
-        <div id="veterinary" className={`w-[100vw] relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#FFF5F2] py-20 overflow-hidden ${sortBy === 'Name (A - Z)' ? 'order-4 mt-12 mb-20' : sortBy === 'Name (Z - A)' ? 'order-1 mt-8 mb-20' : 'order-3 mt-20 mb-20'}`}>
+        <div id="veterinary" className={`w-[100vw] relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#FFF5F2] py-10 overflow-hidden ${sortBy === 'Name (A - Z)' ? 'order-4 mt-4 mb-6' : sortBy === 'Name (Z - A)' ? 'order-1 mt-2 mb-6' : 'order-3 mt-6 mb-6'}`}>
           {/* Subtle Paw Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTIwIDIwaDV2NUgyMHoiIGZpbGw9InJnYmEoMjI0LCAxMjIsIDk1LCAwLjA1KSIvPjwvc3ZnPg==')] opacity-100 z-0 pointer-events-none"></div>
           
-          <section className="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8">
+          <section className="relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4">
           {/* Combined Header & Feature Block with Animation - No White Box Mode */}
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
-            className="flex flex-col md:flex-row items-stretch gap-8 lg:gap-12 mb-12"
+            className="flex flex-col md:flex-row items-stretch gap-10 lg:gap-16 mb-14"
           >
-            <div className="w-full md:w-[45%] relative min-h-[350px] md:min-h-auto rounded-[24px] overflow-hidden shadow-[0_15px_40px_rgba(224,122,95,0.15)] border border-[#E07A5F]/30">
+            <div className="w-full md:w-[48%] relative min-h-[350px] lg:min-h-[450px] md:min-h-auto rounded-[24px] overflow-hidden shadow-[0_15px_40px_rgba(224,122,95,0.15)] border border-[#E07A5F]/30">
                <img 
                  src="/Veterinary.jpg" 
                  alt="Veterinary Services"
@@ -744,8 +744,8 @@ const ServicePage = () => {
                </div>
             </div>
             
-            <div className="w-full md:w-[55%] flex flex-col justify-center py-2">
-              <div className="inline-flex items-center gap-2 border border-[#E07A5F]/30 bg-white shadow-sm text-[#E07A5F] px-4 py-1.5 rounded-full font-bold text-[11px] uppercase tracking-widest mb-4 w-fit">
+            <div className="w-full md:w-[52%] flex flex-col justify-center py-2 lg:py-6">
+              <div className="inline-flex items-center gap-2 border border-[#E07A5F]/30 bg-white shadow-sm text-[#E07A5F] px-4 py-1.5 rounded-full font-bold text-[11px] uppercase tracking-widest mb-5 w-fit">
                 <Activity size={14} /> Modern Clinical Excellence
               </div>
               <h2 className="text-4xl md:text-5xl font-serif font-black text-[#1F2A37] mb-4">
@@ -782,14 +782,14 @@ const ServicePage = () => {
           </motion.div>
 
           {/* Service Cards Grid - Expandable */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
             {displayedVetServices.map((service, idx) => {
               const isExpanded = expandedVetCard === idx;
               return (
                 <div 
                   key={idx} 
                   onClick={() => setExpandedVetCard(isExpanded ? null : idx)}
-                  className="bg-white rounded-[20px] p-3 md:p-3.5 flex flex-col group cursor-pointer hover:bg-[#FDF9F8] transition-colors duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_rgba(224,122,95,0.08)] border border-[#1F2A37]/5 hover:border-[#E07A5F]/30 relative overflow-hidden"
+                  className="bg-white rounded-[20px] p-4 md:p-5 flex flex-col group cursor-pointer hover:bg-[#FDF9F8] transition-colors duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_rgba(224,122,95,0.08)] border border-[#1F2A37]/5 hover:border-[#E07A5F]/30 relative overflow-hidden"
                 >
                   {/* Top Section / Header */}
                   <div className="flex gap-3 md:gap-4 items-center w-full">
@@ -849,17 +849,17 @@ const ServicePage = () => {
         </div>
 
         {/* PREMIUM SPA & GROOMING SHOWCASE */}
-        <section id="spa-grooming" className={`relative z-10 w-full max-w-[900px] mx-auto px-4 ${sortBy === 'Name (A - Z)' ? 'order-3 mt-20 mb-12' : sortBy === 'Name (Z - A)' ? 'order-2 mt-20 mb-12' : 'order-4 mt-12 mb-12'}`}>
-          <div className="text-center mb-6">
-            <span className="text-[#7FB069] font-bold tracking-widest uppercase text-[10px] mb-2 block">Luxury Experience</span>
-            <h2 className="text-2xl md:text-3xl font-serif font-black text-[#1F2A37]">Spa & Grooming</h2>
+        <section id="spa-grooming" className={`relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 ${sortBy === 'Name (A - Z)' ? 'order-3 mt-6 mb-6' : sortBy === 'Name (Z - A)' ? 'order-2 mt-6 mb-6' : 'order-4 mt-6 mb-6'}`}>
+          <div className="text-center mb-8">
+            <span className="text-[#7FB069] font-bold tracking-widest uppercase text-[11px] mb-2 block">Luxury Experience</span>
+            <h2 className="text-3xl md:text-5xl font-serif font-black text-[#1F2A37]">Spa & Grooming</h2>
           </div>
 
           {/* Interactive Layout */}
-          <div className="grid lg:grid-cols-2 gap-5 lg:gap-8 items-stretch bg-transparent rounded-[24px] p-0">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-14 items-stretch bg-transparent rounded-[24px] p-0">
             
             {/* Visual Showcase (Left) */}
-            <div className="relative rounded-[20px] overflow-hidden bg-[#F5F2EB] aspect-[4/3] lg:aspect-auto w-full shadow-inner border border-[#1F2A37]/5 h-full min-h-[300px]">
+            <div className="relative rounded-[24px] overflow-hidden bg-[#F5F2EB] aspect-[4/3] lg:aspect-auto w-full shadow-inner border border-[#1F2A37]/5 h-full min-h-[400px]">
               <AnimatePresence mode="wait">
                 <motion.img
                   key={displayedSpaServices[activeSpa]?.id || activeSpa}
@@ -893,7 +893,7 @@ const ServicePage = () => {
             </div>
 
             {/* Service Menu (Right) */}
-            <div className="flex flex-col justify-center space-y-2 lg:pl-2">
+            <div className="flex flex-col justify-center space-y-3 lg:pl-2">
               {displayedSpaServices.map((service, idx) => {
                 const isActive = activeSpa === idx;
                 return (
@@ -959,8 +959,8 @@ const ServicePage = () => {
         </section>
 
         {/* BOARDING SERVICES / PET HOTEL */}
-        <section id="boarding" className={`relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-16 pb-20 px-4 md:px-8 ${sortBy === 'Name (A - Z)' ? 'order-2 mt-20' : sortBy === 'Name (Z - A)' ? 'order-3 mt-12' : 'order-5 mt-20'}`}>
-          <div className="max-w-[750px] mx-auto">
+        <section id="boarding" className={`relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-12 pb-16 px-6 md:px-8 ${sortBy === 'Name (A - Z)' ? 'order-2 mt-6' : sortBy === 'Name (Z - A)' ? 'order-3 mt-4' : 'order-5 mt-6'}`}>
+          <div className="max-w-[1100px] mx-auto">
             
             {/* Header: Left-aligned with Button */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
@@ -983,10 +983,10 @@ const ServicePage = () => {
             </div>
 
             {/* Room Cards Grid */}
-            <div className="grid md:grid-cols-2 gap-5 mb-10">
+            <div className="grid md:grid-cols-2 gap-8 mb-14">
               {/* Standard Room */}
-              <div className="bg-[#1E293B] group rounded-[20px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-500 relative flex flex-col">
-                <div className="relative h-40 bg-gray-800 overflow-hidden">
+              <div className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-500 relative flex flex-col">
+                <div className="relative h-48 bg-gray-800 overflow-hidden">
                   <img src="/standard.webp" alt="Standard Room" className="w-full h-full object-cover opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-transparent to-transparent opacity-90"></div>
                   <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-white/90 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-[#7FB069]/30 shadow-lg">
@@ -1015,9 +1015,9 @@ const ServicePage = () => {
               </div>
 
               {/* VIP Penthouse */}
-              <div className="bg-[#1E293B] group rounded-[20px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-500 flex flex-col">
+              <div className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-500 flex flex-col">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/10 via-transparent to-transparent pointer-events-none z-10"></div>
-                <div className="relative h-40 bg-gray-800 overflow-hidden">
+                <div className="relative h-48 bg-gray-800 overflow-hidden">
                   <img src="/viproom.jpg" alt="VIP Penthouse" className="w-full h-full object-cover opacity-90 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent opacity-90"></div>
                   <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xl">
