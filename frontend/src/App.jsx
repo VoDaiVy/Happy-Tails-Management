@@ -4,6 +4,8 @@ import DashboardLayout from './layout/DashboardLayout';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import AdminNewsManagement from './pages/dashboard/admin/AdminNewsManagement';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
+import BookingBoard from './pages/dashboard/BookingBoard';
+import UserManagement from './pages/dashboard/UserManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Service from './pages/Service';
@@ -25,11 +27,14 @@ function App() {
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="news" element={<AdminNewsManagement />} />
+          <Route path="bookings" element={<BookingBoard />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
 
         {/* Staff Dashboard */}
         <Route path="/staff" element={<DashboardLayout />}>
           <Route index element={<StaffDashboard />} />
+          <Route path="bookings" element={<BookingBoard />} />
         </Route>
       </Routes>
     </Router>

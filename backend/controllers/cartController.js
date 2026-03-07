@@ -1,6 +1,9 @@
 /**
  * Cart Controller
  * Handles shopping cart HTTP operations
+ * 
+ * ⚠️ CHECKOUT: Wallet-only payment method
+ * ❌ REMOVED: PayOS webhook/return/cancel handlers
  */
 
 const cartService = require('../services/cart.service');
@@ -68,13 +71,14 @@ const clearCart = catchAsync(async (req, res) => {
 
 /**
  * Checkout cart and create order
+ * Payment: Wallet only
  * @route POST /api/cart/checkout
  * @access Private (Customer)
  */
 const checkout = catchAsync(async (req, res) => {
-  const result = await cartService.checkout(req.user._id, req.body);
+  const result = await cartService.checkout(req.user._id, req.user, req.body);
   
-  res.status(201).json(ApiResponse.success('Order placed successfully', result));
+  res.status(201).json(ApiResponse.success('Đặt hàng thành công', result));
 });
 
 module.exports = {

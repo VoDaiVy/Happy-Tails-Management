@@ -1,12 +1,18 @@
 /**
  * Cart Service
  * Business logic for cart operations
+ * 
+ * ⚠️ CHECKOUT: Wallet-only payment method
  */
 
+const mongoose = require('mongoose');
 const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const Service = require('../models/Service');
+const Wallet = require('../models/Wallet');
+const Transaction = require('../models/Transaction');
 const { createError } = require('../utils/AppError');
+const logger = require('../utils/logger');
 
 /**
  * Get user's cart (create if not exists)
@@ -161,19 +167,20 @@ const clearCart = async (userId) => {
 
 /**
  * Checkout cart and create order
+ * Payment method: Wallet only (ACID transaction)
  * @param {string} userId - User's ID
+ * @param {Object} user - Full user object
  * @param {Object} data - Checkout data
- * @param {string} [data.paymentMethod='cash'] - Payment method
  * @param {string} [data.note=''] - Order note
  * @param {Date} [data.scheduledAt=null] - Scheduled appointment time
- * @returns {Promise<{order: Order}>} Created order
+ * @returns {Promise<{order: Order, transaction: Object, walletBalance: number}>} Created order
  */
-const checkout = async (userId, { paymentMethod = 'cash', note = '', scheduledAt = null }) => {
+const checkout = async (userId, user, { note = '', scheduledAt = null }) => {
   // Step 1: Validate cart
   const cart = await Cart.findByUser(userId);
   
   if (!cart || cart.items.length === 0) {
-    throw createError.badRequest('Cart is empty');
+    throw createError.badRequest('Giỏ hàng trống');
   }
   
   // Step 2: Validate each item's service is still active
@@ -189,7 +196,7 @@ const checkout = async (userId, { paymentMethod = 'cash', note = '', scheduledAt
   }
   
   if (unavailableItems.length > 0) {
-    const error = createError.badRequest('Some services are no longer available');
+    const error = createError.badRequest('Một số dịch vụ không còn khả dụng');
     error.errors = unavailableItems;
     throw error;
   }
@@ -209,45 +216,114 @@ const checkout = async (userId, { paymentMethod = 'cash', note = '', scheduledAt
     cart.recalculate();
   }
   
-  // Step 4: Create Order
-  const orderCode = Order.generateOrderCode();
+  // Step 4: Execute wallet checkout with ACID transaction
+  return checkoutWithWallet(userId, cart, { note, scheduledAt });
+};
+
+/**
+ * Wallet checkout - ACID transaction with instant payment
+ * Vietnamese error messages for insufficient balance
+ */
+const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
+  const session = await mongoose.startSession();
   
-  // Snapshot items (copy data, not references)
-  const orderItems = cart.items.map(item => ({
-    serviceId: item.serviceId._id || item.serviceId,
-    name: item.name,
-    price: item.price,
-    duration: item.duration,
-    imageUrl: item.imageUrl,
-    quantity: item.quantity,
-    subtotal: item.subtotal,
-    note: item.note
-  }));
+  let order;
+  let transaction;
+  let wallet;
   
   try {
-    const order = await Order.create({
-      orderCode,
-      userId,
-      items: orderItems,
-      totalPrice: cart.totalPrice,
-      totalItems: cart.totalItems,
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      paymentMethod,
-      note,
-      scheduledAt
+    await session.withTransaction(async () => {
+      // Get wallet and check balance
+      wallet = await Wallet.findOne({ userId }).session(session);
+      
+      if (!wallet) {
+        throw createError.badRequest('Ví không tồn tại. Vui lòng nạp tiền trước.', 'WALLET_NOT_FOUND');
+      }
+      
+      if (wallet.balance < cart.totalPrice) {
+        const shortfall = cart.totalPrice - wallet.balance;
+        throw createError.badRequest(
+          `Số dư ví không đủ. Cần thêm ${shortfall.toLocaleString('vi-VN')}đ để thanh toán.`,
+          'INSUFFICIENT_BALANCE',
+          {
+            required: cart.totalPrice,
+            available: wallet.balance,
+            shortfall: shortfall
+          }
+        );
+      }
+      
+      // Deduct from wallet
+      const balanceBefore = wallet.balance;
+      wallet.spend(cart.totalPrice);
+      await wallet.save({ session });
+      
+      // Create order
+      const orderCode = Order.generateOrderCode();
+      const orderItems = cart.items.map(item => ({
+        serviceId: item.serviceId._id || item.serviceId,
+        name: item.name,
+        price: item.price,
+        duration: item.duration,
+        imageUrl: item.imageUrl,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+        note: item.note
+      }));
+      
+      [order] = await Order.create([{
+        orderCode,
+        userId,
+        items: orderItems,
+        totalPrice: cart.totalPrice,
+        totalItems: cart.totalItems,
+        status: 'pending',
+        paymentStatus: 'paid',
+        paymentMethod: 'wallet',
+        note,
+        scheduledAt
+      }], { session });
+      
+      // Create payment transaction
+      [transaction] = await Transaction.create([{
+        transactionCode: Transaction.generateCode(),
+        userId,
+        walletId: wallet._id,
+        type: 'payment',
+        method: 'system',
+        status: 'completed',
+        amount: cart.totalPrice,
+        balanceBefore,
+        balanceAfter: wallet.balance,
+        referenceId: order.orderCode,
+        note: `Thanh toán đơn hàng ${order.orderCode}`
+      }], { session });
+      
+      // Clear cart
+      cart.items = [];
+      cart.recalculate();
+      await cart.save({ session });
     });
     
-    // Step 5: Clear cart only after order is successfully created
-    cart.items = [];
-    cart.recalculate();
-    await cart.save();
+    await session.endSession();
     
-    // Step 6: Return order
-    return { order };
-  } catch (err) {
-    // Cart remains intact if order creation fails
-    throw err;
+    logger.info(`Wallet order completed: orderCode=${order.orderCode}, userId=${userId}, amount=${order.totalPrice}`);
+    
+    return {
+      order,
+      transaction: {
+        transactionCode: transaction.transactionCode,
+        amount: transaction.amount
+      },
+      wallet: {
+        balance: wallet.balance
+      }
+    };
+    
+  } catch (error) {
+    await session.endSession();
+    logger.error(`Wallet checkout failed: ${error.message}`);
+    throw error;
   }
 };
 
