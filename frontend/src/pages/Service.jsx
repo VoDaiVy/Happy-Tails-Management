@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
   Search, MapPin, Calendar, ChevronDown, ChevronUp, Activity, 
@@ -344,36 +345,125 @@ const ServicePage = () => {
     }
   };
   
-  const displayedSpaServices = getSortedSpaServices();
-
-  const handleSearch = () => {
-    let targetId = '';
-    
-    if (category !== 'All Categories') {
-      if (category === 'AI Health') targetId = 'ai-health';
-      else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
-      else if (category === 'Veterinary') targetId = 'veterinary';
-      else if (category === 'Boarding') targetId = 'boarding';
-    } else if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      if ('ai health scan'.includes(query)) targetId = 'ai-health';
-      else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
-      else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
-      else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
-      else {
-        window.scrollBy({ top: window.innerHeight * 0.7, behavior: 'smooth' });
-        return;
-      }
-    } else {
-       targetId = 'ai-health';
+  const getSortedVeterinaryServices = () => {
+    let sortedList = [...veterinaryServicesData];
+    switch (sortBy) {
+      case 'Name (A - Z)':
+        return sortedList.sort((a, b) => a.title.localeCompare(b.title));
+      case 'Name (Z - A)':
+        return sortedList.sort((a, b) => b.title.localeCompare(a.title));
+      case 'Price (Low - High)':
+        return sortedList.sort((a, b) => parseInt(a.priceRange.match(/\d+/)[0]) - parseInt(b.priceRange.match(/\d+/)[0]));
+      case 'Price (High - Low)':
+        return sortedList.sort((a, b) => parseInt(b.priceRange.match(/\d+/)[0]) - parseInt(a.priceRange.match(/\d+/)[0]));
+      default:
+        return veterinaryServicesData;
     }
+  };
 
-    if (targetId) {
-      const elem = document.getElementById(targetId);
-      if (elem) {
-        const y = elem.getBoundingClientRect().top + window.scrollY - 100;
-        window.scrollTo({ top: y, behavior: 'smooth' });
+  const displayedSpaServices = getSortedSpaServices();
+  const displayedVetServices = getSortedVeterinaryServices();
+
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async () => {
+    setIsSearching(true);
+    try {
+      // Base API endpoint
+      let url = 'http://localhost:5000/api/services?isActive=true';
+      
+      // Inject Category translation to Database IDs or Slugs if we had a mapping
+      // For now, we perform a text search
+      if (searchQuery.trim()) {
+        url += `&search=${encodeURIComponent(searchQuery.trim())}`;
       }
+      
+      // We pass sorting explicitly
+      if (sortBy === 'Price (Low - High)') {
+        url += '&sortBy=price&sortOrder=asc';
+      } else if (sortBy === 'Price (High - Low)') {
+        url += '&sortBy=price&sortOrder=desc';
+      } else if (sortBy === 'Name (A - Z)') {
+        url += '&sortBy=title&sortOrder=asc';
+      } else if (sortBy === 'Name (Z - A)') {
+        url += '&sortBy=title&sortOrder=desc';
+      }
+
+      console.log('Fetching from Backend URL:', url);
+      const response = await axios.get(url);
+      const fetchedServices = response.data?.data || [];
+      console.log('Fetched services from API:', fetchedServices);
+      
+      // PRIORITY 1: Always respect explicit UI category selection first
+      if (category !== 'All Categories') {
+         if (category === 'AI Health') targetId = 'ai-health';
+         else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
+         else if (category === 'Veterinary') targetId = 'veterinary';
+         else if (category === 'Boarding') targetId = 'boarding';
+      } 
+      // PRIORITY 2: If no category is selected, guess based on API results
+      else if (fetchedServices.length > 0) {
+          const categoryName = fetchedServices[0].category?.name?.toLowerCase() || '';
+          if (categoryName.includes('spa') || categoryName.includes('groom')) targetId = 'spa-grooming';
+          else if (categoryName.includes('vet') || categoryName.includes('medic')) targetId = 'veterinary';
+          else if (categoryName.includes('board') || categoryName.includes('hotel')) targetId = 'boarding';
+          else targetId = 'spa-grooming'; // Default fallback
+      } 
+      // PRIORITY 3: If no API results and no category, guess based on search string
+      else if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          if ('ai health scan'.includes(query)) targetId = 'ai-health';
+          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
+          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
+          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
+          else targetId = 'spa-grooming'; // Default fallback
+      }
+      // PRIORITY 4: Ultimate fallback
+      else {
+          targetId = 'ai-health';
+      }
+
+      if (targetId) {
+        const elem = document.getElementById(targetId);
+        if (elem) {
+          const y = elem.getBoundingClientRect().top + window.scrollY - 100;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }
+
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      
+      // FALLBACK TO UI LOGIC COMPLETELY IF API FAILS OR BACKEND IS DOWN
+      let targetId = '';
+      if (category !== 'All Categories') {
+         if (category === 'AI Health') targetId = 'ai-health';
+         else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
+         else if (category === 'Veterinary') targetId = 'veterinary';
+         else if (category === 'Boarding') targetId = 'boarding';
+      } else if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          if ('ai health scan'.includes(query)) targetId = 'ai-health';
+          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
+          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
+          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
+          else targetId = 'spa-grooming';
+      } else {
+          targetId = 'ai-health';
+      }
+
+      if (targetId) {
+        const elem = document.getElementById(targetId);
+        if (elem) {
+          const y = elem.getBoundingClientRect().top + window.scrollY - 100;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      } else {
+        window.scrollBy({ top: window.innerHeight * 0.7, behavior: 'smooth' });
+      }
+      
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -449,17 +539,24 @@ const ServicePage = () => {
                   onSelect={setSortBy}
                 />
 
-                <button onClick={handleSearch} className="bg-[#E07A5F] text-white h-[40px] rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md">
-                  <Search size={14} /> Search
+                <button 
+                  onClick={handleSearch} 
+                  disabled={isSearching}
+                  className="bg-[#E07A5F] text-white h-[40px] rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSearching ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Search size={14} />} 
+                  {isSearching ? 'Searching...' : 'Search'}
                 </button>
               </div>
             </motion.div>
           </div>
         </section>
 
-        
+        {/* DYNAMIC SECTION ORDERING BASED ON SORT */}
+        <div className="flex flex-col w-full">
+          
         {/* NEW AI HEALTH SCAN SECTION */}
-        <section id="ai-health" className="mt-8 mb-8 relative z-10 w-full max-w-[900px] mx-auto px-4">
+        <section id="ai-health" className={`relative z-10 w-full max-w-[900px] mx-auto px-4 ${sortBy === 'Name (A - Z)' ? 'order-1 mt-8 mb-8' : sortBy === 'Name (Z - A)' ? 'order-4 mt-20 mb-8' : 'order-2 mt-8 mb-8'}`}>
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             
             {/* Left Content */}
@@ -599,65 +696,71 @@ const ServicePage = () => {
         </section>
 
         {/* VETERINARY SERVICES */}
-        <div id="veterinary" className="w-[100vw] relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#FFF5F2] py-20 mt-20 mb-20 overflow-hidden">
+        <div id="veterinary" className={`w-[100vw] relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#FFF5F2] py-20 overflow-hidden ${sortBy === 'Name (A - Z)' ? 'order-4 mt-12 mb-20' : sortBy === 'Name (Z - A)' ? 'order-1 mt-8 mb-20' : 'order-3 mt-20 mb-20'}`}>
           {/* Subtle Paw Pattern */}
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTIwIDIwaDV2NUgyMHoiIGZpbGw9InJnYmEoMjI0LCAxMjIsIDk1LCAwLjA1KSIvPjwvc3ZnPg==')] opacity-100 z-0 pointer-events-none"></div>
           
           <section className="relative z-10 w-full max-w-[900px] mx-auto px-4 md:px-8">
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-1.5 border border-[#E07A5F]/20 bg-white shadow-sm text-[#E07A5F] px-4 py-1.5 rounded-full font-bold text-[11px] uppercase tracking-widest mb-4">
-                <Shield size={14} /> Trusted Pet Care
-              </div>
-              <h2 className="text-2xl md:text-3xl font-serif font-black text-[#1F2A37] mb-4">
-                Veterinary Services
-              </h2>
-              <p className="text-[#1F2A37]/60 max-w-2xl mx-auto text-[14px] md:text-[15px] leading-relaxed">
-                Compassionate, evidence-based care for your pet's lifelong health. We treat your family like our family.
-              </p>
-            </div>
-
-          {/* Main Feature Block */}
-          <div className="bg-white rounded-[24px] overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-[#1F2A37]/5 flex flex-col md:flex-row items-stretch mb-8">
-            <div className="w-full md:w-[45%] relative min-h-[300px] md:min-h-full bg-[#Eda194]">
+          {/* Combined Header & Feature Block with Animation - No White Box Mode */}
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col md:flex-row items-stretch gap-8 lg:gap-12 mb-12"
+          >
+            <div className="w-full md:w-[45%] relative min-h-[350px] md:min-h-auto rounded-[24px] overflow-hidden shadow-[0_15px_40px_rgba(224,122,95,0.15)] border border-[#E07A5F]/30">
                <img 
                  src="/Veterinary.jpg" 
                  alt="Veterinary Services"
                  className="absolute inset-0 w-full h-full object-cover"
                />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#E07A5F]/80 via-transparent to-transparent opacity-80" />
+               <div className="absolute bottom-6 left-6 right-6 text-white text-[12px] font-bold tracking-widest uppercase flex items-center gap-2 drop-shadow-md">
+                 <Shield size={16} className="text-white" /> Trusted Pet Care
+               </div>
             </div>
-            <div className="w-full md:w-[55%] p-6 md:p-8 flex flex-col justify-center">
-              <h3 className="text-2xl md:text-3xl font-serif font-black text-[#1F2A37] mb-3">
-                Modern Clinical Excellence
-              </h3>
-              <p className="text-[#1F2A37]/60 text-[13px] leading-relaxed mb-6">
-                Our award-winning animal hospital is equipped with the latest diagnostic technology to provide your pet with the highest standard of medical care.
+            
+            <div className="w-full md:w-[55%] flex flex-col justify-center py-2">
+              <div className="inline-flex items-center gap-2 border border-[#E07A5F]/30 bg-white shadow-sm text-[#E07A5F] px-4 py-1.5 rounded-full font-bold text-[11px] uppercase tracking-widest mb-4 w-fit">
+                <Activity size={14} /> Modern Clinical Excellence
+              </div>
+              <h2 className="text-4xl md:text-5xl font-serif font-black text-[#1F2A37] mb-4">
+                Veterinary Services
+              </h2>
+              <p className="text-[#1F2A37]/70 text-[14px] md:text-[15px] leading-relaxed mb-8 max-w-[95%]">
+                Compassionate, evidence-based care for your pet's lifelong health. Our hospital is equipped with the latest diagnostic technology to provide the highest standard of medical care perfectly tailored to them.
               </p>
               
-              <ul className="space-y-3.5 mb-8">
+              <ul className="space-y-4 mb-8">
                 {[
                   'Modern diagnostic equipment',
                   'Certified veterinarians',
                   'Preventive wellness programs',
                   '24/7 emergency support'
                 ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-[13px] font-medium text-[#1F2A37]">
-                    <div className="text-[#E07A5F] shrink-0">
-                      <CheckCircle size={16} />
+                  <li key={i} className="flex items-center gap-3 text-[14px] font-semibold text-[#1F2A37]">
+                    <div className="w-6 h-6 rounded-full bg-white shadow-sm border border-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
+                      <CheckCircle size={14} />
                     </div>
                     {item}
                   </li>
                 ))}
               </ul>
               
-              <button className="bg-[#E07A5F] text-white px-6 py-3.5 rounded-full font-bold text-[13px] hover:bg-[#c56a52] transition-colors shadow-md w-max flex items-center gap-2">
-                <Calendar size={16} /> Book Veterinary Appointment
-              </button>
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="bg-[#E07A5F] text-white px-7 py-4 rounded-full font-bold text-[14px] hover:bg-[#c56a52] transition-colors shadow-lg w-max flex items-center gap-2 mt-2"
+              >
+                <Calendar size={18} /> Book Veterinary Appointment
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
 
           {/* Service Cards Grid - Expandable */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            {veterinaryServicesData.map((service, idx) => {
+            {displayedVetServices.map((service, idx) => {
               const isExpanded = expandedVetCard === idx;
               return (
                 <div 
@@ -723,7 +826,7 @@ const ServicePage = () => {
         </div>
 
         {/* PREMIUM SPA & GROOMING SHOWCASE */}
-        <section id="spa-grooming" className="mt-12 mb-12 relative z-10 w-full max-w-[900px] mx-auto px-4">
+        <section id="spa-grooming" className={`relative z-10 w-full max-w-[900px] mx-auto px-4 ${sortBy === 'Name (A - Z)' ? 'order-3 mt-20 mb-12' : sortBy === 'Name (Z - A)' ? 'order-2 mt-20 mb-12' : 'order-4 mt-12 mb-12'}`}>
           <div className="text-center mb-6">
             <span className="text-[#7FB069] font-bold tracking-widest uppercase text-[10px] mb-2 block">Luxury Experience</span>
             <h2 className="text-2xl md:text-3xl font-serif font-black text-[#1F2A37]">Spa & Grooming</h2>
@@ -833,17 +936,17 @@ const ServicePage = () => {
         </section>
 
         {/* BOARDING SERVICES / PET HOTEL */}
-        <section id="boarding" className="mt-20 relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-16 pb-20 px-4 md:px-8">
-          <div className="max-w-[900px] mx-auto">
+        <section id="boarding" className={`relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-16 pb-20 px-4 md:px-8 ${sortBy === 'Name (A - Z)' ? 'order-2 mt-20' : sortBy === 'Name (Z - A)' ? 'order-3 mt-12' : 'order-5 mt-20'}`}>
+          <div className="max-w-[750px] mx-auto">
             
             {/* Header: Left-aligned with Button */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-              <div className="max-w-xl">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+              <div className="max-w-md">
                 <div className="inline-flex items-center gap-1.5 border border-white/10 bg-white/5 text-white/80 px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest mb-4">
                   <Monitor size={14} /> Pet Resort Experience
                 </div>
                 <h2 className="text-3xl md:text-5xl font-serif font-black text-white mb-4">
-                  A Premium Pet Hotel
+                  BOARDING
                 </h2>
                 <p className="text-white/60 text-[14px] md:text-[15px] leading-relaxed">
                   Your pet deserves a vacation too. Our state-of-the-art boarding facility 
@@ -857,55 +960,55 @@ const ServicePage = () => {
             </div>
 
             {/* Room Cards Grid */}
-            <div className="grid md:grid-cols-2 gap-6 mb-12">
+            <div className="grid md:grid-cols-2 gap-5 mb-10">
               {/* Standard Room */}
-              <div className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-white/10 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 relative flex flex-col">
-                <div className="relative h-44 bg-gray-800 overflow-hidden">
+              <div className="bg-[#1E293B] group rounded-[20px] overflow-hidden border border-white/5 hover:border-white/10 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 relative flex flex-col">
+                <div className="relative h-36 bg-gray-800 overflow-hidden">
                   <img src="https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=600" alt="Standard Room" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-white/90 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-[#7FB069]/30">
                     <Monitor size={12} className="text-[#7FB069]"/> Standard
                   </div>
                 </div>
-                <div className="p-5 md:p-6 flex-grow flex flex-col">
-                  <h3 className="text-white text-[18px] md:text-xl font-serif font-bold mb-1">Standard Room</h3>
-                  <div className="flex items-end gap-1.5 mb-2 transition-opacity">
-                    <span className="text-[#7FB069] font-black text-lg">$10</span>
-                    <span className="text-[12px] text-white/40 font-medium mb-1 border-b border-white/10 pb-0.5">/ night</span>
+                <div className="p-4 md:p-5 flex-grow flex flex-col">
+                  <h3 className="text-white text-[16px] md:text-lg font-serif font-bold mb-1">Standard Room</h3>
+                  <div className="flex items-end gap-1.5 mb-1 transition-opacity">
+                    <span className="text-[#7FB069] font-black text-base">$10</span>
+                    <span className="text-[11px] text-white/40 font-medium mb-1 border-b border-white/10 pb-0.5">/ night</span>
                   </div>
-                  <p className="text-white/50 text-[13px] mb-6 flex-grow">Cozy, private suites designed for a peaceful and relaxing stay.</p>
+                  <p className="text-white/50 text-[12px] mb-5 flex-grow">Cozy, private suites designed for a peaceful and relaxing stay.</p>
                   
-                  <ul className="space-y-3">
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Bed size={10}/></div> Comfortable bedding</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Sparkles size={10}/></div> Daily cleaning</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Moon size={10}/></div> Quiet sleeping area</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Gamepad2 size={10}/></div> 2 playtime sessions</li>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Bed size={8}/></div> Comfortable bedding</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Sparkles size={8}/></div> Daily cleaning</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Moon size={8}/></div> Quiet sleeping area</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#7FB069]/10 flex items-center justify-center text-[#7FB069] shrink-0"><Gamepad2 size={8}/></div> 2 playtime sessions</li>
                   </ul>
                 </div>
               </div>
 
               {/* VIP Penthouse */}
-              <div className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_0_20px_rgba(224,122,95,0.05)] hover:shadow-[0_10px_40px_rgba(224,122,95,0.15)] hover:-translate-y-1 transition-all duration-300 flex flex-col">
+              <div className="bg-[#1E293B] group rounded-[20px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_0_20px_rgba(224,122,95,0.05)] hover:shadow-[0_10px_40px_rgba(224,122,95,0.15)] hover:-translate-y-1 transition-all duration-300 flex flex-col">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/5 to-transparent pointer-events-none"></div>
-                <div className="relative h-44 bg-gray-800 overflow-hidden">
+                <div className="relative h-36 bg-gray-800 overflow-hidden">
                   <img src="https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=600" alt="VIP Penthouse" className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute top-4 left-4 bg-[#E07A5F]/90 backdrop-blur-md px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg group-hover:bg-[#E07A5F] transition-colors">
                     <Award size={12}/> VIP
                   </div>
                 </div>
-                <div className="p-5 md:p-6 relative z-10 flex-grow flex flex-col">
-                  <h3 className="text-white text-[18px] md:text-xl font-serif font-bold mb-1">VIP Penthouse</h3>
-                  <div className="flex items-end gap-1.5 mb-2 transition-opacity">
-                    <span className="text-[#E07A5F] font-black text-lg">$25</span>
-                    <span className="text-[12px] text-white/40 font-medium mb-1 border-b border-white/10 pb-0.5">/ night</span>
+                <div className="p-4 md:p-5 relative z-10 flex-grow flex flex-col">
+                  <h3 className="text-white text-[16px] md:text-lg font-serif font-bold mb-1">VIP Penthouse</h3>
+                  <div className="flex items-end gap-1.5 mb-1 transition-opacity">
+                    <span className="text-[#E07A5F] font-black text-base">$25</span>
+                    <span className="text-[11px] text-white/40 font-medium mb-1 border-b border-white/10 pb-0.5">/ night</span>
                   </div>
-                  <p className="text-white/50 text-[13px] mb-6 flex-grow">Spacious luxury suites with exclusive amenities and premium comfort.</p>
+                  <p className="text-white/50 text-[12px] mb-5 flex-grow">Spacious luxury suites with exclusive amenities and premium comfort.</p>
                   
-                  <ul className="space-y-3">
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Award size={10}/></div> Private luxury suite</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Eye size={10}/></div> Window view</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Heart size={10}/></div> Premium bedding</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Gamepad2 size={10}/></div> Extra playtime</li>
-                    <li className="flex items-center gap-3 text-white/70 text-[12px]"><div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Upload size={10}/></div> Daily photo updates</li>
+                  <ul className="space-y-2.5">
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Award size={8}/></div> Private luxury suite</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Eye size={8}/></div> Window view</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Heart size={8}/></div> Premium bedding</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Gamepad2 size={8}/></div> Extra playtime</li>
+                    <li className="flex items-center gap-3 text-white/70 text-[11px]"><div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0"><Upload size={8}/></div> Daily photo updates</li>
                   </ul>
                 </div>
               </div>
@@ -1005,6 +1108,9 @@ const ServicePage = () => {
           </div>
         </section>
 
+        {/* END DYNAMIC SECTION */}
+        </div>
+        
       </main>
 
       {/* FOOTER */}
