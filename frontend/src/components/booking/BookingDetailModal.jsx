@@ -19,6 +19,7 @@ import {
   DollarSign,
   MapPin,
   History,
+  DoorOpen,
 } from "lucide-react";
 
 // Status configuration
@@ -499,6 +500,34 @@ const BookingDetailModal = ({
                   </div>
                 )}
               </div>
+
+              {/* Room Info */}
+              {booking.room && (
+                <div className="bg-purple-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
+                    <DoorOpen size={18} className="text-purple-600" />
+                    Phòng lưu trú
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <DoorOpen size={20} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#2D3436]">
+                        {booking.room.roomNumber || booking.room.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {booking.room.type && (
+                          <span className="capitalize">{booking.room.type}</span>
+                        )}
+                        {booking.room.capacity && (
+                          <span> • Sức chứa: {booking.room.capacity}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Notes */}
               {booking.notes && (

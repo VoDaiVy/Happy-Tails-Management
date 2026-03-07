@@ -199,18 +199,50 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
 exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   const { status } = req.body;
 
-  const booking = await Booking.findById(req.params.id);
+  const booking = await Booking.findById(req.params.id).populate("items.pet");
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
 
+  const oldStatus = booking.status;
   booking.status = status;
+
+  // Auto-assign room when staff confirms booking
+  if (status === "confirmed" && oldStatus === "pending" && !booking.room) {
+    // Get pet types from booking items
+    const petTypes = [...new Set(booking.items.map(item => item.pet?.petType).filter(Boolean))];
+    
+    if (petTypes.length > 0) {
+      // Find available room that supports the pet type(s)
+      const availableRoom = await Room.findOne({
+        isAvailable: true,
+        isActive: true,
+        petTypes: { $in: petTypes }
+      }).sort({ type: 1, pricePerNight: 1 }); // Prefer standard, cheaper rooms first
+
+      if (availableRoom) {
+        // Assign room to booking
+        booking.room = availableRoom._id;
+        
+        // Mark room as unavailable
+        availableRoom.isAvailable = false;
+        await availableRoom.save();
+      }
+      // If no room available, booking still continues without room (optional)
+    }
+  }
+
+  // Release room when booking is completed or cancelled
+  if ((status === "completed" || status === "cancelled") && booking.room) {
+    await Room.findByIdAndUpdate(booking.room, { isAvailable: true });
+  }
+
   if (status === "completed") {
     booking.completedAt = Date.now();
   }
 
   await booking.save();
-  await booking.populate("customer items.service items.pet assignedStaff");
+  await booking.populate("customer items.service items.pet assignedStaff room");
 
   res.status(200).json({
     status: "success",
