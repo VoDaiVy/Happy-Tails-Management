@@ -57,9 +57,9 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
         </Link>
 
         <div className="hidden md:flex items-center gap-10 font-bold text-slate-700">
-          <a href="#services" className="hover:text-primary transition-colors">Dich vu</a>
-          <a href="#about" className="hover:text-primary transition-colors">Ve chung toi</a>
-          <a href="#news" className="hover:text-primary transition-colors">Tin tuc</a>
+          <a href="#services" className="hover:text-primary transition-colors">Services</a>
+          <a href="#about" className="hover:text-primary transition-colors">About Us</a>
+          <a href="#news" className="hover:text-primary transition-colors">News</a>
 
           {user ? (
             /* === Logged in: Avatar + Dropdown === */
@@ -88,13 +88,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#FF8C42] transition-colors"
                     >
-                      <UserCircle size={18} /> Ho so
+                      <UserCircle size={18} /> Profile
                     </button>
                     <button
                       onClick={() => { setIsDropdownOpen(false); navigate('/bookings'); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#FF8C42] transition-colors"
                     >
-                      <CalendarDays size={18} /> Don dat cho
+                      <CalendarDays size={18} /> Bookings
                     </button>
                   </div>
 
@@ -103,7 +103,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       onClick={handleLogout}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
-                      <LogOut size={18} /> Dang xuat
+                      <LogOut size={18} /> Log Out
                     </button>
                   </div>
                 </div>
@@ -115,7 +115,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
               onClick={onLoginClick}
               className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
             >
-              <User size={18} /> Dang nhap
+              <User size={18} /> Sign In
             </button>
           )}
         </div>
@@ -131,9 +131,9 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full bg-white shadow-lg py-4 px-6">
           <div className="flex flex-col gap-4 font-bold text-slate-700">
-            <a href="#services" className="hover:text-primary transition-colors py-2">Dich vu</a>
-            <a href="#about" className="hover:text-primary transition-colors py-2">Ve chung toi</a>
-            <a href="#news" className="hover:text-primary transition-colors py-2">Tin tuc</a>
+            <a href="#services" className="hover:text-primary transition-colors py-2">Services</a>
+            <a href="#about" className="hover:text-primary transition-colors py-2">About Us</a>
+            <a href="#news" className="hover:text-primary transition-colors py-2">News</a>
 
             {user ? (
               <>
@@ -149,15 +149,15 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 </div>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/profile'); }}
                   className="flex items-center gap-3 py-2 text-slate-700 hover:text-[#FF8C42]">
-                  <UserCircle size={18} /> Ho so
+                  <UserCircle size={18} /> Profile
                 </button>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/bookings'); }}
                   className="flex items-center gap-3 py-2 text-slate-700 hover:text-[#FF8C42]">
-                  <CalendarDays size={18} /> Don dat cho
+                  <CalendarDays size={18} /> Bookings
                 </button>
                 <button onClick={handleLogout}
                   className="flex items-center justify-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all">
-                  <LogOut size={18} /> Dang xuat
+                  <LogOut size={18} /> Log Out
                 </button>
               </>
             ) : (
@@ -166,13 +166,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   onClick={() => { setIsMobileMenuOpen(false); onLoginClick?.(); }}
                   className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
                 >
-                  <User size={18} /> Dang nhap
+                  <User size={18} /> Sign In
                 </button>
                 <button 
                   onClick={() => { setIsMobileMenuOpen(false); onRegisterClick?.(); }}
                   className="flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full hover:bg-slate-900 hover:text-white transition-all"
                 >
-                  Dang ky
+                  Sign Up
                 </button>
               </>
             )}
