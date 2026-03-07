@@ -15,6 +15,7 @@ import {
   PawPrint,
   UserPlus,
   UserCheck,
+  DoorOpen,
 } from "lucide-react";
 
 // Status configuration
@@ -322,6 +323,16 @@ const BookingCard = ({
             <UserCheck size={16} className="text-blue-500" />
             <span className="text-gray-600">
               NV: <span className="font-medium">{booking.assignedStaff.name || "Đã gán"}</span>
+            </span>
+          </div>
+        )}
+
+        {/* Room Info */}
+        {booking.room && (
+          <div className="flex items-center gap-2 text-sm">
+            <DoorOpen size={16} className="text-purple-500" />
+            <span className="text-gray-600">
+              Phòng: <span className="font-medium text-purple-700">{booking.room.roomNumber || booking.room.name || "Phòng"}</span>
             </span>
           </div>
         )}

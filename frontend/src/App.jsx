@@ -5,6 +5,7 @@ import AdminDashboard from './pages/dashboard/AdminDashboard';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import BookingBoard from './pages/dashboard/BookingBoard';
 import UserManagement from './pages/dashboard/UserManagement';
+import RoomManagement from './pages/dashboard/RoomManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -23,6 +24,7 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="bookings" element={<BookingBoard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="rooms" element={<RoomManagement />} />
         </Route>
 
         {/* Staff Dashboard */}
