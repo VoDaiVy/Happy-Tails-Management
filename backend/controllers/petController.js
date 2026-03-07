@@ -446,6 +446,52 @@ const getPetStatistics = catchAsync(async (req, res, next) => {
   });
 });
 
+/**
+ * @desc    Staff quickly creates a pet for a walk-in guest (no auth needed for the guest)
+ * @route   POST /api/pets/staff/quick-create
+ * @access  Private (Staff, Admin)
+ */
+const quickCreatePet = catchAsync(async (req, res, next) => {
+  const { userID, petName, petType, breed, gender, dateOfBirth, weight, color } = req.body;
+
+  if (!userID || !petName || !petType || !breed || !gender || !weight) {
+    return next(new AppError('userID, petName, petType, breed, gender and weight are required', 400, 'MISSING_FIELDS'));
+  }
+
+  // Verify owner exists
+  const owner = await User.findById(userID);
+  if (!owner || owner.isDeleted) {
+    return next(new AppError('Owner account not found', 404, 'USER_NOT_FOUND'));
+  }
+
+  const validTypes = ['dog', 'cat', 'bird', 'fish', 'rabbit', 'hamster', 'other'];
+  if (!validTypes.includes(petType)) {
+    return next(new AppError(`petType must be one of: ${validTypes.join(', ')}`, 400, 'INVALID_PET_TYPE'));
+  }
+
+  const validGenders = ['male', 'female', 'unknown'];
+  if (!validGenders.includes(gender)) {
+    return next(new AppError(`gender must be one of: ${validGenders.join(', ')}`, 400, 'INVALID_GENDER'));
+  }
+
+  const pet = await UserPet.create({
+    userID,
+    petName,
+    petType,
+    breed,
+    gender,
+    weight,
+    ...(dateOfBirth && { dateOfBirth }),
+    ...(color       && { color })
+  });
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Pet created successfully for walk-in guest',
+    data: { pet }
+  });
+});
+
 module.exports = {
   getMyPets,
   getMyPetById,
@@ -455,5 +501,6 @@ module.exports = {
   addMedicalRecord,
   addVaccination,
   getVaccinationReminders,
-  getPetStatistics
+  getPetStatistics,
+  quickCreatePet
 };

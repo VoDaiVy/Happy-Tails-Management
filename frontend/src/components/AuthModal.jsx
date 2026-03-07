@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Mail, RefreshCw, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Mail, RefreshCw, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { PawPattern } from "./PawPattern";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
+import { loginApi } from "../api/authApi";
 
-export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
+export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSuccess }) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState(initialMode); // "login" or "register"
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -14,6 +17,9 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
   // Login form data
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Register form data
   const [step, setStep] = useState(1);
@@ -46,13 +52,64 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
     };
   }, [isOpen]);
 
+  // Reset login form every time modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setLoginEmail("");
+      setLoginPassword("");
+      setLoginError("");
+      setLoginSuccess("");
+      setLoginLoading(false);
+      setShowPassword(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e) => {
+  const getLoginErrorMessage = (err) => {
+    const code = err.response?.data?.error?.code;
+    const message = err.response?.data?.error?.message;
+    switch (code) {
+      case "INVALID_CREDENTIALS":
+        return "Email hoặc mật khẩu không đúng.";
+      case "ACCOUNT_LOCKED":
+        return message || "Tài khoản bị khóa. Vui lòng thử lại sau.";
+      case "ACCOUNT_DISABLED":
+        return "Tài khoản đã bị vô hiệu hóa.";
+      case "VALIDATION_ERROR":
+        return "Vui lòng nhập đầy đủ email và mật khẩu.";
+      default:
+        if (!err.response) return "Không thể kết nối đến server.";
+        return message || "Đăng nhập thất bại.";
+    }
+  };
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login attempt:", { loginEmail, loginPassword });
-    // Handle login logic here
-    onClose();
+    setLoginError("");
+    setLoginSuccess("");
+
+    if (!loginEmail.trim()) { setLoginError("Vui lòng nhập email."); return; }
+    if (!loginPassword) { setLoginError("Vui lòng nhập mật khẩu."); return; }
+
+    setLoginLoading(true);
+    try {
+      const result = await loginApi(loginEmail, loginPassword);
+
+      localStorage.setItem("accessToken", result.data.tokens.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.data.user));
+
+      setLoginSuccess(`Đăng nhập thành công! Chào mừng ${result.data.user.name || "bạn"} 🎉`);
+
+      // Notify parent and stay on current page
+      setTimeout(() => {
+        onLoginSuccess?.(result.data.user);
+      }, 1000);
+    } catch (err) {
+      setLoginError(getLoginErrorMessage(err));
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -114,6 +171,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
     setStep(1);
     setVerificationCode("");
     setCodeError("");
+    setLoginError("");
+    setLoginSuccess("");
   };
 
   const switchToLogin = () => {
@@ -121,6 +180,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
     setStep(1);
     setVerificationCode("");
     setCodeError("");
+    setLoginError("");
+    setLoginSuccess("");
   };
 
   return (
@@ -175,7 +236,20 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={handleLoginSubmit} className="space-y-3">
+                <form onSubmit={handleLoginSubmit} className="space-y-3" autoComplete="off">
+                  {loginSuccess && (
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-[12px] text-xs">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{loginSuccess}</span>
+                    </div>
+                  )}
+                  {loginError && (
+                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-[12px] text-xs">
+                      <XCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <Label htmlFor="login-email" className="text-gray-700 text-xs">Email or Phone</Label>
                     <Input
@@ -184,6 +258,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                       placeholder="Enter your email or phone"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
+                      autoComplete="off"
                       className="h-10 bg-white border-gray-200 rounded-[14px] px-4 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#FF8C42] focus:ring-[#FF8C42] shadow-sm"
                     />
                   </div>
@@ -197,6 +272,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
                         placeholder="Enter your password"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
+                        autoComplete="new-password"
                         className="h-10 bg-white border-gray-200 rounded-[14px] px-4 pr-10 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#FF8C42] focus:ring-[#FF8C42] shadow-sm"
                       />
                       <button
@@ -217,9 +293,17 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }) {
 
                   <Button
                     type="submit"
-                    className="w-full h-10 bg-[#FF8C42] hover:bg-[#E67A35] text-white text-sm rounded-[14px] shadow-md hover:shadow-lg transition-all duration-200"
+                    disabled={loginLoading}
+                    className="w-full h-10 bg-[#FF8C42] hover:bg-[#E67A35] text-white text-sm rounded-[14px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Login
+                    {loginLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Đang đăng nhập...
+                      </span>
+                    ) : (
+                      "Đăng nhập"
+                    )}
                   </Button>
 
                   <div className="relative my-3">

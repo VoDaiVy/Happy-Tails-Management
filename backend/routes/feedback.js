@@ -7,6 +7,7 @@ const express = require('express');
 const {
   getAllFeedback,
   getMyFeedback,
+  getFeedbacksByService,
   createFeedback,
   updateFeedback,
   deleteFeedback,
@@ -20,6 +21,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/', optionalAuth, getAllFeedback);  // GET /api/feedback - Get all published feedback
+router.get('/service/:serviceId', getFeedbacksByService);  // GET /api/feedback/service/:serviceId - Get feedback for a service
 
 // Customer routes
 router.use(protect);

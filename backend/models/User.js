@@ -49,6 +49,13 @@ const userSchema = new mongoose.Schema({
     default: []
   },
 
+  // Wallet
+  walletBalance: {
+    type: Number,
+    default: 0,
+    min: [0, 'Wallet balance cannot be negative']
+  },
+
   // Security - Password
   passwordChangedAt: Date,
   passwordResetToken: String,
