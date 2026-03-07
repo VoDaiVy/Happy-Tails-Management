@@ -37,6 +37,9 @@ const policyRoutes = require("./routes/policy");
 const feedbackRoutes = require("./routes/feedback");
 const adminRoutes = require("./routes/admin");
 const walletRoutes = require("./routes/wallet");
+const aiRoutes = require("./routes/ai");
+const medicalRecordRoutes = require("./routes/medicalRecord");
+const userRoutes = require("./routes/user");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -166,8 +169,19 @@ app.use("/api/feedback", feedbackRoutes);
 // Admin routes
 app.use("/api/admin", adminRoutes);
 
+
 // Wallet routes (PayOS payment integration)
 app.use("/api/wallet", walletRoutes);
+
+// AI routes
+app.use("/api/ai", aiRoutes);
+
+// Medical Record routes
+app.use("/api/medical-records", medicalRecordRoutes);
+
+// User management routes
+app.use("/api/users", userRoutes);
+
 
 // ==================== ERROR HANDLING ====================
 

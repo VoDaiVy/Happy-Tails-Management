@@ -1,8 +1,3 @@
-/**
- * Booking Routes
- * Booking management for all roles
- */
-
 const express = require('express');
 const {
   createBooking,
@@ -12,17 +7,19 @@ const {
   getBookingById,
   updateBookingStatus,
   cancelBooking,
-  assignStaffToBooking
+  assignStaffToBooking,
+  checkoutBooking
+
 } = require('../controllers/bookingController');
 
 const { protect, restrictTo } = require('../middleware/auth');
-
 const router = express.Router();
 
 // All booking routes require authentication
 router.use(protect);
 
 // Customer routes
+router.post('/checkout', restrictTo('customer'), checkoutBooking);  // POST /api/bookings/checkout - Checkout with availability check
 router.post('/', restrictTo('customer'), createBooking);  // POST /api/bookings - Create booking from cart
 router.get('/my', restrictTo('customer'), getMyBookings);  // GET /api/bookings/my - Get my bookings
 
