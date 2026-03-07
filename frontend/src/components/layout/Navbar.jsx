@@ -25,7 +25,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
         <div className="hidden md:flex items-center gap-10 font-bold text-slate-700">
           <Link to="/service" className="hover:text-primary transition-colors">Dich vu</Link>
           <a href="#about" className="hover:text-primary transition-colors">Ve chung toi</a>
-          <a href="#news" className="hover:text-primary transition-colors">Tin tuc</a>
+          <Link to="/news" className="hover:text-primary transition-colors">Tin tuc</Link>
           <button 
             onClick={onLoginClick}
             className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
@@ -47,7 +47,7 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
           <div className="flex flex-col gap-4 font-bold text-slate-700">
             <Link to="/service" className="hover:text-primary transition-colors py-2">Dich vu</Link>
             <a href="#about" className="hover:text-primary transition-colors py-2">Ve chung toi</a>
-            <a href="#news" className="hover:text-primary transition-colors py-2">Tin tuc</a>
+            <Link to="/news" className="hover:text-primary transition-colors py-2">Tin tuc</Link>
             <button 
               onClick={() => {
                 setIsMobileMenuOpen(false);

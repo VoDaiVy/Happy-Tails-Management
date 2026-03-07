@@ -6,6 +6,7 @@ import StaffDashboard from './pages/dashboard/StaffDashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Service from './pages/Service';
+import News from './pages/News';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/service" element={<Service />} />
+        <Route path="/news" element={<News />} />
 
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
