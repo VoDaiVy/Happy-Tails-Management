@@ -1,16 +1,50 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { PawPrint, User, Menu, X } from 'lucide-react';
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PawPrint, User, Menu, X, LogOut, CalendarDays, UserCircle, ChevronDown } from 'lucide-react';
+import { logoutApi } from '../../api/authApi';
 
-const Navbar = ({ onLoginClick, onRegisterClick }) => {
+const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+    try {
+      await logoutApi();
+    } catch {
+      // ignore logout API errors
+    }
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    onLogout?.();
+  };
+
+  // Get initials for avatar
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md shadow-lg py-3' : 'bg-transparent py-5'}`}>
@@ -26,12 +60,66 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
           <Link to="/service" className="hover:text-primary transition-colors">Dich vu</Link>
           <a href="#about" className="hover:text-primary transition-colors">Ve chung toi</a>
           <Link to="/news" className="hover:text-primary transition-colors">Tin tuc</Link>
-          <button 
-            onClick={onLoginClick}
-            className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
-          >
-            <User size={18} /> Dang nhap
-          </button>
+
+          {user ? (
+            /* === Logged in: Avatar + Dropdown === */
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-slate-100 transition-all"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#FF8C42] flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  {getInitials(user.name)}
+                </div>
+                <span className="text-sm font-semibold text-slate-800 max-w-[120px] truncate">{user.name}</span>
+                <ChevronDown size={16} className={`text-slate-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 animate-in fade-in slide-in-from-top-2">
+                  {/* User info header */}
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                  </div>
+
+                  <div className="py-1">
+                    <button
+                      onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#FF8C42] transition-colors"
+                    >
+                      <UserCircle size={18} /> Ho so
+                    </button>
+                    <button
+                      onClick={() => { setIsDropdownOpen(false); navigate('/bookings'); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#FF8C42] transition-colors"
+                    >
+                      <CalendarDays size={18} /> Don dat cho
+                    </button>
+                  </div>
+
+                  <div className="border-t border-slate-100 py-1">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={18} /> Dang xuat
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* === Not logged in: Login button === */
+            <div className="flex gap-2">
+              <button 
+                onClick={onLoginClick}
+                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
+              >
+                <User size={18} /> Dang nhap
+              </button>
+            </div>
+          )}
         </div>
         
         <button 
@@ -48,24 +136,48 @@ const Navbar = ({ onLoginClick, onRegisterClick }) => {
             <Link to="/service" className="hover:text-primary transition-colors py-2">Dich vu</Link>
             <a href="#about" className="hover:text-primary transition-colors py-2">Ve chung toi</a>
             <Link to="/news" className="hover:text-primary transition-colors py-2">Tin tuc</Link>
-            <button 
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onLoginClick?.();
-              }}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
-            >
-              <User size={18} /> Dang nhap
-            </button>
-            <button 
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onRegisterClick?.();
-              }}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full hover:bg-slate-900 hover:text-white transition-all"
-            >
-              Dang ky
-            </button>
+
+            {user ? (
+              <>
+                {/* Mobile: user info */}
+                <div className="flex items-center gap-3 py-2 border-t border-slate-100 pt-4">
+                  <div className="w-10 h-10 rounded-full bg-[#FF8C42] flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    {getInitials(user.name)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{user.name}</p>
+                    <p className="text-xs text-slate-500">{user.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/profile'); }}
+                  className="flex items-center gap-3 py-2 text-slate-700 hover:text-[#FF8C42]">
+                  <UserCircle size={18} /> Ho so
+                </button>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/bookings'); }}
+                  className="flex items-center gap-3 py-2 text-slate-700 hover:text-[#FF8C42]">
+                  <CalendarDays size={18} /> Don dat cho
+                </button>
+                <button onClick={handleLogout}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all">
+                  <LogOut size={18} /> Dang xuat
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => { setIsMobileMenuOpen(false); onLoginClick?.(); }}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-full hover:bg-primary hover:shadow-lg transition-all"
+                >
+                  <User size={18} /> Dang nhap
+                </button>
+                <button 
+                  onClick={() => { setIsMobileMenuOpen(false); onRegisterClick?.(); }}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 border-2 border-slate-900 text-slate-900 rounded-full hover:bg-slate-900 hover:text-white transition-all"
+                >
+                  Dang ky
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

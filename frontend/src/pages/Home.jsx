@@ -9,6 +9,10 @@ const Home = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
   const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
   
@@ -34,12 +38,13 @@ const Home = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
+        onLoginSuccess={(userData) => { setUser(userData); setIsAuthModalOpen(false); }}
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 
