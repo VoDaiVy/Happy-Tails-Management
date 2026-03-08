@@ -6,7 +6,7 @@ import {
   Sparkles, Stethoscope, Heart, ArrowRight, CheckCircle, Phone, Mail, Clock, 
   Video, Coffee, Shield, PawPrint, Monitor, Thermometer, UserCheck,
   Syringe, Star, Award, Upload, Scan, ClipboardList,
-  Scissors, Droplet, Eye, Brush, Smile, Gamepad2, Utensils, Bed, Moon
+  Scissors, Droplet, Eye, Brush, Smile, Gamepad2, Utensils, Bed, Moon, X
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -768,39 +768,58 @@ const ServicePage = () => {
               transition={{ duration: 0.4 }}
               className="w-full max-w-[1100px] mx-auto px-6 xl:px-4 mt-4 mb-20"
             >
-              {/* Results Header */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-2xl font-serif font-black text-[#1F2A37]">
-                    {searchResults.length > 0 ? `${searchResults.length} Service${searchResults.length > 1 ? 's' : ''} Found` : 'No Services Found'}
-                  </h2>
-                  {/* Active filter badges */}
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    {activeSearchQuery && (
-                      <span className="inline-flex items-center gap-1.5 bg-[#1F2A37]/8 border border-[#1F2A37]/10 text-[#1F2A37] px-3 py-1 rounded-full text-[11px] font-bold">
-                        <Search size={11} /> &ldquo;{activeSearchQuery}&rdquo;
-                      </span>
-                    )}
-                    {activeCategory !== 'All Categories' && (
-                      <span className="inline-flex items-center gap-1.5 bg-[#7FB069]/10 border border-[#7FB069]/20 text-[#7FB069] px-3 py-1 rounded-full text-[11px] font-bold">
-                        {activeCategory}
-                      </span>
-                    )}
-                    {activeSortBy !== 'Default' && (
-                      <span className="inline-flex items-center gap-1.5 bg-[#E07A5F]/10 border border-[#E07A5F]/20 text-[#E07A5F] px-3 py-1 rounded-full text-[11px] font-bold">
-                        {activeSortBy}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={handleClearSearch}
-                  className="flex items-center gap-2 border border-[#1F2A37]/20 text-[#1F2A37]/70 hover:border-[#E07A5F] hover:text-[#E07A5F] px-4 py-2 rounded-full text-[12px] font-bold transition-all shrink-0"
-                >
-                  <ChevronDown size={14} className="rotate-90" /> Clear & Show All
-                </button>
-              </div>
+              {/* Results Header — clean horizontal */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-5 border-b border-[#1F2A37]/8">
 
+                {/* LEFT: Title + subtitle filter info */}
+                <div className="flex flex-col gap-1.5">
+                  <h2 className="font-serif text-[28px] font-black text-[#1F2A37] leading-tight">
+                    {searchResults.length} {searchResults.length === 1 ? 'Service' : 'Services'} Found
+                  </h2>
+                  {/* Subtitle: Showing results for ... */}
+                  {(activeSearchQuery || activeCategory !== 'All Categories') && (
+                    <p className="text-[13px] text-[#1F2A37]/50 font-medium flex items-center gap-1.5 flex-wrap">
+                      <span>Showing results for:</span>
+                      {activeCategory !== 'All Categories' && (
+                        <span className="font-bold text-[#1F2A37]/70">{activeCategory}</span>
+                      )}
+                      {activeCategory !== 'All Categories' && activeSearchQuery && (
+                        <span className="text-[#1F2A37]/30">+</span>
+                      )}
+                      {activeSearchQuery && (
+                        <span className="font-bold text-[#1F2A37]/70">&ldquo;{activeSearchQuery}&rdquo;</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* RIGHT: Sort pill + Clear button */}
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* Active sort badge — only shows if not Default */}
+                  {activeSortBy !== 'Default' && (
+                    <span
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12px] font-bold border transition-all"
+                      style={{
+                        backgroundColor: '#FDF5F2',
+                        borderColor: '#E07A5F60',
+                        color: '#E07A5F',
+                      }}
+                    >
+                      <Activity size={12} />
+                      {activeSortBy}
+                    </span>
+                  )}
+
+                  {/* Clear & Show All button */}
+                  <button
+                    onClick={handleClearSearch}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-[12px] font-bold border border-[#1F2A37]/20 text-[#1F2A37]/60 bg-transparent hover:bg-[#F5F1EB] hover:border-[#1F2A37]/30 hover:text-[#1F2A37]/80 transition-all duration-200"
+                  >
+                    <X size={12} />
+                    Clear & Show All
+                  </button>
+                </div>
+              </div>
               {/* Results Grid */}
               {searchResults.length === 0 ? (
                 <motion.div
