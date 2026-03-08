@@ -10,6 +10,16 @@ export const registerApi = async (userData) => {
   return response.data;
 };
 
+export const verifyEmailApi = async (email, otp) => {
+  const response = await axiosInstance.post("/auth/verify-email", { email, otp });
+  return response.data;
+};
+
+export const resendVerificationApi = async (email) => {
+  const response = await axiosInstance.post("/auth/resend-verification", { email });
+  return response.data;
+};
+
 export const logoutApi = async () => {
   const response = await axiosInstance.post("/auth/logout");
   return response.data;

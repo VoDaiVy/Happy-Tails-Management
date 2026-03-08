@@ -15,10 +15,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
 
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
         {/* Admin Dashboard */}
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<AdminDashboard />} />

@@ -4,16 +4,16 @@ import { PawPrint, MapPin, Phone, Mail, Facebook, Instagram, Youtube, ArrowRight
 const Footer = () => {
   return (
     <footer className="relative mt-20 pb-10 px-4 font-sans text-slate-700">
-      {/* Container chính: Thẻ nổi gọn gàng */}
+      {/* Main Container: Clean floating card */}
       <div className="container mx-auto relative bg-white border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden">
         
-        {/* Họa tiết trang trí nền */}
+        {/* Background decorative pattern */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-100 rounded-full blur-[80px] -z-10 opacity-60" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-100 rounded-full blur-[80px] -z-10 opacity-60" />
         
         <div className="p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
           
-          {/* Cột 1: Branding */}
+          {/* Column 1: Branding */}
           <div className="lg:col-span-4 flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <div className="bg-[#D97853] p-2 rounded-xl text-white shadow-lg">
@@ -33,7 +33,7 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Cột 2: Explore & Contact (Gộp để tiết kiệm chiều cao) */}
+          {/* Column 2: Explore & Contact (Combined to save height) */}
           <div className="lg:col-span-5 grid grid-cols-2 gap-6">
             <div>
               <h4 className="font-bold text-slate-900 mb-4 text-xs uppercase tracking-wider">Explore</h4>

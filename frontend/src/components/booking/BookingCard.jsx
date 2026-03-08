@@ -110,7 +110,7 @@ const BookingCard = ({
   const getCustomerName = () => {
     if (booking.guestInfo?.name) return booking.guestInfo.name;
     if (booking.customer?.name) return booking.customer.name;
-    return "Khách hàng";
+    return "Customer";
   };
 
   // Get customer contact
@@ -149,7 +149,7 @@ const BookingCard = ({
 
     // Staff actions
     if (role === "staff") {
-      // Đơn chưa ai nhận -> hiện nút "Nhận đơn"
+      // Unassigned order -> show "Accept Order" button
       if (isUnclaimed) {
         return (
           <div className="px-4 py-2 bg-gradient-to-r from-[#5B8C51]/10 to-[#5B8C51]/5 border-t border-gray-100">
@@ -158,7 +158,7 @@ const BookingCard = ({
               className="w-full py-2 px-3 bg-[#5B8C51] text-white text-sm font-medium rounded-lg hover:bg-[#4a7a42] transition-colors flex items-center justify-center gap-2"
             >
               <UserPlus size={16} />
-              Nhận đơn này
+              Accept Order
             </button>
           </div>
         );
@@ -190,7 +190,7 @@ const BookingCard = ({
                 className="w-full py-1.5 px-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle size={16} />
-                Hoàn thành
+                Complete
               </button>
             </div>
           );
@@ -239,7 +239,7 @@ const BookingCard = ({
           <div className="flex items-center gap-1">
             {/* Show assigned staff indicator for staff role */}
             {role === "staff" && isMyBooking && (
-              <span className="p-1.5 rounded-lg bg-[#5B8C51]/10 text-[#5B8C51]" title="Đơn của bạn">
+              <span className="p-1.5 rounded-lg bg-[#5B8C51]/10 text-[#5B8C51]" title="Your booking">
                 <UserCheck size={16} />
               </span>
             )}
@@ -297,7 +297,7 @@ const BookingCard = ({
         {/* Services */}
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Dịch vụ ({booking.items?.length || 0})
+            Services ({booking.items?.length || 0})
           </p>
           <div className="flex flex-wrap gap-1.5">
             {booking.items?.slice(0, 3).map((item, index) => (
@@ -306,7 +306,7 @@ const BookingCard = ({
                 className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-xs text-gray-700"
               >
                 <PawPrint size={12} />
-                {item.service?.name || "Dịch vụ"}
+                {item.service?.name || "Service"}
               </span>
             ))}
             {booking.items?.length > 3 && (
@@ -332,7 +332,7 @@ const BookingCard = ({
           <div className="flex items-center gap-2 text-sm">
             <DoorOpen size={16} className="text-purple-500" />
             <span className="text-gray-600">
-              Phòng: <span className="font-medium text-purple-700">{booking.room.roomNumber || booking.room.name || "Phòng"}</span>
+              Room: <span className="font-medium text-purple-700">{booking.room.roomNumber || booking.room.name || "Room"}</span>
             </span>
           </div>
         )}
@@ -346,7 +346,7 @@ const BookingCard = ({
             </span>
             {booking.isPaid && (
               <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-xs rounded">
-                Đã thanh toán
+                Paid
               </span>
             )}
           </div>

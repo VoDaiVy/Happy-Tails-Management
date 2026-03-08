@@ -7,9 +7,9 @@ import { logoutApi } from '../../api/authApi';
 const SCROLL_THRESHOLD = 60;
 
 const NAV_LINKS = [
-  { label: 'Dịch vụ', href: '#services' },
-  { label: 'Về chúng tôi', href: '#about' },
-  { label: 'Tin tức', href: '#news' },
+  { label: 'Services', href: '#services' },
+  { label: 'About Us', href: '#about' },
+  { label: 'News', href: '#news' },
 ];
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
@@ -251,19 +251,19 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       <button onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
                         <UserCircle size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
-                        Hồ sơ cá nhân
+                        Profile
                       </button>
                       <button onClick={() => { setIsDropdownOpen(false); navigate('/bookings'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
                         <CalendarDays size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
-                        Đơn đặt chỗ
+                        Bookings
                       </button>
                     </div>
                     <div className="px-2 pt-0.5 pb-1.5 border-t border-slate-100 mx-2">
                       <button onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-all mt-1 group">
                         <LogOut size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                        Đăng xuất
+                        Sign Out
                       </button>
                     </div>
                   </div>
@@ -279,14 +279,14 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                 >
-                  Đăng nhập
+                  Sign In
                 </button>
                 <button
                   onClick={onRegisterClick}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-[#FF8C42] to-[#e86b1f] text-white shadow-[0_4px_14px_rgba(255,140,66,0.4)] hover:shadow-[0_6px_22px_rgba(255,140,66,0.6)] hover:scale-[1.04] active:scale-[0.97] transition-all duration-200"
                 >
                   <Sparkles size={13} />
-                  Bắt đầu
+                  Get Started
                 </button>
               </>
             )}
@@ -345,26 +345,26 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 </div>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/profile'); }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
-                  <UserCircle size={16} /> Hồ sơ cá nhân
+                  <UserCircle size={16} /> Profile
                 </button>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/bookings'); }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
-                  <CalendarDays size={16} /> Đơn đặt chỗ
+                  <CalendarDays size={16} /> Bookings
                 </button>
                 <button onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-all mt-1">
-                  <LogOut size={16} /> Đăng xuất
+                  <LogOut size={16} /> Sign Out
                 </button>
               </>
             ) : (
               <div className="flex flex-col gap-2">
                 <button onClick={() => { setIsMobileMenuOpen(false); onLoginClick?.(); }}
                   className="w-full py-3 rounded-xl text-sm font-semibold text-slate-700 border border-slate-200 hover:border-[#FF8C42] hover:text-[#FF8C42] transition-all">
-                  Đăng nhập
+                  Sign In
                 </button>
                 <button onClick={() => { setIsMobileMenuOpen(false); onRegisterClick?.(); }}
                   className="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-[#FF8C42] to-[#e86b1f] text-white shadow-[0_4px_14px_rgba(255,140,66,0.3)] transition-all">
-                  Bắt đầu ngay
+                  Get Started
                 </button>
               </div>
             )}
