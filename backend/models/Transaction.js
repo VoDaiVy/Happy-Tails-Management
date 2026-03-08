@@ -149,8 +149,8 @@ const transactionSchema = new mongoose.Schema({
 
 transactionSchema.index({ userId: 1, createdAt: -1 });
 transactionSchema.index({ user: 1 });
-transactionSchema.index({ transactionCode: 1 }, { unique: true });
-transactionSchema.index({ payosOrderCode: 1 }, { sparse: true });
+// Note: transactionCode index is already created via field definition (unique: true)
+// Note: payosOrderCode index is already created via field definition (sparse: true)
 transactionSchema.index({ status: 1, expiredAt: 1 }); // For expiry cleanup job
 transactionSchema.index({ walletId: 1, createdAt: -1 });
 transactionSchema.index({ type: 1 });

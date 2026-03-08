@@ -63,7 +63,7 @@ const STAFF_STATUS_LABELS = {
 const PAYMENT_LABELS = {
   cash: "Tiền mặt",
   card: "Thẻ ngân hàng",
-  online: "Thanh toán Online",
+  online: "Online Payment",
   wallet: "Ví điện tử",
 };
 
@@ -209,7 +209,7 @@ const BookingDetailModal = ({
               className="w-full py-3 px-4 bg-[#5B8C51] text-white font-medium rounded-xl hover:bg-[#4a7a42] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               <UserPlus size={20} />
-              Nhận đơn này
+              Accept This Order
             </button>
           </div>
         );
@@ -241,7 +241,7 @@ const BookingDetailModal = ({
                 className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle size={20} />
-                Hoàn thành
+                Complete
               </button>
             </div>
           );
@@ -282,7 +282,7 @@ const BookingDetailModal = ({
             >
               <div>
                 <h2 className="text-xl font-bold">
-                  {role === "admin" ? "Chi tiết đơn đặt lịch" : "Thông tin đơn hàng"}
+                  {role === "admin" ? "Booking Details" : "Order Information"}
                 </h2>
                 <p className="text-white/80 text-sm">#{booking.bookingNumber}</p>
               </div>
@@ -307,13 +307,13 @@ const BookingDetailModal = ({
                 {booking.isPaid && (
                   <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                     <DollarSign size={16} />
-                    Đã thanh toán
+                    Paid
                   </span>
                 )}
                 {customer.isGuest && (
                   <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
                     <User size={16} />
-                    Khách vãng lai
+                    Walk-in Customer
                   </span>
                 )}
                 {role === "staff" && isMyBooking && (
@@ -328,7 +328,7 @@ const BookingDetailModal = ({
               <div className="bg-gray-50 rounded-xl p-4">
                 <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
                   <User size={18} className="text-[#5B8C51]" />
-                  Thông tin khách hàng
+                  Customer Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ const BookingDetailModal = ({
               <div className="bg-gray-50 rounded-xl p-4">
                 <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
                   <Calendar size={18} className="text-[#5B8C51]" />
-                  Thông tin đặt lịch
+                  Booking Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="flex items-center gap-2">
@@ -388,7 +388,7 @@ const BookingDetailModal = ({
               <div className="bg-gray-50 rounded-xl p-4">
                 <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
                   <PawPrint size={18} className="text-[#5B8C51]" />
-                  Dịch vụ đã đặt ({booking.items?.length || 0})
+                  Booked Services ({booking.items?.length || 0})
                 </h3>
                 <div className="space-y-2">
                   {booking.items?.map((item, index) => (
@@ -402,16 +402,16 @@ const BookingDetailModal = ({
                         </div>
                         <div>
                           <p className="font-medium text-[#2D3436]">
-                            {item.service?.name || "Dịch vụ"}
+                            {item.service?.name || "Service"}
                           </p>
                           {item.pet && (
                             <p className="text-xs text-gray-500">
-                              Thú cưng: {item.pet.name}
+                              Pet: {item.pet.name}
                             </p>
                           )}
                           {item.notes && (
                             <p className="text-xs text-gray-400 mt-0.5">
-                              Ghi chú: {item.notes}
+                              Notes: {item.notes}
                             </p>
                           )}
                         </div>
@@ -481,7 +481,7 @@ const BookingDetailModal = ({
                           onChange={(e) => setSelectedStaff(e.target.value)}
                           className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
                         >
-                          <option value="">-- Chọn nhân viên --</option>
+                          <option value="">-- Select Staff --</option>
                           {staffList.map((staff) => (
                             <option key={staff._id} value={staff._id}>
                               {staff.name}
@@ -506,7 +506,7 @@ const BookingDetailModal = ({
                 <div className="bg-purple-50 rounded-xl p-4">
                   <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
                     <DoorOpen size={18} className="text-purple-600" />
-                    Phòng lưu trú
+                    Accommodation Room
                   </h3>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -545,7 +545,7 @@ const BookingDetailModal = ({
                 <div className="bg-red-50 rounded-xl p-4">
                   <h3 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
                     <XCircle size={18} />
-                    Thông tin hủy đơn
+                    Cancellation Info
                   </h3>
                   {booking.cancellationReason && (
                     <p className="text-red-600 text-sm mb-2">
@@ -554,7 +554,7 @@ const BookingDetailModal = ({
                   )}
                   {booking.cancelledAt && (
                     <p className="text-red-500 text-xs">
-                      Hủy lúc: {formatDateTime(booking.cancelledAt)}
+                      Cancelled at: {formatDateTime(booking.cancelledAt)}
                     </p>
                   )}
                 </div>
@@ -565,7 +565,7 @@ const BookingDetailModal = ({
                 <History size={14} />
                 Tạo lúc: {formatDateTime(booking.createdAt)}
                 {booking.updatedAt !== booking.createdAt && (
-                  <span>• Cập nhật: {formatDateTime(booking.updatedAt)}</span>
+                  <span>• Updated: {formatDateTime(booking.updatedAt)}</span>
                 )}
               </div>
             </div>

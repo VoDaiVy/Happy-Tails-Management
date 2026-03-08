@@ -18,7 +18,7 @@ const AdminSidebar = ({ collapsed }) => {
   return (
     <nav className="px-3 space-y-1">
       <p className={`px-3 mb-3 text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/40 ${collapsed ? 'text-center' : ''}`}>
-        {collapsed ? '—' : 'Quản trị'}
+        {collapsed ? '—' : 'Admin'}
       </p>
       {adminMenuItems.map((item) => (
         <NavLink

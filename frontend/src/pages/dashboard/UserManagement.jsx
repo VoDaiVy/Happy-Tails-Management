@@ -28,12 +28,12 @@ const ROLE_CONFIG = {
     icon: Shield,
   },
   staff: {
-    label: "Nhân viên",
+    label: "Staff",
     color: "bg-blue-100 text-blue-700",
     icon: UserCheck,
   },
   customer: {
-    label: "Khách hàng",
+    label: "Customer",
     color: "bg-green-100 text-green-700",
     icon: Users,
   },
@@ -41,9 +41,9 @@ const ROLE_CONFIG = {
 
 // Filter tabs
 const FILTER_TABS = [
-  { key: "all", label: "Tất cả", icon: Users },
-  { key: "active", label: "Hoạt động", icon: UserCheck },
-  { key: "blocked", label: "Đã khóa", icon: Ban },
+  { key: "all", label: "All", icon: Users },
+  { key: "active", label: "Active", icon: UserCheck },
+  { key: "blocked", label: "Blocked", icon: Ban },
 ];
 
 const UserManagement = () => {
@@ -114,7 +114,7 @@ const UserManagement = () => {
       }
     } catch (err) {
       console.error("Error fetching users:", err);
-      setError(err.response?.data?.message || "Không thể tải danh sách người dùng");
+      setError(err.response?.data?.message || "Cannot load user list");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -144,7 +144,7 @@ const UserManagement = () => {
       setBlockReason("");
     } catch (err) {
       console.error("Error blocking user:", err);
-      alert(err.response?.data?.message || "Không thể khóa tài khoản");
+      alert(err.response?.data?.message || "Cannot block account");
     } finally {
       setActionLoading(null);
     }
@@ -158,7 +158,7 @@ const UserManagement = () => {
       fetchUsers(true);
     } catch (err) {
       console.error("Error unblocking user:", err);
-      alert(err.response?.data?.message || "Không thể mở khóa tài khoản");
+      alert(err.response?.data?.message || "Cannot unblock account");
     } finally {
       setActionLoading(null);
     }
@@ -206,10 +206,10 @@ const UserManagement = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#2D3436] flex items-center gap-2">
             <Users className="text-[#5B8C51]" />
-            Quản lý Người dùng
+            User Management
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Xem và quản lý tài khoản người dùng trong hệ thống
+              View and manage user accounts in the system
           </p>
         </div>
 
@@ -218,7 +218,7 @@ const UserManagement = () => {
             onClick={() => fetchUsers(true)}
             disabled={isRefreshing}
             className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            title="Làm mới"
+            title="Refresh"
           >
             <RefreshCw
               size={20}
@@ -241,7 +241,7 @@ const UserManagement = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm theo tên, email..."
+              placeholder="Search by name, email..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
             />
           </div>
@@ -253,9 +253,9 @@ const UserManagement = () => {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
             >
-              <option value="">Tất cả vai trò</option>
-              <option value="customer">Khách hàng</option>
-              <option value="staff">Nhân viên</option>
+              <option value="">All Roles</option>
+              <option value="customer">Customer</option>
+              <option value="staff">Staff</option>
               <option value="admin">Admin</option>
             </select>
 
@@ -266,7 +266,7 @@ const UserManagement = () => {
                 className="px-4 py-2.5 text-sm text-gray-600 hover:text-[#5B8C51] transition-colors flex items-center gap-1"
               >
                 <X size={16} />
-                Xóa bộ lọc
+                Clear Filters
               </button>
             )}
           </div>
@@ -301,7 +301,7 @@ const UserManagement = () => {
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-[#5B8C51] border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500">Đang tải danh sách người dùng...</p>
+            <p className="text-gray-500">Loading users...</p>
           </div>
         </div>
       ) : error ? (
@@ -316,7 +316,7 @@ const UserManagement = () => {
                 onClick={() => fetchUsers()}
                 className="mt-2 text-sm text-[#5B8C51] hover:underline"
               >
-                Thử lại
+                Try Again
               </button>
             </div>
           </div>
@@ -329,10 +329,10 @@ const UserManagement = () => {
             </div>
             <div>
               <p className="font-medium text-[#2D3436]">
-                Không tìm thấy người dùng nào
+                No users found
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
+                Try changing filters or search keywords
               </p>
             </div>
           </div>
@@ -346,19 +346,19 @@ const UserManagement = () => {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Người dùng
+                      User
                     </th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Vai trò
+                      Role
                     </th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Trạng thái
+                      Status
                     </th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Ngày tạo
+                      Created
                     </th>
                     <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Thao tác
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -408,12 +408,12 @@ const UserManagement = () => {
                           {isBlocked ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
                               <Ban size={12} />
-                              Đã khóa
+                              Blocked
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                               <CheckCircle size={12} />
-                              Hoạt động
+                              Active
                             </span>
                           )}
                         </td>
@@ -439,7 +439,7 @@ const UserManagement = () => {
                                   {actionLoading === user._id ? (
                                     <RefreshCw size={14} className="animate-spin" />
                                   ) : (
-                                    "Mở khóa"
+                                    "Unblock"
                                   )}
                                 </button>
                               ) : (
@@ -448,7 +448,7 @@ const UserManagement = () => {
                                   disabled={actionLoading === user._id}
                                   className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
                                 >
-                                  Khóa
+                                  Block
                                 </button>
                               )}
                             </>
@@ -465,7 +465,7 @@ const UserManagement = () => {
             {pagination.totalPages > 1 && (
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
                 <p className="text-sm text-gray-500">
-                  Hiển thị {users.length} / {pagination.total} người dùng
+                  Showing {users.length} / {pagination.total} users
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -512,7 +512,7 @@ const UserManagement = () => {
               <div className="px-6 py-4 bg-red-500 text-white">
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Ban size={20} />
-                  Khóa tài khoản
+                  Block Account
                 </h3>
               </div>
               <div className="p-6 space-y-4">
@@ -530,12 +530,12 @@ const UserManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Lý do khóa (tùy chọn)
+                    Block reason (optional)
                   </label>
                   <textarea
                     value={blockReason}
                     onChange={(e) => setBlockReason(e.target.value)}
-                    placeholder="Nhập lý do khóa tài khoản..."
+                    placeholder="Enter reason for blocking account..."
                     rows={3}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 resize-none"
                   />
@@ -546,14 +546,14 @@ const UserManagement = () => {
                     onClick={() => setShowBlockModal(false)}
                     className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     onClick={handleBlockUser}
                     disabled={actionLoading === selectedUser._id}
                     className="flex-1 py-2.5 px-4 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors"
                   >
-                    {actionLoading === selectedUser._id ? "Đang xử lý..." : "Khóa tài khoản"}
+                    {actionLoading === selectedUser._id ? "Processing..." : "Block Account"}
                   </button>
                 </div>
               </div>
