@@ -6,6 +6,7 @@ import AdminNewsManagement from './pages/dashboard/admin/AdminNewsManagement';
 import StaffDashboard from './pages/dashboard/StaffDashboard';
 import BookingBoard from './pages/dashboard/BookingBoard';
 import UserManagement from './pages/dashboard/UserManagement';
+import RoomManagement from './pages/dashboard/RoomManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Service from './pages/Service';
@@ -19,16 +20,13 @@ function App() {
         <Route path="/service" element={<Service />} />
         <Route path="/news" element={<News />} />
 
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-
         {/* Admin Dashboard */}
         <Route path="/admin" element={<DashboardLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="news" element={<AdminNewsManagement />} />
           <Route path="bookings" element={<BookingBoard />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="rooms" element={<RoomManagement />} />
         </Route>
 
         {/* Staff Dashboard */}

@@ -1,20 +1,20 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Newspaper, CalendarCheck, Users } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Users, DoorOpen } from 'lucide-react';
 
 const adminMenuItems = [
-  { path: '/admin', icon: LayoutDashboard, label: 'Tổng quan' },
-  { path: '/admin/news', icon: Newspaper, label: 'Tin tức' },
-  { path: '/admin/bookings', icon: CalendarCheck, label: 'Đặt lịch' },
-  { path: '/admin/users', icon: Users, label: 'Người dùng' },
+  { path: '/admin', icon: LayoutDashboard, label: 'Overview' },
+  { path: '/admin/bookings', icon: CalendarCheck, label: 'Bookings' },
+  { path: '/admin/users', icon: Users, label: 'Users' },
+  { path: '/admin/rooms', icon: DoorOpen, label: 'Rooms' },
 ];
 
 const AdminSidebar = ({ collapsed }) => {
   return (
     <nav className="px-3 space-y-1">
       <p className={`px-3 mb-3 text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/40 ${collapsed ? 'text-center' : ''}`}>
-        {collapsed ? '—' : 'Quản trị'}
+        {collapsed ? '—' : 'Admin'}
       </p>
       {adminMenuItems.map((item) => (
         <NavLink

@@ -9,7 +9,7 @@ const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
-  // Xác định role từ path: /admin/* -> admin, /staff/* -> staff
+  // Determine role from path: /admin/* -> admin, /staff/* -> staff
   const isAdmin = location.pathname.startsWith('/admin');
   const role = isAdmin ? 'admin' : 'staff';
 
@@ -57,7 +57,7 @@ const DashboardLayout = () => {
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-[#2D3436]/10 flex items-center justify-between px-6 sticky top-0 z-30">
           <div>
             <h1 className="text-lg font-bold text-[#2D3436] capitalize">{role} Dashboard</h1>
-            <p className="text-xs text-[#2D3436]/60">Chào mừng trở lại</p>
+            <p className="text-xs text-[#2D3436]/60">Welcome back</p>
           </div>
           <div className="flex items-center gap-4">
             <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2D3436]/5 hover:bg-[#2D3436]/10 transition-colors">
@@ -67,7 +67,7 @@ const DashboardLayout = () => {
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-bold text-[#2D3436]">Admin</p>
                 <p className="text-xs text-[#2D3436]/60 flex items-center gap-1">
-                  {role === 'admin' ? 'Quản trị viên' : 'Nhân viên'} <ChevronDown size={12} />
+                  {role === 'admin' ? 'Administrator' : 'Staff'} <ChevronDown size={12} />
                 </p>
               </div>
             </button>

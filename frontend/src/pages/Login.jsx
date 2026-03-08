@@ -39,20 +39,20 @@ export function Login() {
 
     switch (code) {
       case "INVALID_CREDENTIALS":
-        return "Email hoặc mật khẩu không đúng. Vui lòng thử lại.";
+        return "Invalid email or password. Please try again.";
       case "ACCOUNT_LOCKED":
-        return message || "Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần. Vui lòng thử lại sau.";
+        return message || "Account locked due to multiple failed login attempts. Please try again later.";
       case "ACCOUNT_DISABLED":
-        return "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.";
+        return "Account has been disabled. Please contact administrator.";
       case "VALIDATION_ERROR":
-        return "Vui lòng nhập đầy đủ email và mật khẩu.";
+        return "Please enter both email and password.";
       case "RATE_LIMIT":
-        return "Bạn đã thử quá nhiều lần. Vui lòng đợi một lát rồi thử lại.";
+        return "Too many attempts. Please wait a moment and try again.";
       default:
         if (!err.response) {
-          return "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.";
+          return "Cannot connect to server. Please check your network connection.";
         }
-        return message || "Đăng nhập thất bại. Vui lòng thử lại.";
+        return message || "Login failed. Please try again.";
     }
   };
 
@@ -63,11 +63,11 @@ export function Login() {
 
     // Client-side validation
     if (!email.trim()) {
-      setError("Vui lòng nhập email.");
+      setError("Please enter your email.");
       return;
     }
     if (!password) {
-      setError("Vui lòng nhập mật khẩu.");
+      setError("Please enter your password.");
       return;
     }
 
@@ -81,7 +81,7 @@ export function Login() {
       localStorage.setItem("user", JSON.stringify(result.data.user));
 
       // Show success message
-      setSuccess(`Đăng nhập thành công! Chào mừng ${result.data.user.name || "bạn"} 🎉`);
+      setSuccess(`Login successful! Welcome ${result.data.user.name || "back"} 🎉`);
 
       // Redirect based on role after a short delay
       const role = result.data.user.role;
@@ -224,10 +224,10 @@ export function Login() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Đang đăng nhập...
+                  Signing in...
                 </span>
               ) : (
-                "Đăng nhập"
+                "Sign In"
               )}
             </Button>
 

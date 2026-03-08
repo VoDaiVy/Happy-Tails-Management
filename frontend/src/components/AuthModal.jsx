@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, RefreshCw, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { PawPattern } from "./PawPattern";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
-import { loginApi } from "../api/authApi";
+import { loginApi, registerApi, verifyEmailApi, resendVerificationApi } from "../api/authApi";
 
 export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSuccess }) {
-  const navigate = useNavigate();
   const [mode, setMode] = useState(initialMode); // "login" or "register"
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,10 +28,15 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
   
   // Email verification
   const [verificationCode, setVerificationCode] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [codeError, setCodeError] = useState("");
   const [isResending, setIsResending] = useState(false);
+
+  // Register loading & error/success states
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState("");
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   const totalSteps = 2;
   const progress = (step / totalSteps) * 100;
@@ -71,16 +74,16 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     const message = err.response?.data?.error?.message;
     switch (code) {
       case "INVALID_CREDENTIALS":
-        return "Email hoặc mật khẩu không đúng.";
+        return "Invalid email or password.";
       case "ACCOUNT_LOCKED":
-        return message || "Tài khoản bị khóa. Vui lòng thử lại sau.";
+        return message || "Account is locked. Please try again later.";
       case "ACCOUNT_DISABLED":
-        return "Tài khoản đã bị vô hiệu hóa.";
+        return "Account has been disabled.";
       case "VALIDATION_ERROR":
-        return "Vui lòng nhập đầy đủ email và mật khẩu.";
+        return "Please enter both email and password.";
       default:
-        if (!err.response) return "Không thể kết nối đến server.";
-        return message || "Đăng nhập thất bại.";
+        if (!err.response) return "Unable to connect to server.";
+        return message || "Login failed.";
     }
   };
 
@@ -89,8 +92,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     setLoginError("");
     setLoginSuccess("");
 
-    if (!loginEmail.trim()) { setLoginError("Vui lòng nhập email."); return; }
-    if (!loginPassword) { setLoginError("Vui lòng nhập mật khẩu."); return; }
+    if (!loginEmail.trim()) { setLoginError("Please enter your email."); return; }
+    if (!loginPassword) { setLoginError("Please enter your password."); return; }
 
     setLoginLoading(true);
     try {
@@ -99,7 +102,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
       localStorage.setItem("accessToken", result.data.tokens.accessToken);
       localStorage.setItem("user", JSON.stringify(result.data.user));
 
-      setLoginSuccess(`Đăng nhập thành công! Chào mừng ${result.data.user.name || "bạn"} 🎉`);
+      setLoginSuccess(`Login successful! Welcome ${result.data.user.name || "back"} 🎉`);
 
       // Notify parent and stay on current page
       setTimeout(() => {
@@ -120,49 +123,85 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     console.log("Login with Apple");
   };
 
-  // Generate random 6-digit code
-  const generateVerificationCode = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(code);
-    console.log("Verification code sent to", email, ":", code); // In thực tế sẽ gửi qua email
-    return code;
-  };
-
-  const handleStep1Submit = (e) => {
-    e.preventDefault();
-    if (name && email && password && confirmPassword && password === confirmPassword) {
-      setStep(2);
-      // Gửi mã xác thực khi chuyển sang step 2
-      generateVerificationCode();
-      setIsCodeSent(true);
+  const getRegisterErrorMessage = (err) => {
+    const code = err.response?.data?.error?.code;
+    const message = err.response?.data?.error?.message;
+    const details = err.response?.data?.error?.details;
+    switch (code) {
+      case "EMAIL_EXISTS":
+        return "Email is already registered. Please use a different email.";
+      case "VALIDATION_ERROR":
+        if (details && details.length > 0) {
+          const messages = details.flatMap(d => 
+            Array.isArray(d.message) ? d.message : [d.message]
+          );
+          return messages.join(" | ");
+        }
+        return message || "Invalid information. Please check and try again.";
+      default:
+        if (!err.response) return "Unable to connect to server.";
+        return message || "Registration failed. Please try again.";
     }
   };
 
-  const handleResendCode = () => {
-    setIsResending(true);
-    setCodeError("");
-    setTimeout(() => {
-      generateVerificationCode();
-      setIsResending(false);
-    }, 1000);
+  const handleStep1Submit = async (e) => {
+    e.preventDefault();
+    if (!name || !email || !password || !confirmPassword) return;
+    if (password !== confirmPassword) return;
+
+    setRegisterLoading(true);
+    setRegisterError("");
+    try {
+      await registerApi({ name, email, password });
+      setStep(2);
+      setIsCodeSent(true);
+    } catch (err) {
+      setRegisterError(getRegisterErrorMessage(err));
+    } finally {
+      setRegisterLoading(false);
+    }
   };
 
-  const handleStep2Submit = (e) => {
+  const handleResendCode = async () => {
+    setIsResending(true);
+    setCodeError("");
+    try {
+      await resendVerificationApi(email);
+    } catch {
+      // API always returns success to prevent email enumeration
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleStep2Submit = async (e) => {
     e.preventDefault();
-    if (verificationCode === generatedCode) {
-      console.log("Registration complete:", { name, email, password });
-      // Reset form và chuyển về trang đăng nhập
-      setName("");
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-      setVerificationCode("");
-      setGeneratedCode("");
-      setIsCodeSent(false);
-      setStep(1);
-      setMode("login");
-    } else {
-      setCodeError("Mã xác thực không đúng. Vui lòng thử lại.");
+    setVerifyLoading(true);
+    setCodeError("");
+    try {
+      await verifyEmailApi(email, verificationCode);
+      setRegisterSuccess("Email verified successfully! You can now log in.");
+      // Reset form and switch to login after 1.5s
+      setTimeout(() => {
+        setName("");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        setVerificationCode("");
+        setIsCodeSent(false);
+        setRegisterSuccess("");
+        setStep(1);
+        setMode("login");
+      }, 1500);
+    } catch (err) {
+      const code = err.response?.data?.error?.code;
+      if (code === "INVALID_OTP") {
+        setCodeError("Invalid or expired OTP code.");
+      } else {
+        setCodeError(err.response?.data?.error?.message || "Verification failed. Please try again.");
+      }
+    } finally {
+      setVerifyLoading(false);
     }
   };
 
@@ -171,6 +210,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     setStep(1);
     setVerificationCode("");
     setCodeError("");
+    setRegisterError("");
+    setRegisterSuccess("");
     setLoginError("");
     setLoginSuccess("");
   };
@@ -180,6 +221,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     setStep(1);
     setVerificationCode("");
     setCodeError("");
+    setRegisterError("");
+    setRegisterSuccess("");
     setLoginError("");
     setLoginSuccess("");
   };
@@ -299,10 +342,10 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                     {loginLoading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Đang đăng nhập...
+                        Signing in...
                       </span>
                     ) : (
-                      "Đăng nhập"
+                      "Sign In"
                     )}
                   </Button>
 
@@ -411,6 +454,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                       <p className="text-gray-500 text-xs">Tell us about yourself</p>
                     </div>
 
+                    {registerError && (
+                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-[12px] text-xs">
+                        <XCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{registerError}</span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label htmlFor="name" className="text-gray-700 text-xs">Full Name</Label>
@@ -488,9 +538,17 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
 
                     <Button
                       type="submit"
-                      className="w-full h-9 bg-[#FF8C42] hover:bg-[#E67A35] text-white text-sm rounded-[12px] shadow-md hover:shadow-lg transition-all duration-200 mt-3"
+                      disabled={registerLoading}
+                      className="w-full h-9 bg-[#FF8C42] hover:bg-[#E67A35] text-white text-sm rounded-[12px] shadow-md hover:shadow-lg transition-all duration-200 mt-3 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Continue
+                      {registerLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Registering...
+                        </span>
+                      ) : (
+                        "Register"
+                      )}
                     </Button>
                   </form>
                 )}
@@ -507,6 +565,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                       </p>
                       <p className="text-[#FF8C42] font-medium text-sm">{email}</p>
                     </div>
+
+                    {registerSuccess && (
+                      <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-[12px] text-xs">
+                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{registerSuccess}</span>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="verification-code" className="text-gray-700 text-xs">Verification Code</Label>
@@ -550,10 +615,17 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                       </Button>
                       <Button
                         type="submit"
-                        disabled={verificationCode.length !== 6}
+                        disabled={verificationCode.length !== 6 || verifyLoading}
                         className="flex-1 h-9 text-sm bg-[#FF8C42] hover:bg-[#E67A35] text-white rounded-[12px] shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Complete
+                        {verifyLoading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Verifying...
+                          </span>
+                        ) : (
+                          "Verify"
+                        )}
                       </Button>
                     </div>
                   </form>
