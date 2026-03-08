@@ -319,6 +319,204 @@ const veterinaryServicesData = [
   }
 ];
 
+// ─── All services flat list for unified search ───────────────────────────────
+const ALL_SERVICES = [
+  // AI Health
+  {
+    id: 'ai-scan', category: 'AI Health',
+    title: 'AI Health Scan', price: 'Free',
+    priceNum: 0,
+    description: 'Upload a pet photo and get an instant AI-powered preliminary health diagnosis.',
+    tag: 'ai-health', tagColor: '#7FB069', icon: <Monitor size={18} />,
+    image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&q=80',
+  },
+  // Spa & Grooming
+  ...spaServices.map(s => ({
+    ...s,
+    category: 'Spa & Grooming',
+    tag: 'spa-grooming', tagColor: '#E07A5F',
+    priceNum: parseInt(s.price.replace(/\D/g, '')) || 0,
+    description: s.description,
+  })),
+  // Veterinary
+  ...veterinaryServicesData.map(s => ({
+    ...s,
+    category: 'Veterinary',
+    tag: 'veterinary', tagColor: '#7FB069',
+    price: s.priceRange,
+    priceNum: parseInt(s.priceRange?.match(/\d+/)?.[0]) || 0,
+    description: s.desc,
+    image: s.img,
+  })),
+  // Boarding
+  {
+    id: 'standard-boarding', category: 'Boarding',
+    title: 'Standard Room', price: '$10/night',
+    priceNum: 10,
+    description: 'Cozy, private suites designed for a peaceful and relaxing stay.',
+    tag: 'boarding', tagColor: '#7FB069', icon: <Bed size={18} />,
+    image: '/standard.webp',
+  },
+  {
+    id: 'vip-boarding', category: 'Boarding',
+    title: 'VIP Penthouse', price: '$25/night',
+    priceNum: 25,
+    description: 'Spacious luxury suites with exclusive amenities and premium window view.',
+    tag: 'boarding', tagColor: '#E07A5F', icon: <Award size={18} />,
+    image: '/viproom.jpg',
+  },
+  {
+    id: 'meal-plan', category: 'Boarding',
+    title: 'Premium Meal Plan', price: '+$4/day',
+    priceNum: 4,
+    description: 'Premium kibble or wet food with customized feeding schedule and treats.',
+    tag: 'boarding', tagColor: '#7FB069', icon: <Utensils size={18} />,
+    image: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&q=80',
+  },
+];
+
+const CATEGORY_TAG_MAP = {
+  'AI Health': 'ai-health',
+  'Spa & Grooming': 'spa-grooming',
+  'Veterinary': 'veterinary',
+  'Boarding': 'boarding',
+};
+
+// ─── Reusable search result card (manages its own expand state) ───────────────
+const ServiceResultCard = ({ service, idx }) => {
+  const [expanded, setExpanded] = useState(false);
+  const isVet = service.category === 'Veterinary';
+  const hasItems = isVet && service.items && service.items.length > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: idx * 0.04 }}
+      className="bg-white rounded-[20px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-[#1F2A37]/5 transition-all duration-300 flex flex-col group hover:shadow-[0_10px_30px_rgba(0,0,0,0.1)]"
+    >
+      {/* Thumbnail Image */}
+      <div className="relative h-44 overflow-hidden shrink-0">
+        {service.image ? (
+          <img
+            src={service.image}
+            alt={service.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div
+            className="w-full h-full"
+            style={{ background: `linear-gradient(135deg, ${service.tagColor}22 0%, ${service.tagColor}44 100%)` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        <span
+          className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border backdrop-blur-md"
+          style={{
+            color: '#fff',
+            borderColor: `${service.tagColor}60`,
+            backgroundColor: `${service.tagColor}CC`,
+          }}
+        >
+          {service.category}
+        </span>
+        <div
+          className="absolute bottom-3 left-3 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg"
+          style={{ backgroundColor: service.tagColor || '#7FB069' }}
+        >
+          {service.icon || <Sparkles size={16} />}
+        </div>
+      </div>
+
+      {/* Card Body */}
+      <div className="flex flex-col p-4 flex-grow gap-2">
+        {/* Title + description */}
+        <div className="flex-grow">
+          <h3 className="font-bold text-[#1F2A37] text-[15px] mb-1 leading-snug">{service.title}</h3>
+          <p className="text-[12px] text-[#1F2A37]/55 leading-relaxed">{service.description}</p>
+        </div>
+
+        {/* Expandable sub-items */}
+        <AnimatePresence initial={false}>
+          {hasItems && expanded && (
+            <motion.div
+              key="items"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <ul
+                className="divide-y rounded-[12px] overflow-hidden border"
+                style={{ borderColor: `${service.tagColor}25` }}
+              >
+                {service.items.map((item, iIdx) => (
+                  <li
+                    key={iIdx}
+                    className="flex items-center justify-between px-3 py-2"
+                    style={{ backgroundColor: iIdx % 2 === 0 ? `${service.tagColor}05` : 'white' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: service.tagColor }}
+                      />
+                      <span className="text-[12px] font-semibold text-[#1F2A37]/75">
+                        {item.name}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[12px] font-black tabular-nums"
+                      style={{ color: service.tagColor }}
+                    >
+                      {item.price}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Price + Book button row — icon toggle merged in */}
+        <div className="flex items-center justify-between pt-2.5 border-t border-[#1F2A37]/6 mt-auto">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-[16px]" style={{ color: service.tagColor || '#7FB069' }}>
+              {service.price}
+            </span>
+            {/* Icon-only toggle for Vet items — no extra line */}
+            {hasItems && (
+              <button
+                onClick={() => setExpanded(prev => !prev)}
+                title={expanded ? 'Hide details' : 'View included services'}
+                className="w-6 h-6 rounded-full flex items-center justify-center border transition-all shrink-0"
+                style={{
+                  color: service.tagColor,
+                  borderColor: `${service.tagColor}40`,
+                  backgroundColor: expanded ? `${service.tagColor}15` : `${service.tagColor}08`,
+                }}
+              >
+                <ChevronDown
+                  size={13}
+                  className="transition-transform duration-300"
+                  style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                />
+              </button>
+            )}
+          </div>
+          <button
+            className="text-[11px] font-bold text-white rounded-full px-4 py-1.5 transition-all hover:opacity-90 hover:shadow-md active:scale-95"
+            style={{ backgroundColor: service.tagColor || '#7FB069' }}
+          >
+            Book Now
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const ServicePage = () => {
   const [category, setCategory] = useState("All Categories");
   const [sortBy, setSortBy] = useState("Default");
@@ -327,6 +525,13 @@ const ServicePage = () => {
   const [expandedVetCard, setExpandedVetCard] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  // Search result mode state
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All Categories');
+  const [activeSortBy, setActiveSortBy] = useState('Default');
+  const resultsRef = useRef(null);
 
   const openLoginModal = () => {
     setAuthModalMode('login');
@@ -381,107 +586,85 @@ const ServicePage = () => {
   const displayedSpaServices = getSortedSpaServices();
   const displayedVetServices = getSortedVeterinaryServices();
 
-  const [isSearching, setIsSearching] = useState(false);
+  // ── Unified search/filter/sort logic ──────────────────────────────────────
+  const computeResults = (query, cat, sort) => {
+    let results = [...ALL_SERVICES];
 
-  const handleSearch = async () => {
-    setIsSearching(true);
-    try {
-      // Base API endpoint
-      let url = 'http://localhost:5000/api/services?isActive=true';
-      
-      // Inject Category translation to Database IDs or Slugs if we had a mapping
-      // For now, we perform a text search
-      if (searchQuery.trim()) {
-        url += `&search=${encodeURIComponent(searchQuery.trim())}`;
-      }
-      
-      // We pass sorting explicitly
-      if (sortBy === 'Price (Low - High)') {
-        url += '&sortBy=price&sortOrder=asc';
-      } else if (sortBy === 'Price (High - Low)') {
-        url += '&sortBy=price&sortOrder=desc';
-      } else if (sortBy === 'Name (A - Z)') {
-        url += '&sortBy=title&sortOrder=asc';
-      } else if (sortBy === 'Name (Z - A)') {
-        url += '&sortBy=title&sortOrder=desc';
-      }
-
-      console.log('Fetching from Backend URL:', url);
-      const response = await axios.get(url);
-      const fetchedServices = response.data?.data || [];
-      console.log('Fetched services from API:', fetchedServices);
-      
-      // PRIORITY 1: Always respect explicit UI category selection first
-      if (category !== 'All Categories') {
-         if (category === 'AI Health') targetId = 'ai-health';
-         else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
-         else if (category === 'Veterinary') targetId = 'veterinary';
-         else if (category === 'Boarding') targetId = 'boarding';
-      } 
-      // PRIORITY 2: If no category is selected, guess based on API results
-      else if (fetchedServices.length > 0) {
-          const categoryName = fetchedServices[0].category?.name?.toLowerCase() || '';
-          if (categoryName.includes('spa') || categoryName.includes('groom')) targetId = 'spa-grooming';
-          else if (categoryName.includes('vet') || categoryName.includes('medic')) targetId = 'veterinary';
-          else if (categoryName.includes('board') || categoryName.includes('hotel')) targetId = 'boarding';
-          else targetId = 'spa-grooming'; // Default fallback
-      } 
-      // PRIORITY 3: If no API results and no category, guess based on search string
-      else if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          if ('ai health scan'.includes(query)) targetId = 'ai-health';
-          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
-          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
-          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
-          else targetId = 'spa-grooming'; // Default fallback
-      }
-      // PRIORITY 4: Ultimate fallback
-      else {
-          targetId = 'ai-health';
-      }
-
-      if (targetId) {
-        const elem = document.getElementById(targetId);
-        if (elem) {
-          const y = elem.getBoundingClientRect().top + window.scrollY - 100;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-        }
-      }
-
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      
-      // FALLBACK TO UI LOGIC COMPLETELY IF API FAILS OR BACKEND IS DOWN
-      let targetId = '';
-      if (category !== 'All Categories') {
-         if (category === 'AI Health') targetId = 'ai-health';
-         else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
-         else if (category === 'Veterinary') targetId = 'veterinary';
-         else if (category === 'Boarding') targetId = 'boarding';
-      } else if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          if ('ai health scan'.includes(query)) targetId = 'ai-health';
-          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
-          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
-          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
-          else targetId = 'spa-grooming';
-      } else {
-          targetId = 'ai-health';
-      }
-
-      if (targetId) {
-        const elem = document.getElementById(targetId);
-        if (elem) {
-          const y = elem.getBoundingClientRect().top + window.scrollY - 100;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-        }
-      } else {
-        window.scrollBy({ top: window.innerHeight * 0.7, behavior: 'smooth' });
-      }
-      
-    } finally {
-      setIsSearching(false);
+    // 1. Filter by keyword
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      results = results.filter(s =>
+        s.title.toLowerCase().includes(q) ||
+        (s.description || '').toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q)
+      );
     }
+
+    // 2. Filter by category
+    if (cat !== 'All Categories') {
+      results = results.filter(s => s.category === cat);
+    }
+
+    // 3. Sort
+    switch (sort) {
+      case 'Name (A - Z)':
+        results.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'Name (Z - A)':
+        results.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'Price (Low - High)':
+        results.sort((a, b) => (a.priceNum || 0) - (b.priceNum || 0));
+        break;
+      case 'Price (High - Low)':
+        results.sort((a, b) => (b.priceNum || 0) - (a.priceNum || 0));
+        break;
+      default:
+        break;
+    }
+    return results;
+  };
+
+  const handleSearch = () => {
+    // Only enter search mode if there's a keyword OR a selected category OR a non-default sort
+    const hasFilter = searchQuery.trim() || category !== 'All Categories' || sortBy !== 'Default';
+    if (!hasFilter) return;
+
+    const results = computeResults(searchQuery, category, sortBy);
+    setSearchResults(results);
+    setActiveSearchQuery(searchQuery);
+    setActiveCategory(category);
+    setActiveSortBy(sortBy);
+    setIsSearchMode(true);
+
+    // Scroll to results after state update
+    setTimeout(() => {
+      if (resultsRef.current) {
+        const y = resultsRef.current.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  const handleClearSearch = () => {
+    setIsSearchMode(false);
+    setSearchQuery('');
+    setCategory('All Categories');
+    setSortBy('Default');
+    setSearchResults([]);
+    setActiveSearchQuery('');
+    setActiveCategory('All Categories');
+    setActiveSortBy('Default');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Category color badge helper
+  const getCatColor = (cat) => {
+    if (cat === 'AI Health') return { bg: '#7FB069/10', text: '#7FB069', border: '#7FB069/30' };
+    if (cat === 'Spa & Grooming') return { bg: '#E07A5F/10', text: '#E07A5F', border: '#E07A5F/30' };
+    if (cat === 'Veterinary') return { bg: '#E07A5F/10', text: '#E07A5F', border: '#E07A5F/30' };
+    if (cat === 'Boarding') return { bg: '#1F2A37/10', text: '#1F2A37', border: '#1F2A37/30' };
+    return { bg: '#7FB069/10', text: '#7FB069', border: '#7FB069/30' };
   };
 
   return (
@@ -563,20 +746,93 @@ const ServicePage = () => {
                 />
 
                 <button 
-                  onClick={handleSearch} 
-                  disabled={isSearching}
-                  className="bg-[#E07A5F] text-white h-[40px] rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                  onClick={handleSearch}
+                  className="bg-[#E07A5F] text-white h-[40px] rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md"
                 >
-                  {isSearching ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Search size={14} />} 
-                  {isSearching ? 'Searching...' : 'Search'}
+                  <Search size={14} /> Search
                 </button>
               </div>
             </motion.div>
           </div>
         </section>
 
+        {/* ── SEARCH RESULTS PANEL ── */}
+        <AnimatePresence>
+          {isSearchMode && (
+            <motion.div
+              ref={resultsRef}
+              key="search-results"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-[1100px] mx-auto px-6 xl:px-4 mt-4 mb-20"
+            >
+              {/* Results Header */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-serif font-black text-[#1F2A37]">
+                    {searchResults.length > 0 ? `${searchResults.length} Service${searchResults.length > 1 ? 's' : ''} Found` : 'No Services Found'}
+                  </h2>
+                  {/* Active filter badges */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {activeSearchQuery && (
+                      <span className="inline-flex items-center gap-1.5 bg-[#1F2A37]/8 border border-[#1F2A37]/10 text-[#1F2A37] px-3 py-1 rounded-full text-[11px] font-bold">
+                        <Search size={11} /> &ldquo;{activeSearchQuery}&rdquo;
+                      </span>
+                    )}
+                    {activeCategory !== 'All Categories' && (
+                      <span className="inline-flex items-center gap-1.5 bg-[#7FB069]/10 border border-[#7FB069]/20 text-[#7FB069] px-3 py-1 rounded-full text-[11px] font-bold">
+                        {activeCategory}
+                      </span>
+                    )}
+                    {activeSortBy !== 'Default' && (
+                      <span className="inline-flex items-center gap-1.5 bg-[#E07A5F]/10 border border-[#E07A5F]/20 text-[#E07A5F] px-3 py-1 rounded-full text-[11px] font-bold">
+                        {activeSortBy}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleClearSearch}
+                  className="flex items-center gap-2 border border-[#1F2A37]/20 text-[#1F2A37]/70 hover:border-[#E07A5F] hover:text-[#E07A5F] px-4 py-2 rounded-full text-[12px] font-bold transition-all shrink-0"
+                >
+                  <ChevronDown size={14} className="rotate-90" /> Clear & Show All
+                </button>
+              </div>
+
+              {/* Results Grid */}
+              {searchResults.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="py-20 flex flex-col items-center gap-4 text-[#1F2A37]/40"
+                >
+                  <div className="w-16 h-16 rounded-full bg-[#1F2A37]/5 flex items-center justify-center">
+                    <Search size={28} />
+                  </div>
+                  <p className="text-[15px] font-semibold">No services match your search criteria.</p>
+                  <p className="text-[13px]">Try a different keyword or adjust your filters.</p>
+                  <button
+                    onClick={handleClearSearch}
+                    className="mt-2 px-6 py-2.5 bg-[#E07A5F] text-white rounded-full text-[13px] font-bold hover:bg-[#c56a52] transition-colors"
+                  >
+                    View All Services
+                  </button>
+                </motion.div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {searchResults.map((service, idx) => (
+                    <ServiceResultCard key={service.id + idx} service={service} idx={idx} />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* DYNAMIC SECTION ORDERING BASED ON SORT */}
-        <div className="flex flex-col w-full">
+        <div className={`flex flex-col w-full transition-all duration-500 ${isSearchMode ? 'hidden' : ''}`}>
           
         {/* NEW AI HEALTH SCAN SECTION */}
         <section id="ai-health" className={`relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 ${sortBy === 'Name (A - Z)' ? 'order-1 mt-2 mb-2' : sortBy === 'Name (Z - A)' ? 'order-4 mt-6 mb-2' : 'order-2 mt-4 mb-4'}`}>
