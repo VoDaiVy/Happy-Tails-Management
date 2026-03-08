@@ -1,11 +1,12 @@
 ﻿import React, { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
 
 const Home = () => {
+  const navigate = useNavigate();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
@@ -18,6 +19,18 @@ const Home = () => {
   
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    // Role-based navigation
+    if (userData.role === 'admin') {
+      navigate('/admin');
+    } else if (userData.role === 'staff') {
+      navigate('/staff');
+    }
+    // Customer stays on home page (no navigation needed)
+  };
 
   const toggleMusic = () => {
     if(!audioRef.current) return;
@@ -44,7 +57,7 @@ const Home = () => {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
-        onLoginSuccess={(userData) => { setUser(userData); setIsAuthModalOpen(false); }}
+        onLoginSuccess={handleLoginSuccess}
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 

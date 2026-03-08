@@ -16,8 +16,15 @@ import {
   Bed,
   Users,
   PawPrint,
+  Activity,
 } from "lucide-react";
-import { getRoomsList, createRoom, updateRoom, deleteRoom } from "../../api/roomApi";
+import {
+  getRoomsList,
+  createRoom,
+  updateRoom,
+  deleteRoom,
+} from "../../api/roomApi";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 
 // Room types
 const ROOM_TYPES = [
@@ -38,30 +45,23 @@ const PET_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "All", icon: DoorOpen },
-  { key: "available", label: "Available", icon: Check },
-  { key: "unavailable", label: "In Use", icon: Bed },
-];
-
 const RoomManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Filters
   const [activeTab, setActiveTab] = useState("all");
   const [typeFilter, setTypeFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // create | edit
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState(null);
-  
+
   // Form state
   const [formData, setFormData] = useState({
     roomNumber: "",
@@ -82,13 +82,13 @@ const RoomManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = {};
       if (activeTab === "available") params.isAvailable = "true";
       if (activeTab === "unavailable") params.isAvailable = "false";
       if (typeFilter) params.type = typeFilter;
       params.isActive = "all";
-      
+
       const response = await getRoomsList(params);
       setRooms(response.data?.rooms || []);
     } catch (err) {
@@ -179,7 +179,7 @@ const RoomManagement = () => {
   // Handle delete
   const handleDeleteConfirm = async () => {
     if (!roomToDelete) return;
-    
+
     try {
       setFormLoading(true);
       await deleteRoom(roomToDelete._id);
@@ -210,94 +210,70 @@ const RoomManagement = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-[#D97853] to-[#C26843] rounded-xl shadow-lg">
-            <DoorOpen className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-[#2D3436]">Room Management</h1>
-            <p className="text-sm text-[#2D3436]/60">
-              Manage accommodation rooms for pets
-            </p>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
+            <DoorOpen className="w-7 h-7 text-[#D97853]" />
+            Room Management
+          </h1>
+          <p className="text-[#2D3436]/60 text-sm mt-1">
+            Manage accommodation rooms for pets
+          </p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#D97853] text-white rounded-xl hover:bg-[#C26843] transition-colors font-medium"
-        >
-          <Plus size={20} />
-          Add Room
-        </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#2D3436]/5 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Filter tabs */}
-          <div className="flex bg-[#F8F9FA] rounded-xl p-1">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? "bg-white text-[#D97853] shadow-sm"
-                    : "text-[#2D3436]/60 hover:text-[#2D3436]"
-                }`}
-              >
-                <tab.icon size={16} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Type filter */}
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-[#2D3436]/40" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 bg-[#F8F9FA] border-0 rounded-lg text-sm focus:ring-2 focus:ring-[#D97853]/20"
-            >
-              <option value="">Tất cả loại</option>
-              {ROOM_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/40"
-              />
-              <input
-                type="text"
-                placeholder="Search by room number, name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#F8F9FA] border-0 rounded-lg text-sm focus:ring-2 focus:ring-[#D97853]/20"
-              />
-            </div>
-          </div>
-
-          {/* Refresh */}
+      <AdminFilterBar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by room number, name..."
+        filters={[
+          {
+            label: "AVAILABILITY",
+            icon: DoorOpen,
+            options: ["All Rooms", "Available", "In Use"],
+            value:
+              activeTab === "all"
+                ? "All Rooms"
+                : activeTab === "available"
+                  ? "Available"
+                  : "In Use",
+            onChange: (opt) =>
+              setActiveTab(
+                opt === "All Rooms"
+                  ? "all"
+                  : opt === "Available"
+                    ? "available"
+                    : "unavailable",
+              ),
+          },
+          {
+            label: "TYPE",
+            icon: Activity,
+            options: ["All Types", "Standard", "Deluxe", "Suite", "VIP"],
+            value:
+              typeFilter === ""
+                ? "All Types"
+                : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1),
+            onChange: (opt) =>
+              setTypeFilter(opt === "All Types" ? "" : opt.toLowerCase()),
+          },
+        ]}
+        onCreateClick={handleCreate}
+        createLabel="Add Room"
+        extraActions={
           <button
             onClick={fetchRooms}
             disabled={loading}
-            className="p-2 text-[#2D3436]/60 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-lg transition-colors"
+            className="p-2.5 text-[#2D3436]/60 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-xl border border-[#2D3436]/10 transition-colors"
+            title="Refresh"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Error */}
       {error && (
@@ -323,13 +299,13 @@ const RoomManagement = () => {
             <thead className="bg-[#F8F9FA] border-b border-[#2D3436]/5">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Phòng
+                  Room
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Loại
+                  Type
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Sức chứa
+                  Capacity
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
                   Pet Type
@@ -338,7 +314,7 @@ const RoomManagement = () => {
                   Status
                 </th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Hành động
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -360,7 +336,9 @@ const RoomManagement = () => {
                           <p className="font-semibold text-[#2D3436]">
                             {room.roomNumber}
                           </p>
-                          <p className="text-sm text-[#2D3436]/60">{room.name}</p>
+                          <p className="text-sm text-[#2D3436]/60">
+                            {room.name}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -391,7 +369,8 @@ const RoomManagement = () => {
                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F8F9FA] rounded text-xs text-[#2D3436]/70"
                           >
                             <PawPrint size={10} />
-                            {PET_TYPES.find((p) => p.value === pet)?.label || pet}
+                            {PET_TYPES.find((p) => p.value === pet)?.label ||
+                              pet}
                           </span>
                         ))}
                         {room.petTypes?.length > 3 && (
@@ -415,7 +394,7 @@ const RoomManagement = () => {
                         {room.isAvailable ? (
                           <>
                             <ToggleRight size={14} />
-                            Sẵn sàng
+                            Available
                           </>
                         ) : (
                           <>
@@ -459,11 +438,11 @@ const RoomManagement = () => {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Tổng phòng</p>
+          <p className="text-sm text-[#2D3436]/60">Total Rooms</p>
           <p className="text-2xl font-bold text-[#2D3436]">{rooms.length}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Sẵn sàng</p>
+          <p className="text-sm text-[#2D3436]/60">Available</p>
           <p className="text-2xl font-bold text-green-600">
             {rooms.filter((r) => r.isAvailable).length}
           </p>
@@ -475,7 +454,7 @@ const RoomManagement = () => {
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Phòng VIP</p>
+          <p className="text-sm text-[#2D3436]/60">VIP Rooms</p>
           <p className="text-2xl font-bold text-amber-600">
             {rooms.filter((r) => r.type === "vip").length}
           </p>
@@ -525,7 +504,7 @@ const RoomManagement = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Số phòng *
+                      Room No. *
                     </label>
                     <input
                       type="text"
@@ -549,7 +528,7 @@ const RoomManagement = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
-                      placeholder="Phòng Sunny"
+                      placeholder="Sunny Room"
                       className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
                     />
                   </div>
@@ -559,7 +538,7 @@ const RoomManagement = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Loại phòng
+                      Room Type
                     </label>
                     <select
                       value={formData.type}
@@ -577,7 +556,7 @@ const RoomManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Sức chứa *
+                      Capacity *
                     </label>
                     <input
                       type="number"
@@ -645,18 +624,24 @@ const RoomManagement = () => {
                         type="checkbox"
                         checked={formData.isAvailable}
                         onChange={(e) =>
-                          setFormData({ ...formData, isAvailable: e.target.checked })
+                          setFormData({
+                            ...formData,
+                            isAvailable: e.target.checked,
+                          })
                         }
                         className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
                       />
-                      <span className="text-sm text-[#2D3436]">Sẵn sàng</span>
+                      <span className="text-sm text-[#2D3436]">Available</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={formData.isActive}
                         onChange={(e) =>
-                          setFormData({ ...formData, isActive: e.target.checked })
+                          setFormData({
+                            ...formData,
+                            isActive: e.target.checked,
+                          })
                         }
                         className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
                       />
@@ -714,7 +699,9 @@ const RoomManagement = () => {
                 <div className="p-2 bg-red-100 rounded-lg">
                   <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-[#2D3436]">Delete Room</h3>
+                <h3 className="text-lg font-bold text-[#2D3436]">
+                  Delete Room
+                </h3>
               </div>
 
               <p className="text-[#2D3436]/70 mb-6">
@@ -722,7 +709,7 @@ const RoomManagement = () => {
                 <span className="font-semibold text-[#2D3436]">
                   {roomToDelete.roomNumber} - {roomToDelete.name}
                 </span>
-                ? Hành động này không thể hoàn tác.
+                ? This action cannot be undone.
               </p>
 
               <div className="flex items-center justify-end gap-3">
@@ -730,7 +717,7 @@ const RoomManagement = () => {
                   onClick={() => setShowDeleteModal(false)}
                   className="px-4 py-2 text-[#2D3436]/70 hover:bg-[#F8F9FA] rounded-lg transition-colors"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
