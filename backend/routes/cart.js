@@ -1,6 +1,9 @@
 /**
  * Cart Routes
  * Shopping cart operations with Joi validation
+ * 
+ * ⚠️ CHECKOUT: Wallet-only payment method
+ * ❌ REMOVED: PayOS webhook/return/cancel routes (not needed for wallet-only checkout)
  */
 
 const express = require('express');
@@ -24,7 +27,8 @@ const {
 
 const router = express.Router();
 
-// All cart routes require authentication and customer role
+// ==================== PROTECTED ROUTES ====================
+// All routes require authentication and customer role
 router.use(protect);
 router.use(restrictTo('customer'));
 
@@ -34,10 +38,16 @@ router.route('/')
   .delete(clearCart);        // DELETE /api/cart - Clear cart
 
 router.post('/add', validate(addToCartSchema), addToCart);  // POST /api/cart/add - Add item to cart
-router.post('/checkout', validate(checkoutSchema), checkout); // POST /api/cart/checkout - Checkout
+
+/**
+ * POST /api/cart/checkout
+ * Checkout cart - Payment via Wallet only
+ * @body { note?: string, scheduledAt?: ISO date string }
+ */
+router.post('/checkout', validate(checkoutSchema), checkout);
 
 router.route('/items/:itemId')
-  .put(validateParams(itemIdParamSchema), validate(updateCartItemSchema), updateCartItem)      // PUT /api/cart/items/:itemId - Update cart item
-  .delete(validateParams(itemIdParamSchema), removeCartItem);  // DELETE /api/cart/items/:itemId - Remove item from cart
+  .put(validateParams(itemIdParamSchema), validate(updateCartItemSchema), updateCartItem)
+  .delete(validateParams(itemIdParamSchema), removeCartItem);
 
 module.exports = router;

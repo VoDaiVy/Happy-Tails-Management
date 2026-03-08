@@ -53,7 +53,7 @@ const protect = catchAsync(async (req, res, next) => {
   // 4. Check if user still exists
   const user = await User.findById(decoded.id).select('+password');
   
-  if (!user || user.isDeleted || !user.isActive) {
+  if (!user || user.isDeleted === true || user.isActive === false) {
     return next(new AppError('User no longer exists or is inactive', 401, AUTH_ERROR_CODES.USER_NOT_FOUND));
   }
 

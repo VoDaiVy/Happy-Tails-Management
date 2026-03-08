@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck } from 'lucide-react';
 
 const staffMenuItems = [
   { path: '/staff', icon: LayoutDashboard, label: 'Tổng quan' },
+  { path: '/staff/bookings', icon: CalendarCheck, label: 'Đặt lịch' },
 ];
 
 const StaffSidebar = ({ collapsed }) => {

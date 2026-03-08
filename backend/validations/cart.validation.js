@@ -55,14 +55,9 @@ const updateCartItemSchema = Joi.object({
 
 /**
  * Schema for checkout
+ * NOTE: Payment method is always 'wallet' - no need to specify
  */
 const checkoutSchema = Joi.object({
-  paymentMethod: Joi.string()
-    .valid('wallet', 'cash', 'vnpay', 'momo')
-    .default('cash')
-    .messages({
-      'any.only': 'Invalid payment method. Must be: wallet, cash, vnpay, or momo'
-    }),
   note: Joi.string()
     .max(500)
     .allow('')

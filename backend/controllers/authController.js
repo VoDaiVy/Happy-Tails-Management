@@ -4,6 +4,7 @@
  */
 
 const User = require('../models/User');
+const Wallet = require('../models/Wallet');
 const { AppError, createError, AUTH_ERROR_CODES } = require('../utils/AppError');
 const { catchAsync } = require('../utils/catchAsync');
 const { getCookieOptions, hashToken, verifyRefreshToken } = require('../config/jwt');
@@ -85,6 +86,9 @@ exports.register = catchAsync(async (req, res, next) => {
     name,
     role: role === 'admin' ? 'user' : role // Prevent admin registration
   });
+
+  // Auto-create wallet for new user
+  await Wallet.findOrCreateByUser(user._id);
 
   // Generate email verification OTP
   const otp = user.generateEmailVerificationOTP();
@@ -315,18 +319,6 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   // Generate reset token
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
-
-  // Log reset token for development/testing (Postman)
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('========================================');
-    console.log('🔑 PASSWORD RESET TOKEN (DEV ONLY)');
-    console.log('========================================');
-    console.log('Email:', user.email);
-    console.log('Reset Token:', resetToken);
-    console.log('Reset URL:', `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`);
-    console.log('Expires in: 10 minutes');
-    console.log('========================================');
-  }
 
   // Send email
   try {

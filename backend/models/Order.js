@@ -84,8 +84,22 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['wallet', 'cash', 'vnpay', 'momo'],
+    enum: ['wallet', 'cash', 'payos'],
     default: 'cash'
+  },
+  // PayOS specific fields
+  payosOrderCode: {
+    type: Number,
+    default: null,
+    sparse: true
+  },
+  payosPaymentLinkId: {
+    type: String,
+    default: null
+  },
+  payosCheckoutUrl: {
+    type: String,
+    default: null
   },
   note: {
     type: String,
@@ -109,6 +123,7 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 }); // For revenue stats aggregation
+orderSchema.index({ payosOrderCode: 1 }, { sparse: true }); // For PayOS webhook lookup
 
 /**
  * Generate unique order code

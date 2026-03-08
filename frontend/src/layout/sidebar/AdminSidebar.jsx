@@ -1,10 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Users, DoorOpen } from 'lucide-react';
 
 const adminMenuItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Tổng quan' },
+  { path: '/admin/bookings', icon: CalendarCheck, label: 'Đặt lịch' },
+  { path: '/admin/users', icon: Users, label: 'Người dùng' },
+  { path: '/admin/rooms', icon: DoorOpen, label: 'Phòng' },
 ];
 
 const AdminSidebar = ({ collapsed }) => {
