@@ -1,17 +1,30 @@
 import React, { useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { PawPrint, Menu, ChevronDown, User } from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PawPrint, Menu, ChevronDown, User, LogOut, Settings } from 'lucide-react';
 import AdminSidebar from './sidebar/AdminSidebar';
 import StaffSidebar from './sidebar/StaffSidebar';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Lấy thông tin user từ localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = user?.name || user?.email?.split('@')[0] || 'Người dùng';
+  const userAvatar = user?.avatar;
 
   // Determine role from path: /admin/* -> admin, /staff/* -> staff
   const isAdmin = location.pathname.startsWith('/admin');
   const role = isAdmin ? 'admin' : 'staff';
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#2D3436] flex">
@@ -59,18 +72,61 @@ const DashboardLayout = () => {
             <h1 className="text-lg font-bold text-[#2D3436] capitalize">{role} Dashboard</h1>
             <p className="text-xs text-[#2D3436]/60">Welcome back</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2D3436]/5 hover:bg-[#2D3436]/10 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-[#D97853] flex items-center justify-center">
-                <User size={16} className="text-white" />
-              </div>
+          <div className="relative">
+            <button 
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2D3436]/5 hover:bg-[#2D3436]/10 transition-colors"
+            >
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#D97853] flex items-center justify-center">
+                  <User size={16} className="text-white" />
+                </div>
+              )}
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-bold text-[#2D3436]">Admin</p>
+                <p className="text-sm font-bold text-[#2D3436]">{userName}</p>
                 <p className="text-xs text-[#2D3436]/60 flex items-center gap-1">
                   {role === 'admin' ? 'Administrator' : 'Staff'} <ChevronDown size={12} />
                 </p>
               </div>
             </button>
+
+            {/* Dropdown Menu */}
+            <AnimatePresence>
+              {userDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-[#2D3436]/10 shadow-lg overflow-hidden z-50"
+                >
+                  <div className="p-3 border-b border-[#2D3436]/10">
+                    <p className="text-sm font-bold text-[#2D3436]">{userName}</p>
+                    <p className="text-xs text-[#2D3436]/60">{user?.email || ''}</p>
+                  </div>
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        // Navigate to profile page
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-[#2D3436] hover:bg-[#2D3436]/5 flex items-center gap-2"
+                    >
+                      <Settings size={16} />
+                      Cài đặt
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <LogOut size={16} />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </header>
 
