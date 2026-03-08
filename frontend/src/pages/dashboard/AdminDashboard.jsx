@@ -15,7 +15,7 @@ const AdminDashboard = () => {
           <LayoutDashboard size={32} className="text-[#5B8C51]" />
         </div>
         <h2 className="text-xl font-bold text-[#2D3436] mb-2">Admin Dashboard</h2>
-        <p className="text-[#2D3436]/60 text-sm">Trang tổng quan dành cho quản trị viên</p>
+        <p className="text-[#2D3436]/60 text-sm">Admin overview dashboard</p>
       </div>
     </motion.div>
   );

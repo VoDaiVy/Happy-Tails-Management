@@ -121,10 +121,9 @@ const orderSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 orderSchema.index({ userId: 1, createdAt: -1 });
-orderSchema.index({ orderCode: 1 }, { unique: true });
 orderSchema.index({ status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 }); // For revenue stats aggregation
-orderSchema.index({ payosOrderCode: 1 }, { sparse: true }); // For PayOS webhook lookup
+// Note: payosOrderCode index is already created via field definition (sparse: true)
 
 /**
  * Generate unique order code

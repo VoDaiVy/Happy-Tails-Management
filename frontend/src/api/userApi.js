@@ -1,18 +1,18 @@
 import axiosInstance from "./axiosInstance";
 
 /**
- * User Management API - Quản lý người dùng
+ * User Management API - Manage users
  */
 
 // ==================== USER MANAGEMENT ====================
 
-// Lấy danh sách users với filter, search, pagination
+// Get users list with filter, search, pagination
 export const getUsersList = async (params = {}) => {
   const response = await axiosInstance.get("/admin/users/list", { params });
   return response.data;
 };
 
-// Lấy chi tiết user
+// Get user details
 export const getUserDetail = async (id) => {
   const response = await axiosInstance.get(`/admin/users/${id}/detail`);
   return response.data;
@@ -30,7 +30,7 @@ export const unblockUser = async (id) => {
   return response.data;
 };
 
-// Cập nhật role user
+// Update user role
 export const updateUserRole = async (id, role) => {
   const response = await axiosInstance.put(`/admin/users/${id}/role`, { role });
   return response.data;
@@ -38,19 +38,19 @@ export const updateUserRole = async (id, role) => {
 
 // ==================== STATISTICS ====================
 
-// Lấy overview dashboard
+// Get dashboard overview
 export const getOverview = async () => {
   const response = await axiosInstance.get("/admin/stats/overview");
   return response.data;
 };
 
-// Lấy thống kê doanh thu
+// Get revenue statistics
 export const getRevenueStats = async (params = {}) => {
   const response = await axiosInstance.get("/admin/stats/revenue", { params });
   return response.data;
 };
 
-// Lấy top services
+// Get top services
 export const getTopServices = async (params = {}) => {
   const response = await axiosInstance.get("/admin/stats/top-services", { params });
   return response.data;
@@ -58,7 +58,7 @@ export const getTopServices = async (params = {}) => {
 
 // ==================== STAFF MANAGEMENT ====================
 
-// Lấy danh sách staff
+// Get staff list
 export const getStaffList = async () => {
   const response = await axiosInstance.get("/admin/staff");
   return response.data;
