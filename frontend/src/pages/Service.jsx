@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Calendar, ChevronDown, ChevronUp, Activity, 
   Sparkles, Stethoscope, Heart, ArrowRight, CheckCircle, Phone, Mail, Clock, 
@@ -320,6 +321,7 @@ const veterinaryServicesData = [
 ];
 
 const ServicePage = () => {
+  const navigate = useNavigate();
   const [category, setCategory] = useState("All Categories");
   const [sortBy, setSortBy] = useState("Default");
   const [searchQuery, setSearchQuery] = useState("");
@@ -327,6 +329,10 @@ const ServicePage = () => {
   const [expandedVetCard, setExpandedVetCard] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
 
   const openLoginModal = () => {
     setAuthModalMode('login');
@@ -336,6 +342,22 @@ const ServicePage = () => {
   const openRegisterModal = () => {
     setAuthModalMode('register');
     setIsAuthModalOpen(true);
+  };
+
+  const handleLoginSuccess = (userData) => {
+    console.log('[Login Success] User data:', userData);
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    
+    // Redirect based on user role
+    if (userData.role === 'admin') {
+      navigate('/admin');
+    } else if (userData.role === 'staff') {
+      navigate('/staff');
+    } else {
+      // Customer stays on current page or redirect to profile
+      window.location.reload(); // Reload to update navbar with user info
+    }
   };
 
   useEffect(() => {
@@ -496,12 +518,13 @@ const ServicePage = () => {
 
   return (
     <div className="bg-[#F5F1EB] min-h-screen font-sans text-[#1F2A37] selection:bg-[#E07A5F] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       <main className="w-full mx-auto px-6 md:px-12 lg:px-[5%] pt-28 pb-20">
