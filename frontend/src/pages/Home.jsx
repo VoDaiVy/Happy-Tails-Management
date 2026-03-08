@@ -1,19 +1,30 @@
 ﻿import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
+import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
   const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
+
+  // Redirect admin/staff to their dashboard if already logged in
+  React.useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (user.role === 'staff') {
+        navigate('/staff', { replace: true });
+      }
+    }
+  }, [user, navigate]);
   
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
@@ -37,13 +48,20 @@ const Home = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
-        onLoginSuccess={(userData) => { setUser(userData); setIsAuthModalOpen(false); }}
+        onLoginSuccess={(userData) => {
+          setIsAuthModalOpen(false);
+          if (userData.role === 'admin') {
+            navigate('/admin');
+          } else if (userData.role === 'staff') {
+            navigate('/staff');
+          }
+        }}
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 

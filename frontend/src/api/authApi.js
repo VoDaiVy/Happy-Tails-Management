@@ -2,6 +2,11 @@ import axiosInstance from "./axiosInstance";
 
 export const loginApi = async (email, password) => {
   const response = await axiosInstance.post("/auth/login", { email, password });
+  // Save accessToken to localStorage on successful login
+  const { tokens } = response.data.data;
+  if (tokens?.accessToken) {
+    localStorage.setItem("accessToken", tokens.accessToken);
+  }
   return response.data;
 };
 

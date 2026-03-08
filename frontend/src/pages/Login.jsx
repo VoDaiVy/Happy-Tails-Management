@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { PawPattern } from "../components/PawPattern";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { loginApi } from "../api/authApi";
+import { useAuth } from "../context/AuthContext";
 
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,19 +76,18 @@ export function Login() {
     setLoading(true);
 
     try {
-      const result = await loginApi(email, password);
-
-      // Save token and user info to localStorage
-      localStorage.setItem("accessToken", result.data.tokens.accessToken);
-      localStorage.setItem("user", JSON.stringify(result.data.user));
+      const result = await login(email, password);
 
       // Show success message
       setSuccess(`Đăng nhập thành công! Chào mừng ${result.data.user.name || "bạn"} 🎉`);
 
-      // Redirect based on role after a short delay
+      // Redirect based on role or to intended destination
       const role = result.data.user.role;
+      const from = location.state?.from?.pathname;
       setTimeout(() => {
-        if (role === "admin") {
+        if (from) {
+          navigate(from, { replace: true });
+        } else if (role === "admin") {
           navigate("/admin");
         } else if (role === "staff") {
           navigate("/staff");
