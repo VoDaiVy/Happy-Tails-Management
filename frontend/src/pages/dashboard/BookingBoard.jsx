@@ -14,9 +14,11 @@ import {
   Download,
   Eye,
   ClipboardList,
+  Plus,
 } from "lucide-react";
 import BookingCard from "../../components/booking/BookingCard";
 import BookingDetailModal from "../../components/booking/BookingDetailModal";
+import GuestBookingModal from "../../components/booking/GuestBookingModal";
 import {
   getAllBookings,
   updateBookingStatus,
@@ -57,6 +59,7 @@ const BookingBoard = () => {
   const [viewMode, setViewMode] = useState("grid");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get current user ID from localStorage
@@ -273,6 +276,16 @@ const BookingBoard = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Tạo đơn Offline button for Staff */}
+          {role === "staff" && (
+            <button
+              onClick={() => setIsGuestModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#5B8C51] text-white rounded-xl hover:bg-[#4a7a42] transition-colors font-medium"
+            >
+              <Plus size={20} />
+              Tạo đơn Offline
+            </button>
+          )}
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
@@ -523,6 +536,18 @@ const BookingBoard = () => {
         onClaimBooking={handleClaimBooking}
         staffList={[]}
       />
+
+      {/* Guest Booking Modal for Staff */}
+      {role === "staff" && (
+        <GuestBookingModal
+          isOpen={isGuestModalOpen}
+          onClose={() => setIsGuestModalOpen(false)}
+          onSuccess={() => {
+            setIsGuestModalOpen(false);
+            fetchBookings(true);
+          }}
+        />
+      )}
     </motion.div>
   );
 };

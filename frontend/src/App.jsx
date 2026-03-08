@@ -6,6 +6,10 @@ import StaffDashboard from './pages/dashboard/StaffDashboard';
 import BookingBoard from './pages/dashboard/BookingBoard';
 import UserManagement from './pages/dashboard/UserManagement';
 import RoomManagement from './pages/dashboard/RoomManagement';
+import MedicalRecordManagement from './pages/dashboard/MedicalRecordManagement';
+import TransactionManagement from './pages/dashboard/TransactionManagement';
+import VoucherManagement from './pages/dashboard/VoucherManagement';
+import ServiceManagement from './pages/dashboard/ServiceManagement';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -25,6 +29,10 @@ function App() {
           <Route path="bookings" element={<BookingBoard />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="rooms" element={<RoomManagement />} />
+          <Route path="services" element={<ServiceManagement />} />
+          <Route path="medical-records" element={<MedicalRecordManagement />} />
+          <Route path="transactions" element={<TransactionManagement />} />
+          <Route path="vouchers" element={<VoucherManagement />} />
         </Route>
 
         {/* Staff Dashboard */}
