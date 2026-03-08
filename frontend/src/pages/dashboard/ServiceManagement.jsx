@@ -19,7 +19,9 @@ import {
   PawPrint,
   Image as ImageIcon,
   ListChecks,
+  Activity,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
   getAllServices,
   getServiceById,
@@ -31,31 +33,24 @@ import { getAllCategories } from "../../api/categoryApi";
 
 // Pet type labels
 const PET_TYPE_LABELS = {
-  dog: "Chó",
-  cat: "Mèo",
-  bird: "Chim",
-  fish: "Cá",
-  rabbit: "Thỏ",
+  dog: "Dog",
+  cat: "Cat",
+  bird: "Bird",
+  fish: "Fish",
+  rabbit: "Rabbit",
   hamster: "Hamster",
-  other: "Khác",
+  other: "Other",
 };
 
 // Pet type options
 const PET_TYPE_OPTIONS = [
-  { value: "dog", label: "Chó" },
-  { value: "cat", label: "Mèo" },
-  { value: "bird", label: "Chim" },
-  { value: "fish", label: "Cá" },
-  { value: "rabbit", label: "Thỏ" },
+  { value: "dog", label: "Dog" },
+  { value: "cat", label: "Cat" },
+  { value: "bird", label: "Bird" },
+  { value: "fish", label: "Fish" },
+  { value: "rabbit", label: "Rabbit" },
   { value: "hamster", label: "Hamster" },
-  { value: "other", label: "Khác" },
-];
-
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "Tất cả" },
-  { key: "active", label: "Đang hoạt động" },
-  { key: "inactive", label: "Ngừng hoạt động" },
+  { value: "other", label: "Other" },
 ];
 
 export default function ServiceManagement() {
@@ -149,11 +144,19 @@ export default function ServiceManagement() {
         }));
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách dịch vụ");
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách dịch vụ",
+      );
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, activeTab, categoryFilter, searchTerm]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    activeTab,
+    categoryFilter,
+    searchTerm,
+  ]);
 
   useEffect(() => {
     fetchCategories();
@@ -363,76 +366,66 @@ export default function ServiceManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Briefcase className="w-7 h-7 text-amber-600" />
-            Quản lý Dịch vụ
+          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
+            <Briefcase className="w-7 h-7 text-[#D97853]" />
+            Service Management
           </h1>
-          <p className="text-gray-600 mt-1">Quản lý các dịch vụ chăm sóc thú cưng</p>
-        </div>
-
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm Dịch vụ
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Danh mục</label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="all">Tất cả danh mục</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <p className="text-[#2D3436]/60 text-sm mt-1">
+            Manage pet care services
+          </p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên dịch vụ..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
+      {/* Filters */}
+      <div>
+        <AdminFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by service name or category..."
+          filters={[
+            {
+              label: "CATEGORY",
+              icon: Tag,
+              options: ["All Categories", ...categories.map((c) => c.name)],
+              value:
+                categoryFilter === "all"
+                  ? "All Categories"
+                  : categories.find((c) => c._id === categoryFilter)?.name ||
+                    "All Categories",
+              onChange: (opt) =>
+                setCategoryFilter(
+                  opt === "All Categories"
+                    ? "all"
+                    : categories.find((c) => c.name === opt)?._id || "all",
+                ),
+            },
+            {
+              label: "STATUS",
+              icon: Activity,
+              options: ["All Status", "Active", "Inactive"],
+              value:
+                activeTab === "all"
+                  ? "All Status"
+                  : activeTab === "active"
+                    ? "Active"
+                    : "Inactive",
+              onChange: (opt) =>
+                setActiveTab(
+                  opt === "All Status"
+                    ? "all"
+                    : opt === "Active"
+                      ? "active"
+                      : "inactive",
+                ),
+            },
+          ]}
+          onCreateClick={handleOpenCreate}
+          createLabel="Add Service"
+        />
       </div>
 
       {/* Error */}
@@ -451,7 +444,7 @@ export default function ServiceManagement() {
         ) : services.length === 0 ? (
           <div className="text-center py-20 text-gray-500">
             <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Không có dịch vụ nào</p>
+            <p>No services found</p>
           </div>
         ) : (
           <>
@@ -460,25 +453,25 @@ export default function ServiceManagement() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Dịch vụ
+                      Service
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Danh mục
+                      Category
                     </th>
                     <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
-                      Giá
+                      Price
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Thời gian
+                      Duration
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Đánh giá
+                      Rating
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Trạng thái
+                      Status
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Hành động
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -504,7 +497,9 @@ export default function ServiceManagement() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-800">{service.name}</p>
+                            <p className="font-medium text-gray-800">
+                              {service.name}
+                            </p>
                             <div className="flex gap-1 mt-1">
                               {service.petTypes?.slice(0, 3).map((pt) => (
                                 <span
@@ -543,7 +538,9 @@ export default function ServiceManagement() {
                         <span className="inline-flex items-center gap-1 text-yellow-600">
                           <Star className="w-4 h-4 fill-current" />
                           {service.rating?.toFixed(1) || "0.0"}
-                          <span className="text-gray-400 text-xs">({service.totalReviews || 0})</span>
+                          <span className="text-gray-400 text-xs">
+                            ({service.totalReviews || 0})
+                          </span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -557,12 +554,12 @@ export default function ServiceManagement() {
                           {service.isActive ? (
                             <>
                               <ToggleRight className="w-4 h-4" />
-                              Hoạt động
+                              Active
                             </>
                           ) : (
                             <>
                               <ToggleLeft className="w-4 h-4" />
-                              Ngừng
+                              Inactive
                             </>
                           )}
                         </span>
@@ -572,21 +569,21 @@ export default function ServiceManagement() {
                           <button
                             onClick={() => handleViewDetail(service)}
                             className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
-                            title="Xem"
+                            title="View"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(service)}
                             className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                            title="Sửa"
+                            title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenDelete(service)}
                             className="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
-                            title="Xóa"
+                            title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -601,11 +598,13 @@ export default function ServiceManagement() {
             {/* Pagination */}
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Hiển thị {services.length} / {pagination.total} dịch vụ
+                Showing {services.length} of {pagination.total} services
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                   disabled={pagination.page <= 1}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -615,7 +614,9 @@ export default function ServiceManagement() {
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                   disabled={pagination.page >= pagination.pages}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -648,7 +649,7 @@ export default function ServiceManagement() {
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                   <Briefcase className="w-6 h-6 text-amber-600" />
-                  Chi tiết Dịch vụ
+                  Service Details
                 </h2>
                 <button
                   onClick={() => setShowDetailModal(false)}
@@ -682,7 +683,9 @@ export default function ServiceManagement() {
 
                     {/* Name & Category */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{selectedService.name}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {selectedService.name}
+                      </h3>
                       <span className="inline-block mt-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
                         {getCategoryName(selectedService)}
                       </span>
@@ -692,23 +695,24 @@ export default function ServiceManagement() {
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-amber-50 rounded-xl p-4 text-center">
                         <DollarSign className="w-6 h-6 text-amber-600 mx-auto mb-1" />
-                        <p className="text-sm text-amber-700">Giá</p>
+                        <p className="text-sm text-amber-700">Price</p>
                         <p className="font-bold text-lg text-amber-800">
                           {formatCurrency(selectedService.price)}
                         </p>
                       </div>
                       <div className="bg-blue-50 rounded-xl p-4 text-center">
                         <Clock className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                        <p className="text-sm text-blue-700">Thời gian</p>
+                        <p className="text-sm text-blue-700">Duration</p>
                         <p className="font-bold text-lg text-blue-800">
                           {formatDuration(selectedService.duration)}
                         </p>
                       </div>
                       <div className="bg-yellow-50 rounded-xl p-4 text-center">
                         <Star className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
-                        <p className="text-sm text-yellow-700">Đánh giá</p>
+                        <p className="text-sm text-yellow-700">Rating</p>
                         <p className="font-bold text-lg text-yellow-800">
-                          {selectedService.rating?.toFixed(1) || "0.0"} ({selectedService.totalReviews || 0})
+                          {selectedService.rating?.toFixed(1) || "0.0"} (
+                          {selectedService.totalReviews || 0})
                         </p>
                       </div>
                     </div>
@@ -716,7 +720,9 @@ export default function ServiceManagement() {
                     {/* Description */}
                     {selectedService.description && (
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Mô tả</h4>
+                        <h4 className="font-semibold text-gray-700 mb-2">
+                          Description
+                        </h4>
                         <p className="text-gray-800 whitespace-pre-wrap">
                           {selectedService.description}
                         </p>
@@ -727,7 +733,7 @@ export default function ServiceManagement() {
                     <div className="bg-blue-50 rounded-xl p-4">
                       <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-3">
                         <PawPrint className="w-5 h-5" />
-                        Loại thú cưng
+                        Pet Types
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {selectedService.petTypes?.map((pt) => (
@@ -746,11 +752,14 @@ export default function ServiceManagement() {
                       <div className="bg-green-50 rounded-xl p-4">
                         <h4 className="font-semibold text-green-800 flex items-center gap-2 mb-3">
                           <ListChecks className="w-5 h-5" />
-                          Tính năng
+                          Features
                         </h4>
                         <ul className="space-y-1">
                           {selectedService.features.map((feat, idx) => (
-                            <li key={idx} className="flex items-center gap-2 text-green-700">
+                            <li
+                              key={idx}
+                              className="flex items-center gap-2 text-green-700"
+                            >
                               <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                               {feat}
                             </li>
@@ -762,7 +771,7 @@ export default function ServiceManagement() {
                     {/* Status & Capacity */}
                     <div className="flex items-center justify-between pt-4 border-t">
                       <div>
-                        <span className="text-gray-600">Trạng thái: </span>
+                        <span className="text-gray-600">Status: </span>
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
                             selectedService.isActive
@@ -770,16 +779,21 @@ export default function ServiceManagement() {
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {selectedService.isActive ? "Hoạt động" : "Ngừng hoạt động"}
+                          {selectedService.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
                       <div className="text-gray-600">
-                        Sức chứa: <span className="font-medium">{selectedService.maxCapacity || 1}</span>
+                        Capacity:{" "}
+                        <span className="font-medium">
+                          {selectedService.maxCapacity || 1}
+                        </span>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Không tìm thấy thông tin</p>
+                  <p className="text-gray-500 text-center py-8">
+                    Service not found
+                  </p>
                 )}
               </div>
             </motion.div>
@@ -807,7 +821,7 @@ export default function ServiceManagement() {
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
                 <h2 className="text-xl font-bold text-gray-800">
-                  {formMode === "create" ? "Thêm Dịch vụ mới" : "Sửa Dịch vụ"}
+                  {formMode === "create" ? "Add New Service" : "Edit Service"}
                 </h2>
                 <button
                   onClick={() => setShowFormModal(false)}
@@ -822,7 +836,7 @@ export default function ServiceManagement() {
                 {/* Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tên dịch vụ <span className="text-red-500">*</span>
+                    Service Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -831,14 +845,14 @@ export default function ServiceManagement() {
                     onChange={handleFormChange}
                     required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="VD: Tắm spa cho chó"
+                    placeholder="E.g. Spa bath for dogs"
                   />
                 </div>
 
                 {/* Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Danh mục <span className="text-red-500">*</span>
+                    Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="category"
@@ -847,7 +861,7 @@ export default function ServiceManagement() {
                     required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
                   >
-                    <option value="">Chọn danh mục</option>
+                    <option value="">Select category</option>
                     {categories.map((cat) => (
                       <option key={cat._id} value={cat._id}>
                         {cat.name}
@@ -858,14 +872,16 @@ export default function ServiceManagement() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Mô tả chi tiết dịch vụ..."
+                    placeholder="Describe the service in detail..."
                   />
                 </div>
 
@@ -873,7 +889,7 @@ export default function ServiceManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giá (VND) <span className="text-red-500">*</span>
+                      Price (VND) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -888,7 +904,7 @@ export default function ServiceManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thời gian (phút) <span className="text-red-500">*</span>
+                      Duration (min) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -906,7 +922,7 @@ export default function ServiceManagement() {
                 {/* Max Capacity */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sức chứa tối đa
+                    Max Capacity
                   </label>
                   <input
                     type="number"
@@ -922,7 +938,7 @@ export default function ServiceManagement() {
                 {/* Pet Types */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Loại thú cưng áp dụng
+                    Applicable Pet Types
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PET_TYPE_OPTIONS.map((opt) => (
@@ -944,22 +960,27 @@ export default function ServiceManagement() {
 
                 {/* Features */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tính năng</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Features
+                  </label>
                   <div className="flex gap-2 mb-2">
                     <input
                       type="text"
                       value={featureInput}
                       onChange={(e) => setFeatureInput(e.target.value)}
                       className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-                      placeholder="Nhập tính năng..."
-                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddFeature())}
+                      placeholder="Enter feature..."
+                      onKeyPress={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), handleAddFeature())
+                      }
                     />
                     <button
                       type="button"
                       onClick={handleAddFeature}
                       className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
                     >
-                      Thêm
+                      Add
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -984,7 +1005,7 @@ export default function ServiceManagement() {
                 {/* Images */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hình ảnh (URL)
+                    Images (URL)
                   </label>
                   <div className="flex gap-2 mb-2">
                     <input
@@ -992,15 +1013,18 @@ export default function ServiceManagement() {
                       value={imageInput}
                       onChange={(e) => setImageInput(e.target.value)}
                       className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-                      placeholder="Nhập URL hình ảnh..."
-                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddImage())}
+                      placeholder="Enter image URL..."
+                      onKeyPress={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), handleAddImage())
+                      }
                     />
                     <button
                       type="button"
                       onClick={handleAddImage}
                       className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
                     >
-                      Thêm
+                      Add
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1034,7 +1058,7 @@ export default function ServiceManagement() {
                     className="w-5 h-5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
                   />
                   <label htmlFor="isActive" className="text-gray-700">
-                    Dịch vụ đang hoạt động
+                    Active service
                   </label>
                 </div>
 
@@ -1045,14 +1069,18 @@ export default function ServiceManagement() {
                     onClick={() => setShowFormModal(false)}
                     className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={formLoading}
                     className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50"
                   >
-                    {formLoading ? "Đang lưu..." : formMode === "create" ? "Tạo" : "Cập nhật"}
+                    {formLoading
+                      ? "Saving..."
+                      : formMode === "create"
+                        ? "Create"
+                        : "Update"}
                   </button>
                 </div>
               </form>
@@ -1082,23 +1110,26 @@ export default function ServiceManagement() {
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Xóa Dịch vụ?</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Delete Service?
+                </h3>
                 <p className="text-gray-600 mb-6">
-                  Bạn có chắc muốn xóa dịch vụ <strong>{selectedService.name}</strong>? Hành động
-                  này không thể hoàn tác.
+                  Are you sure you want to delete{" "}
+                  <strong>{selectedService.name}</strong>? This action cannot be
+                  undone.
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     onClick={handleConfirmDelete}
                     className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
                   >
-                    Xóa
+                    Delete
                   </button>
                 </div>
               </div>

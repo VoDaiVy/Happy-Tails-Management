@@ -19,7 +19,9 @@ import {
   Loader2,
   Bot,
   CheckCircle,
+  Activity,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
   getAllVouchers,
   getVoucherById,
@@ -32,17 +34,9 @@ import {
 
 // Discount type labels
 const DISCOUNT_TYPE_LABELS = {
-  percentage: "Phần trăm",
-  fixed: "Số tiền cố định",
+  percentage: "Percentage",
+  fixed: "Fixed Amount",
 };
-
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "Tất cả" },
-  { key: "active", label: "Đang hoạt động" },
-  { key: "inactive", label: "Ngưng hoạt động" },
-  { key: "ai", label: "AI tạo" },
-];
 
 export default function VoucherManagement() {
   const [vouchers, setVouchers] = useState([]);
@@ -120,7 +114,9 @@ export default function VoucherManagement() {
         ...response.data.data.pagination,
       }));
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách voucher");
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách voucher",
+      );
     } finally {
       setLoading(false);
     }
@@ -180,8 +176,12 @@ export default function VoucherManagement() {
       minSpend: voucher.minSpend || "",
       maxDiscount: voucher.maxDiscount || "",
       usageLimit: voucher.usageLimit || "",
-      validFrom: voucher.validFrom ? new Date(voucher.validFrom).toISOString().split("T")[0] : "",
-      validUntil: voucher.validUntil ? new Date(voucher.validUntil).toISOString().split("T")[0] : "",
+      validFrom: voucher.validFrom
+        ? new Date(voucher.validFrom).toISOString().split("T")[0]
+        : "",
+      validUntil: voucher.validUntil
+        ? new Date(voucher.validUntil).toISOString().split("T")[0]
+        : "",
     });
     setShowFormModal(true);
   };
@@ -292,72 +292,64 @@ export default function VoucherManagement() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Ticket className="w-7 h-7 text-amber-600" />
-            Quản lý Voucher
-          </h1>
-          <p className="text-gray-600 mt-1">Quản lý mã giảm giá và tạo voucher bằng AI</p>
-        </div>
-
-        <div className="flex gap-3">
-          {/* AI Suggest Button */}
-          <button
-            onClick={handleAISuggest}
-            disabled={aiLoading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg shadow-purple-200 disabled:opacity-50"
-          >
-            {aiLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Sparkles className="w-5 h-5" />
-            )}
-            AI Đề xuất
-          </button>
-
-          {/* Create Button */}
-          <button
-            onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Tạo Voucher
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
+          <Ticket className="w-7 h-7 text-[#D97853]" />
+          Voucher Management
+        </h1>
+        <p className="text-[#2D3436]/60 text-sm mt-1">
+          Manage discount codes and generate vouchers with AI
+        </p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-2">
-          {FILTER_TABS.map((tab) => (
+      {/* Filters */}
+      <div className="mb-6">
+        <AdminFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by voucher code or description..."
+          filters={[
+            {
+              label: "STATUS",
+              icon: Activity,
+              options: ["All Types", "Active", "Inactive", "AI Generated"],
+              value:
+                activeTab === "all"
+                  ? "All Types"
+                  : activeTab === "active"
+                    ? "Active"
+                    : activeTab === "inactive"
+                      ? "Inactive"
+                      : "AI Generated",
+              onChange: (opt) =>
+                setActiveTab(
+                  opt === "All Types"
+                    ? "all"
+                    : opt === "Active"
+                      ? "active"
+                      : opt === "Inactive"
+                        ? "inactive"
+                        : "ai",
+                ),
+            },
+          ]}
+          onCreateClick={handleOpenCreate}
+          createLabel="Create Voucher"
+          extraActions={
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={handleAISuggest}
+              disabled={aiLoading}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg shadow-purple-200 disabled:opacity-50 font-bold text-sm shrink-0"
             >
-              {tab.label}
+              {aiLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              AI Suggest
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo mã hoặc mô tả voucher..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
+          }
+        />
       </div>
 
       {/* Error */}
@@ -376,7 +368,7 @@ export default function VoucherManagement() {
         ) : vouchers.length === 0 ? (
           <div className="text-center py-20 text-gray-500">
             <Ticket className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Không có voucher nào</p>
+            <p>No vouchers found</p>
           </div>
         ) : (
           <>
@@ -385,25 +377,25 @@ export default function VoucherManagement() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Mã
+                      Code
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Mô tả
+                      Description
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Giảm giá
+                      Discount
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Sử dụng
+                      Usage
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Hiệu lực
+                      Validity
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Trạng thái
+                      Status
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Hành động
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -437,7 +429,9 @@ export default function VoucherManagement() {
                         <div className="flex items-center justify-center gap-1">
                           {voucher.discountType === "percentage" ? (
                             <>
-                              <span className="font-bold text-green-600">{voucher.discountValue}%</span>
+                              <span className="font-bold text-green-600">
+                                {voucher.discountValue}%
+                              </span>
                               {voucher.maxDiscount && (
                                 <span className="text-xs text-gray-500">
                                   (max {formatCurrency(voucher.maxDiscount)})
@@ -454,16 +448,21 @@ export default function VoucherManagement() {
                       <td className="px-6 py-4 text-center">
                         <span className="text-gray-700">
                           {voucher.usedCount}
-                          {voucher.usageLimit ? ` / ${voucher.usageLimit}` : " / ∞"}
+                          {voucher.usageLimit
+                            ? ` / ${voucher.usageLimit}`
+                            : " / ∞"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="text-sm">
                           <p className="text-gray-600">
-                            {formatDate(voucher.validFrom)} - {formatDate(voucher.validUntil)}
+                            {formatDate(voucher.validFrom)} -{" "}
+                            {formatDate(voucher.validUntil)}
                           </p>
                           {isExpired(voucher.validUntil) && (
-                            <span className="text-red-500 text-xs">Đã hết hạn</span>
+                            <span className="text-red-500 text-xs">
+                              Expired
+                            </span>
                           )}
                         </div>
                       </td>
@@ -479,12 +478,12 @@ export default function VoucherManagement() {
                           {voucher.isActive ? (
                             <>
                               <ToggleRight className="w-4 h-4" />
-                              Hoạt động
+                              Active
                             </>
                           ) : (
                             <>
                               <ToggleLeft className="w-4 h-4" />
-                              Ngừng
+                              Inactive
                             </>
                           )}
                         </button>
@@ -494,21 +493,21 @@ export default function VoucherManagement() {
                           <button
                             onClick={() => handleViewDetail(voucher)}
                             className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
-                            title="Xem"
+                            title="View"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(voucher)}
                             className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                            title="Sửa"
+                            title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenDelete(voucher)}
                             className="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
-                            title="Xóa"
+                            title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -523,11 +522,13 @@ export default function VoucherManagement() {
             {/* Pagination */}
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Hiển thị {vouchers.length} / {pagination.total} voucher
+                Showing {vouchers.length} of {pagination.total} vouchers
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                   disabled={pagination.page <= 1}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -537,7 +538,9 @@ export default function VoucherManagement() {
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                   disabled={pagination.page >= pagination.pages}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -570,7 +573,7 @@ export default function VoucherManagement() {
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                   <Ticket className="w-6 h-6 text-amber-600" />
-                  Chi tiết Voucher
+                  Voucher Details
                 </h2>
                 <button
                   onClick={() => setShowDetailModal(false)}
@@ -590,28 +593,32 @@ export default function VoucherManagement() {
                   <div className="space-y-4">
                     {/* Code */}
                     <div className="bg-amber-50 rounded-xl p-4 text-center">
-                      <p className="text-sm text-amber-700 mb-1">Mã voucher</p>
+                      <p className="text-sm text-amber-700 mb-1">
+                        Voucher Code
+                      </p>
                       <p className="font-mono font-bold text-2xl text-amber-800">
                         {selectedVoucher.code}
                       </p>
                       {selectedVoucher.isAIGenerated && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full mt-2">
                           <Bot className="w-3 h-3" />
-                          Tạo bởi AI
+                          Generated by AI
                         </span>
                       )}
                     </div>
 
                     {/* Description */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500 mb-1">Mô tả</p>
-                      <p className="text-gray-800">{selectedVoucher.description}</p>
+                      <p className="text-sm text-gray-500 mb-1">Description</p>
+                      <p className="text-gray-800">
+                        {selectedVoucher.description}
+                      </p>
                     </div>
 
                     {/* Discount */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-green-50 rounded-xl p-4">
-                        <p className="text-sm text-green-700 mb-1">Giảm giá</p>
+                        <p className="text-sm text-green-700 mb-1">Discount</p>
                         <p className="font-bold text-xl text-green-800">
                           {selectedVoucher.discountType === "percentage"
                             ? `${selectedVoucher.discountValue}%`
@@ -619,7 +626,7 @@ export default function VoucherManagement() {
                         </p>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Loại</p>
+                        <p className="text-sm text-gray-500 mb-1">Type</p>
                         <p className="font-medium text-gray-800">
                           {DISCOUNT_TYPE_LABELS[selectedVoucher.discountType]}
                         </p>
@@ -629,45 +636,51 @@ export default function VoucherManagement() {
                     {/* Conditions */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Đơn tối thiểu</p>
+                        <p className="text-sm text-gray-500 mb-1">Min. Spend</p>
                         <p className="font-medium text-gray-800">
                           {formatCurrency(selectedVoucher.minSpend)}
                         </p>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Giảm tối đa</p>
+                        <p className="text-sm text-gray-500 mb-1">
+                          Max Discount
+                        </p>
                         <p className="font-medium text-gray-800">
                           {selectedVoucher.maxDiscount
                             ? formatCurrency(selectedVoucher.maxDiscount)
-                            : "Không giới hạn"}
+                            : "Unlimited"}
                         </p>
                       </div>
                     </div>
 
                     {/* Usage */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500 mb-1">Số lần sử dụng</p>
+                      <p className="text-sm text-gray-500 mb-1">Usage Count</p>
                       <p className="font-medium text-gray-800">
                         {selectedVoucher.usedCount} /{" "}
-                        {selectedVoucher.usageLimit || "Không giới hạn"}
+                        {selectedVoucher.usageLimit || "Unlimited"}
                       </p>
                     </div>
 
                     {/* Validity */}
                     <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm text-blue-700 mb-1">Thời hạn</p>
+                      <p className="text-sm text-blue-700 mb-1">
+                        Validity Period
+                      </p>
                       <p className="font-medium text-blue-800">
                         {formatDate(selectedVoucher.validFrom)} -{" "}
                         {formatDate(selectedVoucher.validUntil)}
                       </p>
                       {isExpired(selectedVoucher.validUntil) && (
-                        <span className="text-red-500 text-xs mt-1">Đã hết hạn</span>
+                        <span className="text-red-500 text-xs mt-1">
+                          Expired
+                        </span>
                       )}
                     </div>
 
                     {/* Status */}
                     <div className="flex items-center justify-between pt-2 border-t">
-                      <span className="text-gray-600">Trạng thái</span>
+                      <span className="text-gray-600">Status</span>
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-medium ${
                           selectedVoucher.isActive
@@ -675,19 +688,21 @@ export default function VoucherManagement() {
                             : "bg-gray-100 text-gray-600"
                         }`}
                       >
-                        {selectedVoucher.isActive ? "Hoạt động" : "Ngừng hoạt động"}
+                        {selectedVoucher.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
 
                     {/* Created By */}
                     {selectedVoucher.createdBy && (
                       <div className="text-sm text-gray-500 pt-2 border-t">
-                        Tạo bởi: {selectedVoucher.createdBy.name}
+                        Created by: {selectedVoucher.createdBy.name}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Không tìm thấy thông tin</p>
+                  <p className="text-gray-500 text-center py-8">
+                    Voucher not found
+                  </p>
                 )}
               </div>
             </motion.div>
@@ -715,7 +730,9 @@ export default function VoucherManagement() {
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">
-                  {formMode === "create" ? "Tạo Voucher mới" : "Sửa Voucher"}
+                  {formMode === "create"
+                    ? "Create New Voucher"
+                    : "Edit Voucher"}
                 </h2>
                 <button
                   onClick={() => setShowFormModal(false)}
@@ -730,7 +747,7 @@ export default function VoucherManagement() {
                 {/* Code */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mã voucher <span className="text-red-500">*</span>
+                    Voucher Code <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -747,7 +764,7 @@ export default function VoucherManagement() {
                 {/* Description */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mô tả <span className="text-red-500">*</span>
+                    Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     name="description"
@@ -756,7 +773,7 @@ export default function VoucherManagement() {
                     required
                     rows={2}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Mô tả voucher..."
+                    placeholder="Describe the voucher..."
                   />
                 </div>
 
@@ -764,7 +781,7 @@ export default function VoucherManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Loại giảm giá
+                      Discount Type
                     </label>
                     <select
                       name="discountType"
@@ -772,13 +789,13 @@ export default function VoucherManagement() {
                       onChange={handleFormChange}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
                     >
-                      <option value="percentage">Phần trăm (%)</option>
-                      <option value="fixed">Số tiền cố định (VND)</option>
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed Amount (VND)</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giá trị <span className="text-red-500">*</span>
+                      Value <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -788,7 +805,9 @@ export default function VoucherManagement() {
                       required
                       min="0"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                      placeholder={formData.discountType === "percentage" ? "10" : "50000"}
+                      placeholder={
+                        formData.discountType === "percentage" ? "10" : "50000"
+                      }
                     />
                   </div>
                 </div>
@@ -797,7 +816,7 @@ export default function VoucherManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Đơn tối thiểu (VND)
+                      Min. Spend (VND)
                     </label>
                     <input
                       type="number"
@@ -811,7 +830,7 @@ export default function VoucherManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giảm tối đa (VND)
+                      Max Discount (VND)
                     </label>
                     <input
                       type="number"
@@ -820,7 +839,7 @@ export default function VoucherManagement() {
                       onChange={handleFormChange}
                       min="0"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                      placeholder="Không giới hạn"
+                      placeholder="Unlimited"
                     />
                   </div>
                 </div>
@@ -828,7 +847,7 @@ export default function VoucherManagement() {
                 {/* Usage Limit */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Giới hạn sử dụng
+                    Usage Limit
                   </label>
                   <input
                     type="number"
@@ -837,7 +856,7 @@ export default function VoucherManagement() {
                     onChange={handleFormChange}
                     min="0"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    placeholder="Không giới hạn"
+                    placeholder="Unlimited"
                   />
                 </div>
 
@@ -845,7 +864,7 @@ export default function VoucherManagement() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Có hiệu lực từ
+                      Valid From
                     </label>
                     <input
                       type="date"
@@ -857,7 +876,7 @@ export default function VoucherManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Đến ngày <span className="text-red-500">*</span>
+                      Valid Until <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
@@ -877,14 +896,18 @@ export default function VoucherManagement() {
                     onClick={() => setShowFormModal(false)}
                     className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={formLoading}
                     className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50"
                   >
-                    {formLoading ? "Đang lưu..." : formMode === "create" ? "Tạo" : "Cập nhật"}
+                    {formLoading
+                      ? "Saving..."
+                      : formMode === "create"
+                        ? "Create"
+                        : "Update"}
                   </button>
                 </div>
               </form>
@@ -914,23 +937,26 @@ export default function VoucherManagement() {
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Xóa Voucher?</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Delete Voucher?
+                </h3>
                 <p className="text-gray-600 mb-6">
-                  Bạn có chắc muốn xóa voucher <strong>{selectedVoucher.code}</strong>? Hành động
-                  này không thể hoàn tác.
+                  Are you sure you want to delete voucher{" "}
+                  <strong>{selectedVoucher.code}</strong>? This action cannot be
+                  undone.
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowDeleteModal(false)}
                     className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     onClick={handleConfirmDelete}
                     className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
                   >
-                    Xóa
+                    Delete
                   </button>
                 </div>
               </div>
@@ -962,9 +988,11 @@ export default function VoucherManagement() {
                     <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
                       <Sparkles className="w-8 h-8 text-white" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">AI đang tạo voucher...</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      AI is creating voucher...
+                    </h3>
                     <p className="text-gray-600">
-                      Đang phân tích dữ liệu khách hàng để tạo voucher phù hợp
+                      Analyzing customer data to suggest a suitable voucher
                     </p>
                     <div className="mt-4">
                       <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto" />
@@ -976,17 +1004,21 @@ export default function VoucherManagement() {
                       <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-800 mb-4">
-                      AI đã tạo Voucher thành công!
+                      AI created Voucher successfully!
                     </h3>
 
                     <div className="bg-amber-50 rounded-xl p-4 mb-4">
-                      <p className="font-mono font-bold text-2xl text-amber-800">{aiResult.code}</p>
-                      <p className="text-sm text-amber-700 mt-2">{aiResult.description}</p>
+                      <p className="font-mono font-bold text-2xl text-amber-800">
+                        {aiResult.code}
+                      </p>
+                      <p className="text-sm text-amber-700 mt-2">
+                        {aiResult.description}
+                      </p>
                     </div>
 
                     <div className="text-left bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
                       <p>
-                        <span className="text-gray-500">Giảm:</span>{" "}
+                        <span className="text-gray-500">Discount:</span>{" "}
                         <span className="font-medium">
                           {aiResult.discountType === "percentage"
                             ? `${aiResult.discountValue}%`
@@ -994,12 +1026,16 @@ export default function VoucherManagement() {
                         </span>
                       </p>
                       <p>
-                        <span className="text-gray-500">Đơn tối thiểu:</span>{" "}
-                        <span className="font-medium">{formatCurrency(aiResult.minSpend)}</span>
+                        <span className="text-gray-500">Min. Spend:</span>{" "}
+                        <span className="font-medium">
+                          {formatCurrency(aiResult.minSpend)}
+                        </span>
                       </p>
                       <p>
-                        <span className="text-gray-500">Hiệu lực đến:</span>{" "}
-                        <span className="font-medium">{formatDate(aiResult.validUntil)}</span>
+                        <span className="text-gray-500">Valid Until:</span>{" "}
+                        <span className="font-medium">
+                          {formatDate(aiResult.validUntil)}
+                        </span>
                       </p>
                     </div>
 
@@ -1007,12 +1043,12 @@ export default function VoucherManagement() {
                       onClick={() => setShowAIModal(false)}
                       className="w-full mt-6 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors"
                     >
-                      Đóng
+                      Close
                     </button>
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">Không có kết quả</p>
+                    <p className="text-gray-500">No results</p>
                   </div>
                 )}
               </div>

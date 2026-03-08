@@ -13,15 +13,15 @@ import {
 } from "lucide-react";
 
 const adminMenuItems = [
-  { path: "/admin", icon: LayoutDashboard, label: "Tổng quan" },
-  { path: "/admin/bookings", icon: CalendarCheck, label: "Đặt lịch" },
-  { path: "/admin/users", icon: Users, label: "Người dùng" },
-  { path: "/admin/rooms", icon: DoorOpen, label: "Phòng" },
-  { path: "/admin/services", icon: Briefcase, label: "Dịch vụ" },
-  { path: "/admin/medical-records", icon: FileText, label: "Bệnh án" },
-  { path: "/admin/transactions", icon: DollarSign, label: "Dòng tiền" },
-  { path: "/admin/vouchers", icon: Ticket, label: "Voucher" },
-  { path: "/admin/news", icon: Newspaper, label: "Tin tức" },
+  { path: "/admin", icon: LayoutDashboard, label: "Overview" },
+  { path: "/admin/bookings", icon: CalendarCheck, label: "Bookings" },
+  { path: "/admin/users", icon: Users, label: "Users" },
+  { path: "/admin/rooms", icon: DoorOpen, label: "Rooms" },
+  { path: "/admin/services", icon: Briefcase, label: "Services" },
+  { path: "/admin/medical-records", icon: FileText, label: "Medical Records" },
+  { path: "/admin/transactions", icon: DollarSign, label: "Transactions" },
+  { path: "/admin/vouchers", icon: Ticket, label: "Vouchers" },
+  { path: "/admin/news", icon: Newspaper, label: "News" },
 ];
 
 const AdminSidebar = ({ collapsed }) => {
