@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, ArrowRight, User, PawPrint, Heart, ChevronRight, MapPin, Phone, Mail, Facebook, Instagram, Flame, Stethoscope, Scissors, PartyPopper, Utensils, Target, Compass, Rabbit, Sparkles, Newspaper } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // Placeholder Images
 const imgs = {
@@ -46,12 +46,29 @@ const SectionHeader = ({ icon, title, color = "text-[#2D3436]", iconBg = "bg-[#F
 );
 
 const News = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    // Role-based navigation
+    if (userData.role === 'admin') {
+      navigate('/admin');
+    } else if (userData.role === 'staff') {
+      navigate('/staff');
+    }
+    // Customer stays on News page
+  };
 
   const openLoginModal = () => {
     setAuthModalMode('login');
@@ -65,8 +82,13 @@ const News = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authModalMode} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        initialMode={authModalMode}
+        onLoginSuccess={handleLoginSuccess}
+      />
 
       <main className="pt-24 pb-12">
         

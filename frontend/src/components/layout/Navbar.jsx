@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { PawPrint, Menu, X, LogOut, CalendarDays, UserCircle, ChevronDown, Sparkles } from 'lucide-react';
+import { PawPrint, Menu, X, LogOut, CalendarDays, UserCircle, ChevronDown, Sparkles, Heart, ShoppingCart, Wallet } from 'lucide-react';
 import { logoutApi } from '../../api/authApi';
 
 /* ─── SCROLL THRESHOLD (px) before navbar shrinks ─── */
@@ -20,6 +20,17 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const [activeLink, setActiveLink] = useState('');
   const dropdownRef = useRef(null);
 
+  // Debug: Log user state
+  useEffect(() => {
+    console.log('[Navbar] User state:', user);
+    console.log('[Navbar] Has user?', !!user);
+  }, [user]);
+
+  // Debug: Log dropdown state
+  useEffect(() => {
+    console.log('[Navbar] Dropdown open:', isDropdownOpen);
+  }, [isDropdownOpen]);
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > SCROLL_THRESHOLD);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -29,12 +40,23 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        console.log('[Navbar] Click outside dropdown, closing...');
         setIsDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    
+    if (isDropdownOpen) {
+      // Delay adding listener to prevent immediate trigger
+      const timer = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isDropdownOpen]);
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);
@@ -43,6 +65,8 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     onLogout?.();
+    // Reload page to reset all states
+    window.location.href = '/';
   };
 
   const getInitials = (name) => {
@@ -125,7 +149,9 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
         className="nav-header fixed top-0 left-0 w-full z-50 px-4 md:px-6"
         style={{
           paddingTop: isScrolled ? '10px' : '20px',
+          paddingBottom: isScrolled ? '10px' : '20px',
           animation: 'navDown 0.5s cubic-bezier(0.22,1,0.36,1) both',
+          overflow: 'visible',
         }}
       >
         {/* ── Ambient glow that floats behind the pill ── */}
@@ -151,6 +177,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
             boxShadow: isScrolled
               ? '0 8px 40px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,140,66,0.08), 0 -1px 0 0 rgba(255,255,255,0.04) inset'
               : '0 2px 24px rgba(0,0,0,0.07), 0 0 40px rgba(255,140,66,0.08), 0 0 0 1px rgba(255,140,66,0.06)',
+            overflow: 'visible',
           }}
         >
           {/* ── Logo ── */}
@@ -229,9 +256,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
           {/* ── Desktop Right ── */}
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {user ? (
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative" style={{ zIndex: 9999 }} ref={dropdownRef}>
                 <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('[Navbar] Avatar clicked, toggling dropdown from', isDropdownOpen, 'to', !isDropdownOpen);
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }}
                   className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl border transition-all duration-300
                     ${isScrolled
                       ? 'border-white/20 hover:border-white/40 bg-white/10 hover:bg-white/15'
@@ -249,8 +280,12 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
 
                 {isDropdownOpen && (
                   <div
-                    className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.14)] border border-slate-100 overflow-hidden"
-                    style={{ animation: 'dropIn 0.2s cubic-bezier(.4,0,.2,1) both' }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute right-0 top-full mt-3 w-60 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.14)] border border-slate-100 overflow-hidden"
+                    style={{ 
+                      animation: 'dropIn 0.2s cubic-bezier(.4,0,.2,1) both',
+                      zIndex: 10000 
+                    }}
                   >
                     <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
                       <div className="flex items-center gap-3">
@@ -269,10 +304,25 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                         <UserCircle size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
                         Profile
                       </button>
+                      <button onClick={() => { setIsDropdownOpen(false); navigate('/pets'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
+                        <Heart size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
+                        My Pets
+                      </button>
+                      <button onClick={() => { setIsDropdownOpen(false); navigate('/cart'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
+                        <ShoppingCart size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
+                        Shopping Cart
+                      </button>
                       <button onClick={() => { setIsDropdownOpen(false); navigate('/bookings'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
                         <CalendarDays size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
                         Bookings
+                      </button>
+                      <button onClick={() => { setIsDropdownOpen(false); navigate('/wallet'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group">
+                        <Wallet size={16} className="text-slate-400 group-hover:text-[#FF8C42] transition-colors" />
+                        Wallet
                       </button>
                     </div>
                     <div className="px-2 pt-0.5 pb-1.5 border-t border-slate-100 mx-2">
@@ -378,9 +428,21 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
                   <UserCircle size={16} /> Profile
                 </button>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/pets'); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
+                  <Heart size={16} /> My Pets
+                </button>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/cart'); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
+                  <ShoppingCart size={16} /> Shopping Cart
+                </button>
                 <button onClick={() => { setIsMobileMenuOpen(false); navigate('/bookings'); }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
                   <CalendarDays size={16} /> Bookings
+                </button>
+                <button onClick={() => { setIsMobileMenuOpen(false); navigate('/wallet'); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
+                  <Wallet size={16} /> Wallet
                 </button>
                 <button onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-all mt-1">
