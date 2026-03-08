@@ -590,13 +590,13 @@ const ServicePage = () => {
   const computeResults = (query, cat, sort) => {
     let results = [...ALL_SERVICES];
 
-    // 1. Filter by keyword
+    // 1. Filter by keyword — only match title & description, NOT category name
+    // (matching category would show ALL services of that type when user just types its name)
     if (query.trim()) {
       const q = query.toLowerCase();
       results = results.filter(s =>
         s.title.toLowerCase().includes(q) ||
-        (s.description || '').toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
+        (s.description || '').toLowerCase().includes(q)
       );
     }
 
@@ -734,7 +734,14 @@ const ServicePage = () => {
                   icon={<Monitor size={16} className="text-[#7FB069]" />}
                   options={['All Categories', 'AI Health', 'Spa & Grooming', 'Veterinary', 'Boarding']}
                   selected={category}
-                  onSelect={setCategory}
+                  onSelect={(val) => {
+                    setCategory(val);
+                    // If already in search mode, exit it — user must press Search again to apply new filter
+                    if (isSearchMode) {
+                      setIsSearchMode(false);
+                      setSearchResults([]);
+                    }
+                  }}
                 />
 
                 <Dropdown 
@@ -742,7 +749,14 @@ const ServicePage = () => {
                   icon={<Activity size={16} className="text-[#7FB069]" />}
                   options={['Default', 'Name (A - Z)', 'Name (Z - A)', 'Price (Low - High)', 'Price (High - Low)']}
                   selected={sortBy}
-                  onSelect={setSortBy}
+                  onSelect={(val) => {
+                    setSortBy(val);
+                    // If already in search mode, exit it — user must press Search again to apply new filter
+                    if (isSearchMode) {
+                      setIsSearchMode(false);
+                      setSearchResults([]);
+                    }
+                  }}
                 />
 
                 <button 
