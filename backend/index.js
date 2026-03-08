@@ -40,6 +40,7 @@ const walletRoutes = require("./routes/wallet");
 const aiRoutes = require("./routes/ai");
 const medicalRecordRoutes = require("./routes/medicalRecord");
 const userRoutes = require("./routes/user");
+const voucherRoutes = require("./routes/voucher");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -181,6 +182,9 @@ app.use("/api/medical-records", medicalRecordRoutes);
 
 // User management routes
 app.use("/api/users", userRoutes);
+
+// Voucher routes
+app.use("/api/vouchers", voucherRoutes);
 
 
 // ==================== ERROR HANDLING ====================
