@@ -7,9 +7,9 @@ import { logoutApi } from '../../api/authApi';
 const SCROLL_THRESHOLD = 60;
 
 const NAV_LINKS = [
-  { label: 'Services', href: '#services' },
-  { label: 'About Us', href: '#about' },
-  { label: 'News', href: '#news' },
+  { label: 'Services', href: '/service' },
+  { label: 'About Us', href: '/#about' },
+  { label: 'News', href: '/news' },
 ];
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
@@ -194,19 +194,35 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
           {/* ── Desktop Nav Links ── */}
           <nav className={`hidden md:flex items-center gap-0.5 ${isScrolled ? 'nav-is-dark' : 'nav-is-light'}`}>
             {NAV_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setActiveLink(link.href)}
-                className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
-                  ${activeLink === link.href ? 'active' : ''}
-                  ${isScrolled
-                    ? `text-slate-400 hover:text-white ${activeLink === link.href ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
-                    : `text-slate-600 hover:text-slate-900 ${activeLink === link.href ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
-                  }`}
-              >
-                {link.label}
-              </a>
+              link.href.startsWith('/') ? (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setActiveLink(link.href)}
+                  className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
+                    ${activeLink === link.href ? 'active' : ''}
+                    ${isScrolled
+                      ? `text-slate-400 hover:text-white ${activeLink === link.href ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
+                      : `text-slate-600 hover:text-slate-900 ${activeLink === link.href ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
+                    }`}
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setActiveLink(link.href)}
+                  className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
+                    ${activeLink === link.href ? 'active' : ''}
+                    ${isScrolled
+                      ? `text-slate-400 hover:text-white ${activeLink === link.href ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
+                      : `text-slate-600 hover:text-slate-900 ${activeLink === link.href ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
+                    }`}
+                >
+                  {link.label}
+                </a>
+              )
             ))}
           </nav>
 
@@ -324,10 +340,25 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
 
           <div className="px-4 py-4 flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all">
-                {link.label}
-              </a>
+              link.href.startsWith('/') ? (
+                <Link 
+                  key={link.href} 
+                  to={link.href} 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a 
+                  key={link.href} 
+                  href={link.href} 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                >
+                  {link.label}
+                </a>
+              )
             ))}
           </div>
 

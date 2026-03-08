@@ -384,6 +384,7 @@ const ServicePage = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = async () => {
+    console.log('[Search] Starting search...', { category, searchQuery, sortBy });
     setIsSearching(true);
     try {
       // Base API endpoint
@@ -412,6 +413,7 @@ const ServicePage = () => {
       console.log('Fetched services from API:', fetchedServices);
       
       // PRIORITY 1: Always respect explicit UI category selection first
+      let targetId = '';
       if (category !== 'All Categories') {
          if (category === 'AI Health') targetId = 'ai-health';
          else if (category === 'Spa & Grooming') targetId = 'spa-grooming';
@@ -429,10 +431,10 @@ const ServicePage = () => {
       // PRIORITY 3: If no API results and no category, guess based on search string
       else if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase();
-          if ('ai health scan'.includes(query)) targetId = 'ai-health';
-          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
-          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
-          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
+          if (query.match(/\b(ai|health|scan|diagnosis)\b/i)) targetId = 'ai-health';
+          else if (query.match(/\b(spa|groom|bath|nail|style|cut|dye|ear|eye|dental clean)\b/i)) targetId = 'spa-grooming';
+          else if (query.match(/\b(vet|medic|surgery|diagnostic|treatment|emergency|preventive)\b/i)) targetId = 'veterinary';
+          else if (query.match(/\b(board|hotel|room|accommodation|stay|overnight)\b/i)) targetId = 'boarding';
           else targetId = 'spa-grooming'; // Default fallback
       }
       // PRIORITY 4: Ultimate fallback
@@ -440,10 +442,14 @@ const ServicePage = () => {
           targetId = 'ai-health';
       }
 
+      console.log('[Search] Determined targetId:', targetId);
+
       if (targetId) {
         const elem = document.getElementById(targetId);
+        console.log('[Search] Found element:', elem ? 'YES' : 'NO', targetId);
         if (elem) {
           const y = elem.getBoundingClientRect().top + window.scrollY - 100;
+          console.log('[Search] Scrolling to y position:', y);
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
       }
@@ -460,19 +466,23 @@ const ServicePage = () => {
          else if (category === 'Boarding') targetId = 'boarding';
       } else if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase();
-          if ('ai health scan'.includes(query)) targetId = 'ai-health';
-          else if ('spa grooming bath dry nail styling cutting dye'.includes(query)) targetId = 'spa-grooming';
-          else if ('veterinary surgery diagnostics dental preventive'.includes(query)) targetId = 'veterinary';
-          else if ('boarding standard vip resort hotel'.includes(query)) targetId = 'boarding';
+          if (query.match(/\b(ai|health|scan|diagnosis)\b/i)) targetId = 'ai-health';
+          else if (query.match(/\b(spa|groom|bath|nail|style|cut|dye|ear|eye|dental clean)\b/i)) targetId = 'spa-grooming';
+          else if (query.match(/\b(vet|medic|surgery|diagnostic|treatment|emergency|preventive)\b/i)) targetId = 'veterinary';
+          else if (query.match(/\b(board|hotel|room|accommodation|stay|overnight)\b/i)) targetId = 'boarding';
           else targetId = 'spa-grooming';
       } else {
           targetId = 'ai-health';
       }
 
+      console.log('[Search - Fallback] Determined targetId:', targetId);
+
       if (targetId) {
         const elem = document.getElementById(targetId);
+        console.log('[Search - Fallback] Found element:', elem ? 'YES' : 'NO', targetId);
         if (elem) {
           const y = elem.getBoundingClientRect().top + window.scrollY - 100;
+          console.log('[Search - Fallback] Scrolling to y position:', y);
           window.scrollTo({ top: y, behavior: 'smooth' });
         }
       } else {
