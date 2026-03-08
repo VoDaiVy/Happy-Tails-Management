@@ -1,4 +1,5 @@
 ﻿import React, { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
@@ -181,9 +182,9 @@ const Home = () => {
               <span className="text-[#D97853] font-bold tracking-widest uppercase text-xs">Our Expertise</span>
               <h2 className="text-3xl md:text-4xl font-black text-[#2D3436] mt-2">Holistic Services</h2>
             </div>
-            <button className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
+            <Link to="/service" className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
               View All Services <ArrowRight size={16} />
-            </button>
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 h-auto md:h-[450px]">

@@ -29,20 +29,20 @@ const ROOM_TYPES = [
 
 // Pet types
 const PET_TYPES = [
-  { value: "dog", label: "Chó" },
-  { value: "cat", label: "Mèo" },
-  { value: "bird", label: "Chim" },
-  { value: "rabbit", label: "Thỏ" },
+  { value: "dog", label: "Dog" },
+  { value: "cat", label: "Cat" },
+  { value: "bird", label: "Bird" },
+  { value: "rabbit", label: "Rabbit" },
   { value: "hamster", label: "Hamster" },
-  { value: "fish", label: "Cá" },
-  { value: "other", label: "Khác" },
+  { value: "fish", label: "Fish" },
+  { value: "other", label: "Other" },
 ];
 
 // Filter tabs
 const FILTER_TABS = [
-  { key: "all", label: "Tất cả", icon: DoorOpen },
-  { key: "available", label: "Sẵn sàng", icon: Check },
-  { key: "unavailable", label: "Đang sử dụng", icon: Bed },
+  { key: "all", label: "All", icon: DoorOpen },
+  { key: "available", label: "Available", icon: Check },
+  { key: "unavailable", label: "In Use", icon: Bed },
 ];
 
 const RoomManagement = () => {
@@ -187,7 +187,7 @@ const RoomManagement = () => {
       setRoomToDelete(null);
       fetchRooms();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Không thể xóa phòng");
+      setFormError(err.response?.data?.message || "Cannot delete room");
     } finally {
       setFormLoading(false);
     }
@@ -218,9 +218,9 @@ const RoomManagement = () => {
             <DoorOpen className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-[#2D3436]">Quản lý phòng</h1>
+            <h1 className="text-2xl font-bold text-[#2D3436]">Room Management</h1>
             <p className="text-sm text-[#2D3436]/60">
-              Quản lý các phòng lưu trú cho thú cưng
+              Manage accommodation rooms for pets
             </p>
           </div>
         </div>
@@ -229,7 +229,7 @@ const RoomManagement = () => {
           className="flex items-center gap-2 px-4 py-2.5 bg-[#D97853] text-white rounded-xl hover:bg-[#C26843] transition-colors font-medium"
         >
           <Plus size={20} />
-          Thêm phòng
+          Add Room
         </button>
       </div>
 
@@ -280,7 +280,7 @@ const RoomManagement = () => {
               />
               <input
                 type="text"
-                placeholder="Tìm theo số phòng, tên..."
+                placeholder="Search by room number, name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-[#F8F9FA] border-0 rounded-lg text-sm focus:ring-2 focus:ring-[#D97853]/20"
@@ -316,7 +316,7 @@ const RoomManagement = () => {
         ) : filteredRooms.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-[#2D3436]/40">
             <DoorOpen size={48} className="mb-3" />
-            <p>Không tìm thấy phòng nào</p>
+            <p>No rooms found</p>
           </div>
         ) : (
           <table className="w-full">
@@ -332,10 +332,10 @@ const RoomManagement = () => {
                   Sức chứa
                 </th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Thú cưng
+                  Pet Type
                 </th>
                 <th className="text-center px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Trạng thái
+                  Status
                 </th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
                   Hành động
@@ -420,7 +420,7 @@ const RoomManagement = () => {
                         ) : (
                           <>
                             <ToggleLeft size={14} />
-                            Đang dùng
+                            In Use
                           </>
                         )}
                       </button>
@@ -432,7 +432,7 @@ const RoomManagement = () => {
                         <button
                           onClick={() => handleEdit(room)}
                           className="p-2 text-[#2D3436]/60 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-lg transition-colors"
-                          title="Chỉnh sửa"
+                          title="Edit"
                         >
                           <Edit size={16} />
                         </button>
@@ -442,7 +442,7 @@ const RoomManagement = () => {
                             setShowDeleteModal(true);
                           }}
                           className="p-2 text-[#2D3436]/60 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa"
+                          title="Delete"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -469,7 +469,7 @@ const RoomManagement = () => {
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Đang sử dụng</p>
+          <p className="text-sm text-[#2D3436]/60">In Use</p>
           <p className="text-2xl font-bold text-red-600">
             {rooms.filter((r) => !r.isAvailable).length}
           </p>
@@ -502,7 +502,7 @@ const RoomManagement = () => {
               {/* Modal header */}
               <div className="flex items-center justify-between p-6 border-b border-[#2D3436]/5">
                 <h2 className="text-xl font-bold text-[#2D3436]">
-                  {modalMode === "create" ? "Thêm phòng mới" : "Chỉnh sửa phòng"}
+                  {modalMode === "create" ? "Add New Room" : "Edit Room"}
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
@@ -540,7 +540,7 @@ const RoomManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Tên phòng *
+                      Room Name *
                     </label>
                     <input
                       type="text"
@@ -595,7 +595,7 @@ const RoomManagement = () => {
                 {/* Pet types */}
                 <div>
                   <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                    Loại thú cưng
+                    Pet Type
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PET_TYPES.map((pet) => (
@@ -624,7 +624,7 @@ const RoomManagement = () => {
                 {/* Description */}
                 <div>
                   <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                    Mô tả
+                    Description
                   </label>
                   <textarea
                     rows={3}
@@ -632,7 +632,7 @@ const RoomManagement = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="Mô tả chi tiết về phòng..."
+                    placeholder="Detailed description of the room..."
                     className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853] resize-none"
                   />
                 </div>
@@ -660,7 +660,7 @@ const RoomManagement = () => {
                         }
                         className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
                       />
-                      <span className="text-sm text-[#2D3436]">Hoạt động</span>
+                      <span className="text-sm text-[#2D3436]">Active</span>
                     </label>
                   </div>
                 )}
@@ -672,7 +672,7 @@ const RoomManagement = () => {
                     onClick={() => setShowModal(false)}
                     className="px-4 py-2 text-[#2D3436]/70 hover:bg-[#F8F9FA] rounded-lg transition-colors"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="submit"
@@ -684,7 +684,7 @@ const RoomManagement = () => {
                     ) : (
                       <Check size={18} />
                     )}
-                    {modalMode === "create" ? "Tạo phòng" : "Cập nhật"}
+                    {modalMode === "create" ? "Create" : "Update"}
                   </button>
                 </div>
               </form>
@@ -714,11 +714,11 @@ const RoomManagement = () => {
                 <div className="p-2 bg-red-100 rounded-lg">
                   <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-[#2D3436]">Xóa phòng</h3>
+                <h3 className="text-lg font-bold text-[#2D3436]">Delete Room</h3>
               </div>
 
               <p className="text-[#2D3436]/70 mb-6">
-                Bạn có chắc muốn xóa phòng{" "}
+                Are you sure you want to delete room{" "}
                 <span className="font-semibold text-[#2D3436]">
                   {roomToDelete.roomNumber} - {roomToDelete.name}
                 </span>
@@ -742,7 +742,7 @@ const RoomManagement = () => {
                   ) : (
                     <Trash2 size={18} />
                   )}
-                  Xóa
+                  Delete
                 </button>
               </div>
             </motion.div>

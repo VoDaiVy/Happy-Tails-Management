@@ -1,93 +1,87 @@
 import React from 'react';
-import { PawPrint, MapPin, Phone, Mail, Facebook, Instagram, Youtube, ArrowRight } from 'lucide-react';
+import { PawPrint, MapPin, Phone, Mail, Clock } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="relative mt-20 pb-10 px-4 font-sans text-slate-700">
-      {/* Container chính: Thẻ nổi gọn gàng */}
-      <div className="container mx-auto relative bg-white border border-slate-200 rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden">
-        
-        {/* Họa tiết trang trí nền */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-rose-100 rounded-full blur-[80px] -z-10 opacity-60" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-100 rounded-full blur-[80px] -z-10 opacity-60" />
-        
-        <div className="p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
-          
-          {/* Cột 1: Branding */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <div className="bg-[#D97853] p-2 rounded-xl text-white shadow-lg">
-                <PawPrint size={22} fill="currentColor" />
+    <footer className="bg-[#FDFBF7] pt-24 pb-12 px-6 relative overflow-hidden font-sans">
+        <div className="absolute bottom-0 right-0 opacity-[0.03] pointer-events-none">
+            <PawPrint size={400} />
+        </div>
+
+        <div className="container mx-auto relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+            
+            <div className="md:col-span-4">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-[#2D3436] p-3 rounded-2xl"><PawPrint size={28} className="text-white" /></div>
+                <span className="text-2xl font-black tracking-tighter text-[#2D3436]">HAPPY<span className="text-[#D97853]">TAILS</span></span>
               </div>
-              <span className="text-2xl font-black tracking-tight text-slate-800">
-                HAPPY<span className="text-[#D97853]">TAILS</span>
-              </span>
+              <p className="text-[#2D3436]/60 leading-relaxed mb-6 text-sm">
+                Your pet wellness sanctuary. Where luxury meets technology for the ultimate pet care experience.
+              </p>
+              <div className="flex gap-3">
+                 {['facebook', 'instagram', 'twitter'].map(s => (
+                   <a key={s} href="#" className="w-10 h-10 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#D97853] hover:text-white transition-all text-[#2D3436]/60">
+                      <span className="text-xs font-bold uppercase">{s[0]}</span>
+                   </a>
+                 ))}
+              </div>
             </div>
-            <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-xs">
-              Premier 5-star pet care system. Where technology meets love to bring the best experience for your four-legged friends.
-            </p>
-            <div className="flex gap-3 mt-2">
-              <SocialBtn icon={<Facebook size={18} />} />
-              <SocialBtn icon={<Instagram size={18} />} />
-              <SocialBtn icon={<Youtube size={18} />} />
+
+            <div className="md:col-span-2">
+              <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Services</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</a></li>
+              </ul>
+            </div>
+
+            <div className="md:col-span-2">
+               <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Company</h4>
+              <ul className="space-y-3 text-sm">
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">About Us</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Our Team</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Blog and News</a></li>
+                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Careers</a></li>
+              </ul>
+            </div>
+
+            <div className="md:col-span-4">
+              <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Get In Touch</h4>
+              <ul className="space-y-4 text-sm">
+                <li className="flex items-start gap-3">
+                  <MapPin size={18} className="text-[#D97853] mt-0.5 flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">123 Pet Wellness Ave, Suite 100<br/>Saigon, Vietnam</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Phone size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">+84 (28) 1234 5678</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Mail size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">hello@happytails.vn</span>
+                </li>
+                 <li className="flex items-center gap-3">
+                  <Clock size={18} className="text-[#D97853] flex-shrink-0"/>
+                  <span className="text-[#2D3436]/60">Mon - Sat: 8AM - 8PM</span>
+                </li>
+              </ul>
             </div>
           </div>
 
-          {/* Cột 2: Explore & Contact (Gộp để tiết kiệm chiều cao) */}
-          <div className="lg:col-span-5 grid grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-bold text-slate-900 mb-4 text-xs uppercase tracking-wider">Explore</h4>
-              <ul className="space-y-3 text-sm font-medium text-slate-500">
-                <li><a href="#" className="hover:text-[#D97853] transition-colors flex items-center gap-1 hover:translate-x-1 duration-200">About Us</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors flex items-center gap-1 hover:translate-x-1 duration-200">Spa Services</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors flex items-center gap-1 hover:translate-x-1 duration-200">Luxury Hotel</a></li>
-                <li><a href="#" className="hover:text-[#D97853] transition-colors flex items-center gap-1 hover:translate-x-1 duration-200">AI Diagnosis</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-slate-900 mb-4 text-xs uppercase tracking-wider">Contact Info</h4>
-              <ul className="space-y-3 text-sm font-medium text-slate-500">
-                <li className="flex items-center gap-2"><Phone size={16} className="text-[#D97853]"/> +84 905 123 456</li>
-                <li className="flex items-center gap-2"><MapPin size={16} className="text-[#D97853]"/> Da Nang, Vietnam</li>
-                <li className="flex items-center gap-2"><Mail size={16} className="text-[#D97853]"/> hello@happytails.vn</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Cột 3: Newsletter */}
-          <div className="lg:col-span-3">
-            <h4 className="font-bold text-slate-900 mb-4 text-xs uppercase tracking-wider">Newsletter</h4>
-            <p className="text-xs text-slate-500 mb-4">Subscribe to get a 10% discount voucher for your first booking.</p>
-            <div className="relative">
-              <input 
-                type="email" 
-                placeholder="Your email..." 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#D97853] transition-colors"
-              />
-              <button className="absolute right-1 top-1 bottom-1 bg-[#D97853] text-white p-2 rounded-lg hover:bg-[#c46a47] transition-colors shadow-md">
-                <ArrowRight size={16} />
-              </button>
+          <div className="border-t border-[#2D3436]/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-xs text-[#2D3436]/40">2024 HappyTails. All rights reserved.</p>
+            <div className="flex gap-6 text-xs">
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Privacy Policy</a>
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Terms of Service</a>
+              <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Cookie Settings</a>
             </div>
           </div>
         </div>
-
-        {/* Copyright Bar */}
-        <div className="border-t border-slate-100 bg-slate-50/50 px-10 py-4 flex flex-col md:flex-row justify-between items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <p>© 2026 Happy Tails Inc. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-[#D97853]">Terms of Service</a>
-            <a href="#" className="hover:text-[#D97853]">Privacy Policy</a>
-          </div>
-        </div>
-      </div>
-    </footer>
+      </footer>
   );
 };
-
-const SocialBtn = ({ icon }) => (
-  <a href="#" className="w-9 h-9 border border-slate-200 bg-white rounded-full flex items-center justify-center text-slate-400 hover:bg-[#D97853] hover:text-white hover:border-[#D97853] transition-all shadow-sm">
-    {icon}
-  </a>
-);
 
 export default Footer;
