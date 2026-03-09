@@ -299,27 +299,17 @@ const BookingBoard = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-            {role === "staff" ? (
-              <>
-                <ClipboardList className="w-7 h-7 text-[#D97853]" />
-                Process Bookings
-              </>
-            ) : (
-              <>
-                <Eye className="w-7 h-7 text-[#D97853]" />
-                Booking Management
-              </>
-            )}
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            {role === "staff" ? "Process Bookings" : "Booking Management"}
           </h1>
-          <p className="text-[#2D3436]/60 text-sm mt-1">
+          <p className="text-sm text-[#2D3436]/60">
             {role === "staff"
               ? "Receive and process service booking orders"
               : "View and monitor all bookings"}
@@ -357,8 +347,7 @@ const BookingBoard = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-2">
-        <AdminFilterBar
+      <AdminFilterBar
           searchValue={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="Search by code, name, email, phone..."
@@ -379,7 +368,7 @@ const BookingBoard = () => {
                   onClick={() => setViewMode("grid")}
                   className={`p-2.5 transition-colors ${
                     viewMode === "grid"
-                      ? "bg-[#5B8C51] text-white"
+                      ? "bg-[#D97853] text-white"
                       : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -389,7 +378,7 @@ const BookingBoard = () => {
                   onClick={() => setViewMode("list")}
                   className={`p-2.5 transition-colors ${
                     viewMode === "list"
-                      ? "bg-[#5B8C51] text-white"
+                      ? "bg-[#D97853] text-white"
                       : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -399,7 +388,6 @@ const BookingBoard = () => {
             </div>
           }
         />
-      </div>
 
       {/* Status Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -414,8 +402,8 @@ const BookingBoard = () => {
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
                 isActive
-                  ? "bg-[#5B8C51] text-white shadow-lg shadow-[#5B8C51]/25"
-                  : "bg-white text-gray-600 border border-gray-200 hover:border-[#5B8C51] hover:text-[#5B8C51]"
+                  ? "bg-[#D97853] text-white shadow-lg shadow-[#D97853]/25"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-[#D97853] hover:text-[#D97853]"
               }`}
             >
               <Icon size={18} className={isActive ? "text-white" : tab.color} />
@@ -438,7 +426,7 @@ const BookingBoard = () => {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-[#5B8C51] border-t-transparent rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-[#D97853] border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-500">Loading bookings...</p>
           </div>
         </div>
@@ -452,7 +440,7 @@ const BookingBoard = () => {
               <p className="font-medium text-[#2D3436]">{error}</p>
               <button
                 onClick={() => fetchBookings()}
-                className="mt-2 text-sm text-[#5B8C51] hover:underline"
+                className="mt-2 text-sm text-[#D97853] hover:underline"
               >
                 Retry
               </button>

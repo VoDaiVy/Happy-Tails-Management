@@ -202,18 +202,17 @@ const UserManagement = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-            <Users className="w-7 h-7 text-[#D97853]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             User Management
           </h1>
-          <p className="text-[#2D3436]/60 text-sm mt-1">
+          <p className="text-sm text-[#2D3436]/60">
             View and manage user accounts in the system
           </p>
         </div>
@@ -288,8 +287,8 @@ const UserManagement = () => {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-[#5B8C51] border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500">Loading users...</p>
+            <div className="w-12 h-12 border-4 border-[#D97853]/20 border-b-2 border-b-[#D97853] rounded-full animate-spin" />
+            <p className="text-[#2D3436]/60">Loading users...</p>
           </div>
         </div>
       ) : error ? (
@@ -312,12 +311,12 @@ const UserManagement = () => {
       ) : users.length === 0 ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <Users size={32} className="text-gray-400" />
+            <div className="w-16 h-16 bg-[#FDFBF7] rounded-full flex items-center justify-center">
+              <Users size={32} className="text-[#D97853]" />
             </div>
             <div>
-              <p className="font-medium text-[#2D3436]">No users found</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-lg font-bold text-[#2D3436]">No users found</p>
+              <p className="text-sm font-medium text-[#2D3436]/60 mt-1">
                 Try changing filters or search keywords
               </p>
             </div>
@@ -326,39 +325,42 @@ const UserManagement = () => {
       ) : (
         <>
           {/* Users Table */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-[#FDFBF7] border-b border-[#2D3436]/5">
                   <tr>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                       User
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                       Role
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                       Created
                     </th>
-                    <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-right px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {users.map((user) => {
+                <tbody>
+                  {users.map((user, idx) => {
                     const roleConfig =
                       ROLE_CONFIG[user.role] || ROLE_CONFIG.customer;
                     const RoleIcon = roleConfig.icon;
                     const isBlocked = user.isBlocked;
 
                     return (
-                      <tr
+                      <motion.tr
                         key={user._id}
-                        className="hover:bg-gray-50 transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 + idx * 0.03 }}
+                        className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                       >
                         {/* User Info */}
                         <td className="px-6 py-4">
@@ -444,7 +446,7 @@ const UserManagement = () => {
                             </>
                           )}
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -453,7 +455,7 @@ const UserManagement = () => {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="px-6 py-4 border-t border-[#2D3436]/5 flex items-center justify-between">
                 <p className="text-sm text-gray-500">
                   Showing {users.length} / {pagination.total} users
                 </p>

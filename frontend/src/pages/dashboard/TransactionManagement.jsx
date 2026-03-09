@@ -208,78 +208,101 @@ export default function TransactionManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-          <DollarSign className="w-7 h-7 text-[#D97853]" />
-          Transaction Management
-        </h1>
-        <p className="text-[#2D3436]/60 text-sm mt-1">
-          Track and manage system transactions
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Transaction Management
+          </h1>
+          <p className="text-sm text-[#2D3436]/60">
+            Track and manage system transactions
+          </p>
+        </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Transactions</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Transactions</p>
+              <p className="text-2xl font-bold text-[#2D3436]">{stats.total}</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 p-5"
+        >
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pending</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Pending</p>
               <p className="text-2xl font-bold text-yellow-600">
                 {stats.pending}
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 p-5"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="w-12 h-12 bg-[#7FB069]/20 rounded-xl flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-[#7FB069]" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Completed</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Completed</p>
+              <p className="text-2xl font-bold text-[#7FB069]">
                 {stats.completed}
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-white rounded-[20px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 p-5"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-amber-600" />
+            <div className="w-12 h-12 bg-[#D97853]/15 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-[#D97853]" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Amount (Completed)</p>
-              <p className="text-xl font-bold text-amber-600">
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Amount</p>
+              <p className="text-xl font-bold text-[#D97853]">
                 {formatCurrency(stats.totalAmount)}
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6">
-        <AdminFilterBar
+      <AdminFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search by transaction code, name or email..."
@@ -343,64 +366,65 @@ export default function TransactionManagement() {
             })
           }
           dateLabel="FROM DATE"
-        />
-      </div>
+      />
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <DollarSign className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>No transactions found</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <DollarSign className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No transactions found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+          <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                  <th className="px-6 py-4 whitespace-nowrap">
                     Tx Code
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap">
                     User
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap">
                     Type
                   </th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap text-right">
                     Amount
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap text-center">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap">
                     Created
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                  <th className="px-6 py-4 whitespace-nowrap text-center">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredTransactions.map((transaction) => {
+              <tbody className="text-sm">
+                {filteredTransactions.map((transaction, idx) => {
                   const TypeIcon = TYPE_ICONS[transaction.type] || CreditCard;
                   return (
                     <motion.tr
                       key={transaction._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + idx * 0.03 }}
+                      className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                     >
                       <td className="px-6 py-4">
                         <span className="font-mono text-sm text-gray-800">
@@ -764,6 +788,6 @@ export default function TransactionManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

@@ -20,6 +20,10 @@ import {
   Image as ImageIcon,
   ListChecks,
   Activity,
+  Loader2,
+  CheckCircle2,
+  ChevronDown,
+  MoreVertical,
 } from "lucide-react";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
@@ -98,6 +102,7 @@ export default function ServiceManagement() {
   const [featureInput, setFeatureInput] = useState("");
   const [imageInput, setImageInput] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
@@ -366,122 +371,131 @@ export default function ServiceManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-            <Briefcase className="w-7 h-7 text-[#D97853]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             Service Management
           </h1>
-          <p className="text-[#2D3436]/60 text-sm mt-1">
+          <p className="text-[#2D3436]/60 text-sm">
             Manage pet care services
           </p>
         </div>
+        <motion.button
+          onClick={handleOpenCreate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+        >
+          <Plus size={18} /> Add Service
+        </motion.button>
       </div>
 
       {/* Filters */}
-      <div>
-        <AdminFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by service name or category..."
-          filters={[
-            {
-              label: "CATEGORY",
-              icon: Tag,
-              options: ["All Categories", ...categories.map((c) => c.name)],
-              value:
-                categoryFilter === "all"
-                  ? "All Categories"
-                  : categories.find((c) => c._id === categoryFilter)?.name ||
-                    "All Categories",
-              onChange: (opt) =>
-                setCategoryFilter(
-                  opt === "All Categories"
-                    ? "all"
-                    : categories.find((c) => c.name === opt)?._id || "all",
-                ),
-            },
-            {
-              label: "STATUS",
-              icon: Activity,
-              options: ["All Status", "Active", "Inactive"],
-              value:
-                activeTab === "all"
-                  ? "All Status"
-                  : activeTab === "active"
-                    ? "Active"
-                    : "Inactive",
-              onChange: (opt) =>
-                setActiveTab(
-                  opt === "All Status"
-                    ? "all"
-                    : opt === "Active"
-                      ? "active"
-                      : "inactive",
-                ),
-            },
-          ]}
-          onCreateClick={handleOpenCreate}
-          createLabel="Add Service"
-        />
-      </div>
+      <AdminFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by service name or category..."
+        filters={[
+          {
+            label: "CATEGORY",
+            icon: Tag,
+            options: ["All Categories", ...categories.map((c) => c.name)],
+            value:
+              categoryFilter === "all"
+                ? "All Categories"
+                : categories.find((c) => c._id === categoryFilter)?.name ||
+                  "All Categories",
+            onChange: (opt) =>
+              setCategoryFilter(
+                opt === "All Categories"
+                  ? "all"
+                  : categories.find((c) => c.name === opt)?._id || "all",
+              ),
+          },
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All Status", "Active", "Inactive"],
+            value:
+              activeTab === "all"
+                ? "All Status"
+                : activeTab === "active"
+                  ? "Active"
+                  : "Inactive",
+            onChange: (opt) =>
+              setActiveTab(
+                opt === "All Status"
+                  ? "all"
+                  : opt === "Active"
+                    ? "active"
+                    : "inactive",
+              ),
+          },
+        ]}
+      />
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl mb-6">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
         ) : services.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>No services found</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <Briefcase className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No services found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Service
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Category
                     </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-right">
                       Price
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Duration
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Rating
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Status
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {services.map((service) => (
+                <tbody className="text-sm">
+                  {services.map((service, idx) => (
                     <motion.tr
                       key={service._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + idx * 0.03 }}
+                      className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors group"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -519,74 +533,58 @@ export default function ServiceManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-block px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                        <span className="px-3 py-1 text-xs font-bold rounded-full shadow-sm border bg-purple-50 text-purple-700 border-purple-100">
                           {getCategoryName(service)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className="font-semibold text-amber-600">
+                        <span className="font-bold text-[#D97853]">
                           {formatCurrency(service.price)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center gap-1 text-gray-600">
+                        <span className="inline-flex items-center gap-1 text-[#2D3436]/60 font-medium">
                           <Clock className="w-4 h-4" />
                           {formatDuration(service.duration)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center gap-1 text-yellow-600">
+                        <span className="inline-flex items-center gap-1 text-[#D97853] font-bold">
                           <Star className="w-4 h-4 fill-current" />
                           {service.rating?.toFixed(1) || "0.0"}
-                          <span className="text-gray-400 text-xs">
+                          <span className="text-[#2D3436]/40 text-xs font-medium">
                             ({service.totalReviews || 0})
                           </span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                          className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm border ${
                             service.isActive
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-600"
+                              ? "bg-[#7FB069]/10 text-[#7FB069] border-[#7FB069]/20"
+                              : "bg-[#2D3436]/5 text-[#2D3436]/50 border-[#2D3436]/10"
                           }`}
                         >
-                          {service.isActive ? (
-                            <>
-                              <ToggleRight className="w-4 h-4" />
-                              Active
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft className="w-4 h-4" />
-                              Inactive
-                            </>
-                          )}
+                          {service.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
+                        <div className="flex items-center justify-center gap-3 text-[#2D3436]/40">
+                          <Eye
+                            size={16}
+                            className="hover:text-[#D97853] transition-colors cursor-pointer"
                             onClick={() => handleViewDetail(service)}
-                            className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
+                          />
+                          <Edit2
+                            size={16}
+                            className="hover:text-[#7FB069] transition-colors cursor-pointer"
                             onClick={() => handleOpenEdit(service)}
-                            className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
+                          />
+                          <Trash2
+                            size={16}
+                            className="hover:text-red-500 transition-colors cursor-pointer"
                             onClick={() => handleOpenDelete(service)}
-                            className="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          />
                         </div>
                       </td>
                     </motion.tr>
@@ -596,8 +594,8 @@ export default function ServiceManagement() {
             </div>
 
             {/* Pagination */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
+            <div className="px-6 py-4 border-t border-[#2D3436]/5 flex items-center justify-between">
+              <p className="text-sm font-medium text-[#2D3436]/60">
                 Showing {services.length} of {pagination.total} services
               </p>
               <div className="flex items-center gap-2">
@@ -606,11 +604,11 @@ export default function ServiceManagement() {
                     setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
                   }
                   disabled={pagination.page <= 1}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-xl border border-[#2D3436]/10 disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#D97853] hover:text-[#D97853] transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <span className="px-4 py-2 text-gray-700">
+                <span className="px-4 py-2 text-[#2D3436] font-bold">
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
@@ -618,7 +616,7 @@ export default function ServiceManagement() {
                     setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
                   }
                   disabled={pagination.page >= pagination.pages}
-                  className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  className="p-2 rounded-xl border border-[#2D3436]/10 disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#D97853] hover:text-[#D97853] transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -631,31 +629,40 @@ export default function ServiceManagement() {
       {/* Detail Modal */}
       <AnimatePresence>
         {showDetailModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowDetailModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDetailModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <Briefcase className="w-6 h-6 text-amber-600" />
-                  Service Details
-                </h2>
+              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <Briefcase className="w-5 h-5 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      Service Details
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      View service information
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50 hover:text-[#2D3436]"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X size={16} />
                 </button>
               </div>
 
@@ -663,7 +670,7 @@ export default function ServiceManagement() {
               <div className="p-6">
                 {detailLoading ? (
                   <div className="flex items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
                   </div>
                 ) : selectedService ? (
                   <div className="space-y-6">
@@ -791,52 +798,62 @@ export default function ServiceManagement() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">
+                  <p className="text-[#2D3436]/50 text-center py-8 font-medium">
                     Service not found
                   </p>
                 )}
               </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {/* Form Modal */}
       <AnimatePresence>
         {showFormModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowFormModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFormModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {formMode === "create" ? "Add New Service" : "Edit Service"}
-                </h2>
+              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <Edit2 className="w-5 h-5 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      {formMode === "create" ? "Add New Service" : "Edit Service"}
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      {formMode === "create" ? "Create a new pet care service" : "Update service information"}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowFormModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50 hover:text-[#2D3436]"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X size={16} />
                 </button>
               </div>
 
               {/* Body */}
-              <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
+              <form onSubmit={handleSubmitForm} className="p-6 md:p-8 space-y-5">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Service Name <span className="text-red-500">*</span>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Service Name <span className="text-[#D97853]">*</span>
                   </label>
                   <input
                     type="text"
@@ -844,35 +861,72 @@ export default function ServiceManagement() {
                     value={formData.name}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30"
                     placeholder="E.g. Spa bath for dogs"
                   />
                 </div>
 
                 {/* Category */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category <span className="text-red-500">*</span>
+                <div className={`relative ${isCategoryOpen ? "z-[60]" : "z-10"}`}>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Category <span className="text-[#D97853]">*</span>
                   </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                  <div
+                    className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isCategoryOpen ? "border-[#D97853] ring-1 ring-[#D97853]/20" : "border-[#D97853]"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCategoryOpen(!isCategoryOpen);
+                    }}
                   >
-                    <option value="">Select category</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    <span className={`text-sm font-medium ${formData.category ? "text-[#2D3436]" : "text-gray-500"}`}>
+                      {formData.category
+                        ? categories.find((c) => c._id === formData.category)?.name || "Select category"
+                        : "Select category"}
+                    </span>
+                    <MoreVertical size={14} className="text-[#D97853]" />
+                  </div>
+                  <AnimatePresence>
+                    {isCategoryOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCategoryOpen(false);
+                          }}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5 max-h-60 overflow-y-auto"
+                        >
+                          {categories.map((cat) => {
+                            const isSelected = formData.category === cat._id;
+                            return (
+                              <div
+                                key={cat._id}
+                                className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFormChange({ target: { name: "category", value: cat._id } });
+                                  setIsCategoryOpen(false);
+                                }}
+                              >
+                                {cat.name}
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Description
                   </label>
                   <textarea
@@ -880,7 +934,7 @@ export default function ServiceManagement() {
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 resize-none"
                     placeholder="Describe the service in detail..."
                   />
                 </div>
@@ -888,8 +942,8 @@ export default function ServiceManagement() {
                 {/* Price & Duration */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Price (VND) <span className="text-red-500">*</span>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Price (VND) <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -898,13 +952,13 @@ export default function ServiceManagement() {
                       onChange={handleFormChange}
                       required
                       min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all"
                       placeholder="100000"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duration (min) <span className="text-red-500">*</span>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Duration (min) <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -913,7 +967,7 @@ export default function ServiceManagement() {
                       onChange={handleFormChange}
                       required
                       min="1"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all"
                       placeholder="60"
                     />
                   </div>
@@ -921,7 +975,7 @@ export default function ServiceManagement() {
 
                 {/* Max Capacity */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Max Capacity
                   </label>
                   <input
@@ -930,14 +984,14 @@ export default function ServiceManagement() {
                     value={formData.maxCapacity}
                     onChange={handleFormChange}
                     min="1"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all"
                     placeholder="1"
                   />
                 </div>
 
                 {/* Pet Types */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Applicable Pet Types
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -946,10 +1000,10 @@ export default function ServiceManagement() {
                         key={opt.value}
                         type="button"
                         onClick={() => handlePetTypeToggle(opt.value)}
-                        className={`px-3 py-2 rounded-lg border-2 transition-all ${
+                        className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                           formData.petTypes.includes(opt.value)
-                            ? "border-amber-500 bg-amber-50 text-amber-700"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "bg-[#D97853] text-white shadow-[0_3px_10px_rgba(217,120,83,0.3)]"
+                            : "bg-white border border-[#2D3436]/10 text-[#2D3436]/70 hover:border-[#D97853] hover:text-[#D97853]"
                         }`}
                       >
                         {opt.label}
@@ -960,15 +1014,15 @@ export default function ServiceManagement() {
 
                 {/* Features */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Features
                   </label>
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex gap-2 mb-3">
                     <input
                       type="text"
                       value={featureInput}
                       onChange={(e) => setFeatureInput(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
                       placeholder="Enter feature..."
                       onKeyPress={(e) =>
                         e.key === "Enter" &&
@@ -978,7 +1032,7 @@ export default function ServiceManagement() {
                     <button
                       type="button"
                       onClick={handleAddFeature}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+                      className="px-4 py-2.5 bg-[#7FB069] text-white rounded-xl font-bold text-sm hover:bg-[#6a9a57] transition-colors"
                     >
                       Add
                     </button>
@@ -987,7 +1041,7 @@ export default function ServiceManagement() {
                     {formData.features.map((feat, idx) => (
                       <span
                         key={idx}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#7FB069]/10 text-[#7FB069] rounded-full text-sm font-medium border border-[#7FB069]/20"
                       >
                         {feat}
                         <button
@@ -1012,7 +1066,7 @@ export default function ServiceManagement() {
                       type="url"
                       value={imageInput}
                       onChange={(e) => setImageInput(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
+                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
                       placeholder="Enter image URL..."
                       onKeyPress={(e) =>
                         e.key === "Enter" &&
@@ -1022,7 +1076,7 @@ export default function ServiceManagement() {
                     <button
                       type="button"
                       onClick={handleAddImage}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+                      className="px-4 py-2.5 bg-[#7FB069] text-white rounded-xl font-bold text-sm hover:bg-[#6a9a57] transition-colors"
                     >
                       Add
                     </button>
@@ -1033,14 +1087,14 @@ export default function ServiceManagement() {
                         <img
                           src={img}
                           alt={`Preview ${idx + 1}`}
-                          className="w-16 h-16 object-cover rounded-lg"
+                          className="w-16 h-16 object-cover rounded-xl border border-[#2D3436]/10"
                         />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(idx)}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         >
-                          <X className="w-3 h-3" />
+                          <X size={12} />
                         </button>
                       </div>
                     ))}
@@ -1048,95 +1102,99 @@ export default function ServiceManagement() {
                 </div>
 
                 {/* Active Status */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
                   <input
                     type="checkbox"
                     id="isActive"
                     name="isActive"
                     checked={formData.isActive}
                     onChange={handleFormChange}
-                    className="w-5 h-5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                    className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]"
                   />
-                  <label htmlFor="isActive" className="text-gray-700">
+                  <label htmlFor="isActive" className="text-[#2D3436] font-medium">
                     Active service
                   </label>
                 </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowFormModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formLoading}
-                    className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50"
-                  >
-                    {formLoading
-                      ? "Saving..."
-                      : formMode === "create"
-                        ? "Create"
-                        : "Update"}
-                  </button>
-                </div>
               </form>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 md:px-8 border-t border-[#2D3436]/10 bg-white flex items-center justify-end gap-3 sticky bottom-0 z-30">
+                <button
+                  type="button"
+                  onClick={() => setShowFormModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmitForm}
+                  disabled={formLoading}
+                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {formLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
+                  {formLoading
+                    ? "Saving..."
+                    : formMode === "create"
+                      ? "Create Service"
+                      : "Update Service"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {/* Delete Modal */}
       <AnimatePresence>
         {showDeleteModal && selectedService && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowDeleteModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[400px] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 p-8 text-center"
             >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 className="w-8 h-8 text-red-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  Delete Service?
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete{" "}
-                  <strong>{selectedService.name}</strong>? This action cannot be
-                  undone.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-[#2D3436] mb-2">
+                Delete Service?
+              </h3>
+              <p className="text-[#2D3436]/60 mb-6 font-medium">
+                Are you sure you want to delete{" "}
+                <strong className="text-[#2D3436]">{selectedService.name}</strong>? This action cannot be
+                undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-3 px-4 bg-white border border-[#2D3436]/10 rounded-xl font-bold text-[#2D3436]/70 hover:border-[#2D3436]/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg"
+                >
+                  Delete
+                </button>
               </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

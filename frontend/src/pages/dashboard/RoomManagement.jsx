@@ -17,6 +17,10 @@ import {
   Users,
   PawPrint,
   Activity,
+  Loader2,
+  CheckCircle2,
+  ChevronDown,
+  MoreVertical,
 } from "lucide-react";
 import {
   getRoomsList,
@@ -76,6 +80,7 @@ const RoomManagement = () => {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [isRoomTypeOpen, setIsRoomTypeOpen] = useState(false);
 
   // Fetch rooms
   const fetchRooms = useCallback(async () => {
@@ -210,18 +215,29 @@ const RoomManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-            <DoorOpen className="w-7 h-7 text-[#D97853]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             Room Management
           </h1>
-          <p className="text-[#2D3436]/60 text-sm mt-1">
+          <p className="text-sm text-[#2D3436]/60">
             Manage accommodation rooms for pets
           </p>
         </div>
+        <motion.button
+          onClick={handleCreate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+        >
+          <Plus size={18} /> Add Room
+        </motion.button>
       </div>
 
       {/* Filters */}
@@ -261,8 +277,6 @@ const RoomManagement = () => {
               setTypeFilter(opt === "All Types" ? "" : opt.toLowerCase()),
           },
         ]}
-        onCreateClick={handleCreate}
-        createLabel="Add Room"
         extraActions={
           <button
             onClick={fetchRooms}
@@ -284,47 +298,53 @@ const RoomManagement = () => {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#2D3436]/5 overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-8 h-8 text-[#D97853] animate-spin" />
+            <div className="w-12 h-12 border-4 border-[#D97853]/20 border-b-2 border-b-[#D97853] rounded-full animate-spin" />
           </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#2D3436]/40">
-            <DoorOpen size={48} className="mb-3" />
-            <p>No rooms found</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-16 h-16 bg-[#FDFBF7] rounded-full flex items-center justify-center mb-4">
+              <DoorOpen size={32} className="text-[#D97853]" />
+            </div>
+            <p className="text-lg font-bold text-[#2D3436]">No rooms found</p>
+            <p className="text-sm font-medium text-[#2D3436]/60 mt-1">Try adjusting filters</p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-[#F8F9FA] border-b border-[#2D3436]/5">
+            <thead className="bg-[#FDFBF7] border-b border-[#2D3436]/5">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Room
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Type
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Capacity
                 </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-left px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Pet Type
                 </th>
-                <th className="text-center px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-center px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Status
                 </th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
+                <th className="text-right px-6 py-4 text-xs font-bold text-[#2D3436] uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2D3436]/5">
-              {filteredRooms.map((room) => {
+            <tbody>
+              {filteredRooms.map((room, idx) => {
                 const typeBadge = getRoomTypeBadge(room.type);
                 return (
-                  <tr
+                  <motion.tr
                     key={room._id}
-                    className="hover:bg-[#F8F9FA]/50 transition-colors"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 + idx * 0.03 }}
+                    className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                   >
                     {/* Room info */}
                     <td className="px-6 py-4">
@@ -427,7 +447,7 @@ const RoomManagement = () => {
                         </button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
             </tbody>
@@ -437,74 +457,105 @@ const RoomManagement = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Total Rooms</p>
-          <p className="text-2xl font-bold text-[#2D3436]">{rooms.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Available</p>
-          <p className="text-2xl font-bold text-green-600">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5"
+        >
+          <p className="text-sm font-medium text-[#2D3436]/60">Total Rooms</p>
+          <p className="text-2xl font-bold text-[#2D3436] mt-1">{rooms.length}</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5"
+        >
+          <p className="text-sm font-medium text-[#2D3436]/60">Available</p>
+          <p className="text-2xl font-bold text-[#7FB069] mt-1">
             {rooms.filter((r) => r.isAvailable).length}
           </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">In Use</p>
-          <p className="text-2xl font-bold text-red-600">
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5"
+        >
+          <p className="text-sm font-medium text-[#2D3436]/60">In Use</p>
+          <p className="text-2xl font-bold text-red-500 mt-1">
             {rooms.filter((r) => !r.isAvailable).length}
           </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">VIP Rooms</p>
-          <p className="text-2xl font-bold text-amber-600">
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-white rounded-[20px] p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5"
+        >
+          <p className="text-sm font-medium text-[#2D3436]/60">VIP Rooms</p>
+          <p className="text-2xl font-bold text-amber-500 mt-1">
             {rooms.filter((r) => r.type === "vip").length}
           </p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
         {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50 transition-opacity"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              {/* Modal header */}
-              <div className="flex items-center justify-between p-6 border-b border-[#2D3436]/5">
-                <h2 className="text-xl font-bold text-[#2D3436]">
-                  {modalMode === "create" ? "Add New Room" : "Edit Room"}
-                </h2>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 md:px-8 border-b border-[#2D3436]/10 bg-white sticky top-0 z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <DoorOpen size={20} className="text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      {modalMode === "create" ? "Add New Room" : "Edit Room"}
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      {modalMode === "create" ? "Create a new accommodation room" : "Update room information"}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-[#F8F9FA] rounded-lg transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50 hover:text-[#2D3436]"
                 >
-                  <X size={20} className="text-[#2D3436]/60" />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Modal Body */}
+              <form onSubmit={handleSubmit} className="p-6 md:p-8 flex-1 space-y-6">
                 {formError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-                    <AlertCircle size={16} className="text-red-500" />
-                    <p className="text-sm text-red-700">{formError}</p>
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+                    <AlertCircle size={18} className="text-red-500" />
+                    <p className="text-sm text-red-700 font-medium">{formError}</p>
                   </div>
                 )}
 
-                {/* Room number & Name */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Form Grid */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Room Number */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Room No. *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Room No. <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="text"
@@ -513,13 +564,15 @@ const RoomManagement = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, roomNumber: e.target.value })
                       }
-                      placeholder="P001"
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                      placeholder="e.g. P001"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                     />
                   </div>
+
+                  {/* Room Name */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Room Name *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Room Name <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="text"
@@ -528,35 +581,71 @@ const RoomManagement = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
-                      placeholder="Sunny Room"
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                      placeholder="e.g. Sunny Room"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                     />
                   </div>
-                </div>
 
-                {/* Type & Capacity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
+                  {/* Room Type */}
+                  <div className={`relative ${isRoomTypeOpen ? "z-[60]" : "z-10"}`}>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Room Type
                     </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                    <div
+                      className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isRoomTypeOpen ? "border-[#D97853] ring-1 ring-[#D97853]/20" : "border-[#D97853]"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsRoomTypeOpen(!isRoomTypeOpen);
+                      }}
                     >
-                      {ROOM_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
+                      <span className="text-sm font-medium text-[#2D3436]">
+                        {ROOM_TYPES.find((t) => t.value === formData.type)?.label || "Standard"}
+                      </span>
+                      <MoreVertical size={14} className="text-[#D97853]" />
+                    </div>
+                    <AnimatePresence>
+                      {isRoomTypeOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsRoomTypeOpen(false);
+                            }}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5"
+                          >
+                            {ROOM_TYPES.map((type) => {
+                              const isSelected = formData.type === type.value;
+                              return (
+                                <div
+                                  key={type.value}
+                                  className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFormData({ ...formData, type: type.value });
+                                    setIsRoomTypeOpen(false);
+                                  }}
+                                >
+                                  {type.label}
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
                   </div>
+
+                  {/* Capacity */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Capacity *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Capacity <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -566,15 +655,15 @@ const RoomManagement = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, capacity: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
                     />
                   </div>
                 </div>
 
-                {/* Pet types */}
+                {/* Pet Types */}
                 <div>
-                  <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                    Pet Type
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Pet Types
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PET_TYPES.map((pet) => (
@@ -587,10 +676,10 @@ const RoomManagement = () => {
                             : [...formData.petTypes, pet.value];
                           setFormData({ ...formData, petTypes: newPets });
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                           formData.petTypes.includes(pet.value)
-                            ? "bg-[#D97853] text-white"
-                            : "bg-[#F8F9FA] text-[#2D3436]/70 hover:bg-[#2D3436]/10"
+                            ? "bg-[#D97853] text-white shadow-[0_3px_10px_rgba(217,120,83,0.3)]"
+                            : "bg-white border border-[#2D3436]/10 text-[#2D3436]/70 hover:border-[#D97853] hover:text-[#D97853]"
                         }`}
                       >
                         <PawPrint size={14} />
@@ -602,7 +691,7 @@ const RoomManagement = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Description
                   </label>
                   <textarea
@@ -612,13 +701,13 @@ const RoomManagement = () => {
                       setFormData({ ...formData, description: e.target.value })
                     }
                     placeholder="Detailed description of the room..."
-                    className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853] resize-none"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
                   />
                 </div>
 
                 {/* Status toggles */}
                 {modalMode === "edit" && (
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-6 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -629,9 +718,9 @@ const RoomManagement = () => {
                             isAvailable: e.target.checked,
                           })
                         }
-                        className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
+                        className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]"
                       />
-                      <span className="text-sm text-[#2D3436]">Available</span>
+                      <span className="text-sm font-medium text-[#2D3436]">Available</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -643,38 +732,43 @@ const RoomManagement = () => {
                             isActive: e.target.checked,
                           })
                         }
-                        className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
+                        className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]"
                       />
-                      <span className="text-sm text-[#2D3436]">Active</span>
+                      <span className="text-sm font-medium text-[#2D3436]">Active</span>
                     </label>
                   </div>
                 )}
-
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 text-[#2D3436]/70 hover:bg-[#F8F9FA] rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#D97853] text-white rounded-lg hover:bg-[#C26843] transition-colors disabled:opacity-50"
-                  >
-                    {formLoading ? (
-                      <RefreshCw size={18} className="animate-spin" />
-                    ) : (
-                      <Check size={18} />
-                    )}
-                    {modalMode === "create" ? "Create" : "Update"}
-                  </button>
-                </div>
               </form>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 md:px-8 border-t border-[#2D3436]/10 bg-white flex items-center justify-end gap-3 sticky bottom-0 z-30">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmit}
+                  disabled={formLoading}
+                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {formLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
+                  {formLoading
+                    ? "Saving..."
+                    : modalMode === "create"
+                      ? "Create Room"
+                      : "Update Room"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -736,7 +830,7 @@ const RoomManagement = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 

@@ -19,8 +19,13 @@ import {
   Loader2,
   Bot,
   CheckCircle,
+  CheckCircle2,
   Activity,
+  ChevronDown,
+  MoreVertical,
 } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
   getAllVouchers,
@@ -79,6 +84,7 @@ export default function VoucherManagement() {
     validUntil: "",
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [isDiscountTypeOpen, setIsDiscountTypeOpen] = useState(false);
 
   // AI state
   const [aiLoading, setAiLoading] = useState(false);
@@ -277,7 +283,7 @@ export default function VoucherManagement() {
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("vi-VN", {
+    return new Date(dateString).toLocaleDateString("en-US", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -290,21 +296,33 @@ export default function VoucherManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-          <Ticket className="w-7 h-7 text-[#D97853]" />
-          Voucher Management
-        </h1>
-        <p className="text-[#2D3436]/60 text-sm mt-1">
-          Manage discount codes and generate vouchers with AI
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Voucher Management
+          </h1>
+          <p className="text-sm text-[#2D3436]/60">
+            Manage discount codes and generate vouchers with AI
+          </p>
+        </div>
+        <motion.button
+          onClick={handleOpenCreate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+        >
+          <Plus size={18} /> Create Voucher
+        </motion.button>
       </div>
 
       {/* Filters */}
-      <div className="mb-6">
-        <AdminFilterBar
+      <AdminFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search by voucher code or description..."
@@ -333,13 +351,11 @@ export default function VoucherManagement() {
                 ),
             },
           ]}
-          onCreateClick={handleOpenCreate}
-          createLabel="Create Voucher"
           extraActions={
             <button
               onClick={handleAISuggest}
               disabled={aiLoading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-lg shadow-purple-200 disabled:opacity-50 font-bold text-sm shrink-0"
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-[0_5px_15px_rgba(139,92,246,0.3)] disabled:opacity-50 font-bold text-sm shrink-0"
             >
               {aiLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -350,62 +366,63 @@ export default function VoucherManagement() {
             </button>
           }
         />
-      </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
         ) : vouchers.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <Ticket className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>No vouchers found</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <Ticket className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No vouchers found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Code
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Description
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Discount
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Usage
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Validity
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Status
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {vouchers.map((voucher) => (
+                <tbody className="text-sm">
+                  {vouchers.map((voucher, index) => (
                     <motion.tr
                       key={voucher._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                      className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -469,10 +486,10 @@ export default function VoucherManagement() {
                       <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleToggleStatus(voucher)}
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold transition-colors shadow-sm border ${
                             voucher.isActive
-                              ? "bg-green-100 text-green-700 hover:bg-green-200"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              ? "bg-[#7FB069]/10 text-[#7FB069] border-[#7FB069]/20 hover:bg-[#7FB069]/20"
+                              : "bg-[#2D3436]/5 text-[#2D3436]/60 border-[#2D3436]/10 hover:bg-[#2D3436]/10"
                           }`}
                         >
                           {voucher.isActive ? (
@@ -489,24 +506,24 @@ export default function VoucherManagement() {
                         </button>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleViewDetail(voucher)}
-                            className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
+                            className="p-2 text-[#2D3436]/40 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-xl transition-colors"
                             title="View"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(voucher)}
-                            className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                            className="p-2 text-[#2D3436]/40 hover:text-[#7FB069] hover:bg-[#7FB069]/10 rounded-xl transition-colors"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenDelete(voucher)}
-                            className="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+                            className="p-2 text-[#2D3436]/40 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -713,89 +730,143 @@ export default function VoucherManagement() {
       {/* Form Modal */}
       <AnimatePresence>
         {showFormModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowFormModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFormModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50 transition-opacity"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {formMode === "create"
-                    ? "Create New Voucher"
-                    : "Edit Voucher"}
-                </h2>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 md:px-8 border-b border-[#2D3436]/10 bg-white sticky top-0 z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <Ticket size={20} className="text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      {formMode === "create" ? "Create New Voucher" : "Edit Voucher"}
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      {formMode === "create" ? "Add a new discount code for customers" : "Modify voucher details"}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowFormModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50 hover:text-[#2D3436]"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Body */}
-              <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
-                {/* Code */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Voucher Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleFormChange}
-                    required
-                    disabled={formMode === "edit"}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent uppercase disabled:bg-gray-100"
-                    placeholder="VD: HAPPYPET20"
-                  />
-                </div>
+              {/* Modal Body */}
+              <form onSubmit={handleSubmitForm} className="p-6 md:p-8 flex-1 space-y-6">
+                {/* Form Grid */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Voucher Code */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Voucher Code <span className="text-[#D97853]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="code"
+                      value={formData.code}
+                      onChange={handleFormChange}
+                      required
+                      disabled={formMode === "edit"}
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm uppercase disabled:bg-[#2D3436]/5 disabled:cursor-not-allowed"
+                      placeholder="e.g. HAPPYPET20"
+                    />
+                  </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleFormChange}
-                    required
-                    rows={2}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Describe the voucher..."
-                  />
-                </div>
+                  {/* Description */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Description <span className="text-[#D97853]">*</span>
+                    </label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleFormChange}
+                      required
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
+                      placeholder="Describe the voucher promotion..."
+                    />
+                  </div>
 
-                {/* Discount Type & Value */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {/* Discount Type */}
+                  <div className={`relative ${isDiscountTypeOpen ? "z-[60]" : "z-10"}`}>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Discount Type
                     </label>
-                    <select
-                      name="discountType"
-                      value={formData.discountType}
-                      onChange={handleFormChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                    <div
+                      className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isDiscountTypeOpen ? "border-[#D97853] ring-1 ring-[#D97853]/20" : "border-[#D97853]"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDiscountTypeOpen(!isDiscountTypeOpen);
+                      }}
                     >
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="fixed">Fixed Amount (VND)</option>
-                    </select>
+                      <span className="text-sm font-medium text-[#2D3436]">
+                        {formData.discountType === "percentage" ? "Percentage (%)" : "Fixed Amount (VND)"}
+                      </span>
+                      <MoreVertical size={14} className="text-[#D97853]" />
+                    </div>
+                    <AnimatePresence>
+                      {isDiscountTypeOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsDiscountTypeOpen(false);
+                            }}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5"
+                          >
+                            {[
+                              { value: "percentage", label: "Percentage (%)" },
+                              { value: "fixed", label: "Fixed Amount (VND)" },
+                            ].map((opt) => {
+                              const isSelected = formData.discountType === opt.value;
+                              return (
+                                <div
+                                  key={opt.value}
+                                  className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFormChange({ target: { name: "discountType", value: opt.value } });
+                                    setIsDiscountTypeOpen(false);
+                                  }}
+                                >
+                                  {opt.label}
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
                   </div>
+
+                  {/* Discount Value */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Value <span className="text-red-500">*</span>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Discount Value <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -804,18 +875,14 @@ export default function VoucherManagement() {
                       onChange={handleFormChange}
                       required
                       min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                      placeholder={
-                        formData.discountType === "percentage" ? "10" : "50000"
-                      }
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                      placeholder={formData.discountType === "percentage" ? "10" : "50000"}
                     />
                   </div>
-                </div>
 
-                {/* Min Spend & Max Discount */}
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Min Spend */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Min. Spend (VND)
                     </label>
                     <input
@@ -824,12 +891,14 @@ export default function VoucherManagement() {
                       value={formData.minSpend}
                       onChange={handleFormChange}
                       min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                       placeholder="0"
                     />
                   </div>
+
+                  {/* Max Discount */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Max Discount (VND)
                     </label>
                     <input
@@ -838,81 +907,111 @@ export default function VoucherManagement() {
                       value={formData.maxDiscount}
                       onChange={handleFormChange}
                       min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                       placeholder="Unlimited"
                     />
                   </div>
-                </div>
 
-                {/* Usage Limit */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Usage Limit
-                  </label>
-                  <input
-                    type="number"
-                    name="usageLimit"
-                    value={formData.usageLimit}
-                    onChange={handleFormChange}
-                    min="0"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    placeholder="Unlimited"
-                  />
-                </div>
+                  {/* Usage Limit */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Usage Limit
+                    </label>
+                    <input
+                      type="number"
+                      name="usageLimit"
+                      value={formData.usageLimit}
+                      onChange={handleFormChange}
+                      min="0"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                      placeholder="Leave empty for unlimited usage"
+                    />
+                  </div>
 
-                {/* Validity */}
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Valid From */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Valid From
                     </label>
-                    <input
-                      type="date"
-                      name="validFrom"
-                      value={formData.validFrom}
-                      onChange={handleFormChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    />
+                    <div className="relative">
+                      <DatePicker
+                        selected={formData.validFrom ? new Date(formData.validFrom) : null}
+                        onChange={(date) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            validFrom: date ? date.toISOString().split("T")[0] : "",
+                          }))
+                        }
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="Select start date"
+                        className="w-full px-4 py-3 pl-11 bg-white border border-[#2D3436]/10 focus:border-[#D97853] hover:border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-1 focus:ring-[#D97853] transition-all shadow-sm cursor-pointer"
+                        wrapperClassName="w-full"
+                      />
+                      <Calendar
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2D3436]/40 pointer-events-none"
+                        size={18}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Valid Until <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="validUntil"
-                      value={formData.validUntil}
-                      onChange={handleFormChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowFormModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formLoading}
-                    className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50"
-                  >
-                    {formLoading
-                      ? "Saving..."
-                      : formMode === "create"
-                        ? "Create"
-                        : "Update"}
-                  </button>
+                  {/* Valid Until */}
+                  <div>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Valid Until <span className="text-[#D97853]">*</span>
+                    </label>
+                    <div className="relative">
+                      <DatePicker
+                        selected={formData.validUntil ? new Date(formData.validUntil) : null}
+                        onChange={(date) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            validUntil: date ? date.toISOString().split("T")[0] : "",
+                          }))
+                        }
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="Select end date"
+                        required
+                        className="w-full px-4 py-3 pl-11 bg-white border border-[#2D3436]/10 focus:border-[#D97853] hover:border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-1 focus:ring-[#D97853] transition-all shadow-sm cursor-pointer"
+                        wrapperClassName="w-full"
+                      />
+                      <Calendar
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2D3436]/40 pointer-events-none"
+                        size={18}
+                      />
+                    </div>
+                  </div>
                 </div>
               </form>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 md:px-8 border-t border-[#2D3436]/10 bg-white flex items-center justify-end gap-3 sticky bottom-0 z-30">
+                <button
+                  type="button"
+                  onClick={() => setShowFormModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmitForm}
+                  disabled={formLoading}
+                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {formLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
+                  {formLoading
+                    ? "Saving..."
+                    : formMode === "create"
+                      ? "Create Voucher"
+                      : "Update Voucher"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -1056,6 +1155,6 @@ export default function VoucherManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

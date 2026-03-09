@@ -155,23 +155,25 @@ export default function MedicalRecordManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853] flex items-center gap-2">
-            <FileText className="w-7 h-7 text-[#D97853]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             Medical Records
           </h1>
-          <p className="text-[#2D3436]/60 text-sm mt-1">
+          <p className="text-sm text-[#2D3436]/60">
             View and search pet medical records
           </p>
         </div>
       </div>
 
       {/* Filters */}
-      <div>
-        <AdminFilterBar
+      <AdminFilterBar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search by pet name, owner, condition or diagnosis..."
@@ -221,59 +223,60 @@ export default function MedicalRecordManagement() {
             },
           ]}
         />
-      </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
         ) : filteredRecords.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>No records found</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <FileText className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No records found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Pet
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Owner
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Type
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Condition
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       Created
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredRecords.map((record) => (
+                <tbody className="text-sm">
+                  {filteredRecords.map((record, idx) => (
                     <motion.tr
                       key={record._id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + idx * 0.03 }}
+                      className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -649,6 +652,6 @@ export default function MedicalRecordManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
