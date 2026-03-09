@@ -1,5 +1,5 @@
 ﻿import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
@@ -8,7 +8,6 @@ import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
@@ -28,6 +27,18 @@ const Home = () => {
   
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    // Role-based navigation
+    if (userData.role === 'admin') {
+      navigate('/admin');
+    } else if (userData.role === 'staff') {
+      navigate('/staff');
+    }
+    // Customer stays on home page (no navigation needed)
+  };
 
   const toggleMusic = () => {
     if(!audioRef.current) return;
@@ -54,14 +65,7 @@ const Home = () => {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
-        onLoginSuccess={(userData) => {
-          setIsAuthModalOpen(false);
-          if (userData.role === 'admin') {
-            navigate('/admin');
-          } else if (userData.role === 'staff') {
-            navigate('/staff');
-          }
-        }}
+        onLoginSuccess={handleLoginSuccess}
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 
@@ -199,9 +203,9 @@ const Home = () => {
               <span className="text-[#D97853] font-bold tracking-widest uppercase text-xs">Our Expertise</span>
               <h2 className="text-3xl md:text-4xl font-black text-[#2D3436] mt-2">Holistic Services</h2>
             </div>
-            <button className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
+            <Link to="/service" className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
               View All Services <ArrowRight size={16} />
-            </button>
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 h-auto md:h-[450px]">

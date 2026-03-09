@@ -1,17 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck } from 'lucide-react';
 
 const staffMenuItems = [
-  { path: '/staff', icon: LayoutDashboard, label: 'Tổng quan' },
+  { path: '/staff', icon: LayoutDashboard, label: 'Overview' },
+  { path: '/staff/bookings', icon: CalendarCheck, label: 'Bookings' },
 ];
 
 const StaffSidebar = ({ collapsed }) => {
   return (
     <nav className="px-3 space-y-1">
       <p className={`px-3 mb-3 text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/40 ${collapsed ? 'text-center' : ''}`}>
-        {collapsed ? '—' : 'Nhân viên'}
+        {collapsed ? '—' : 'Staff'}
       </p>
       {staffMenuItems.map((item) => (
         <NavLink
