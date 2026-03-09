@@ -659,7 +659,13 @@ const ServicePage = () => {
                 </div>
               </div>
 
-              <button className="px-6 py-3 bg-[#7FB069] text-white rounded-xl font-bold text-[13px] hover:bg-[#6e8a6d] transition-colors shadow-md">
+              <button 
+                onClick={() => {
+                  navigate('/ai-health-scan');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="px-6 py-3 bg-[#7FB069] text-white rounded-xl font-bold text-[13px] hover:bg-[#6e8a6d] transition-colors shadow-md"
+              >
                 Upload Image Now
               </button>
             </div>
