@@ -15,6 +15,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Service from './pages/Service';
 import News from './pages/News';
+import AIHealthScan from './pages/AIHealthScan';
+import FloatingChatBubble from './components/FloatingChatBubble';
 
 function App() {
   return (
@@ -23,6 +25,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/service" element={<Service />} />
         <Route path="/news" element={<News />} />
+        <Route path="/ai-health-scan" element={<AIHealthScan />} />
 
         {/* Admin Dashboard */}
         <Route path="/admin" element={<DashboardLayout />}>
@@ -43,6 +46,9 @@ function App() {
           <Route path="bookings" element={<BookingBoard />} />
         </Route>
       </Routes>
+
+      {/* Floating Chat Bubble - Available on all pages */}
+      <FloatingChatBubble />
     </Router>
   );
 }

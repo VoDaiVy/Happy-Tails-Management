@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PawPrint, Menu, X, LogOut, CalendarDays, UserCircle, ChevronDown, Sparkles, Heart, ShoppingCart, Wallet } from 'lucide-react';
 import { logoutApi } from '../../api/authApi';
 
@@ -7,17 +7,18 @@ import { logoutApi } from '../../api/authApi';
 const SCROLL_THRESHOLD = 60;
 
 const NAV_LINKS = [
-  { label: 'Services', href: '/service' },
   { label: 'About Us', href: '/#about' },
+  { label: 'Services', href: '/service' },
+  { label: 'AI Health Scan', href: '/ai-health-scan' },
   { label: 'News', href: '/news' },
 ];
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState('');
   const dropdownRef = useRef(null);
 
   // Debug: Log user state
@@ -220,17 +221,18 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
 
           {/* ── Desktop Nav Links ── */}
           <nav className={`hidden md:flex items-center gap-0.5 ${isScrolled ? 'nav-is-dark' : 'nav-is-light'}`}>
-            {NAV_LINKS.map((link) => (
-              link.href.startsWith('/') ? (
+            {NAV_LINKS.map((link) => {
+              const isActive = location.pathname === link.href || (link.href.startsWith('/#') && location.pathname === '/' && window.location.hash === link.href.slice(1));
+              return link.href.startsWith('/') && !link.href.includes('#') ? (
                 <Link
                   key={link.href}
                   to={link.href}
-                  onClick={() => setActiveLink(link.href)}
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                   className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
-                    ${activeLink === link.href ? 'active' : ''}
+                    ${isActive ? 'active' : ''}
                     ${isScrolled
-                      ? `text-slate-400 hover:text-white ${activeLink === link.href ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
-                      : `text-slate-600 hover:text-slate-900 ${activeLink === link.href ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
+                      ? `text-slate-400 hover:text-white ${isActive ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
+                      : `text-slate-600 hover:text-slate-900 ${isActive ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
                     }`}
                 >
                   {link.label}
@@ -239,18 +241,17 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => setActiveLink(link.href)}
                   className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
-                    ${activeLink === link.href ? 'active' : ''}
+                    ${isActive ? 'active' : ''}
                     ${isScrolled
-                      ? `text-slate-400 hover:text-white ${activeLink === link.href ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
-                      : `text-slate-600 hover:text-slate-900 ${activeLink === link.href ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
+                      ? `text-slate-400 hover:text-white ${isActive ? '!text-white bg-white/[0.09]' : 'hover:bg-white/[0.07]'}`
+                      : `text-slate-600 hover:text-slate-900 ${isActive ? '!text-slate-900 bg-slate-100' : 'hover:bg-slate-100/80'}`
                     }`}
                 >
                   {link.label}
                 </a>
-              )
-            ))}
+              );
+            })}
           </nav>
 
           {/* ── Desktop Right ── */}
@@ -389,13 +390,21 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
           </div>
 
           <div className="px-4 py-4 flex flex-col gap-1">
-            {NAV_LINKS.map((link) => (
-              link.href.startsWith('/') ? (
+            {NAV_LINKS.map((link) => {
+              const isActive = location.pathname === link.href || (link.href.startsWith('/#') && location.pathname === '/' && window.location.hash === link.href.slice(1));
+              return link.href.startsWith('/') && !link.href.includes('#') ? (
                 <Link 
                   key={link.href} 
                   to={link.href} 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                  onClick={() => { 
+                    setIsMobileMenuOpen(false); 
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all border-l-4 ${
+                    isActive 
+                      ? 'bg-orange-50 text-[#FF8C42] border-[#FF8C42]' 
+                      : 'text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] border-transparent'
+                  }`}
                 >
                   {link.label}
                 </Link>
@@ -404,12 +413,16 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   key={link.href} 
                   href={link.href} 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all border-l-4 ${
+                    isActive 
+                      ? 'bg-orange-50 text-[#FF8C42] border-[#FF8C42]' 
+                      : 'text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] border-transparent'
+                  }`}
                 >
                   {link.label}
                 </a>
-              )
-            ))}
+              );
+            })}
           </div>
 
           <div className="px-4 border-t border-slate-100 pt-4">
