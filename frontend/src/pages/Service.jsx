@@ -330,10 +330,38 @@ const veterinaryServicesData = [
     img: "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=400",
     priceRange: "$8 – $30",
     items: [
-      { name: "General Health Check", price: "$8" },
-      { name: "Blood Test", price: "$15" },
-      { name: "X-ray Imaging", price: "$25" },
-      { name: "Ultrasound Scan", price: "$30" },
+      {
+        name: "General Health Check",
+        price: "$8",
+        duration: "30 min",
+        description: "Basic health examination for pets.",
+        image:
+          "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Blood Test",
+        price: "$15",
+        duration: "45 min",
+        description: "Lab test to check your pet's health condition.",
+        image:
+          "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "X-ray Imaging",
+        price: "$25",
+        duration: "20 min",
+        description: "Imaging scan to diagnose internal issues.",
+        image:
+          "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Ultrasound Scan",
+        price: "$30",
+        duration: "40 min",
+        description: "Advanced imaging for detailed diagnosis.",
+        image:
+          "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
   {
@@ -344,10 +372,38 @@ const veterinaryServicesData = [
     img: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
     priceRange: "$6 – $18",
     items: [
-      { name: "Vaccination", price: "$10" },
-      { name: "Deworming", price: "$6" },
-      { name: "Flea & Tick Treatment", price: "$12" },
-      { name: "Wellness Exam", price: "$18" },
+      {
+        name: "Vaccination",
+        price: "$10",
+        duration: "15 min",
+        description: "Essential vaccines for disease prevention.",
+        image:
+          "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Deworming",
+        price: "$6",
+        duration: "10 min",
+        description: "Internal parasite treatment and prevention.",
+        image:
+          "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Flea & Tick Treatment",
+        price: "$12",
+        duration: "20 min",
+        description: "External parasite control treatment.",
+        image:
+          "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Wellness Exam",
+        price: "$18",
+        duration: "30 min",
+        description: "Comprehensive health checkup and assessment.",
+        image:
+          "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
   {
@@ -358,10 +414,38 @@ const veterinaryServicesData = [
     img: "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=400",
     priceRange: "$12 – $35",
     items: [
-      { name: "Skin Treatment", price: "$15" },
-      { name: "Digestive Treatment", price: "$18" },
-      { name: "IV Fluid Therapy", price: "$25" },
-      { name: "Infection Treatment", price: "$35" },
+      {
+        name: "Skin Treatment",
+        price: "$15",
+        duration: "30 min",
+        description: "Dermatological care for skin conditions.",
+        image:
+          "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Digestive Treatment",
+        price: "$18",
+        duration: "25 min",
+        description: "Treatment for gastrointestinal issues.",
+        image:
+          "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "IV Fluid Therapy",
+        price: "$25",
+        duration: "45 min",
+        description: "Intravenous hydration and medication.",
+        image:
+          "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Infection Treatment",
+        price: "$35",
+        duration: "35 min",
+        description: "Targeted treatment for bacterial infections.",
+        image:
+          "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
   {
@@ -372,10 +456,38 @@ const veterinaryServicesData = [
     img: "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&q=80&w=400",
     priceRange: "$40 – $120",
     items: [
-      { name: "Neutering / Spaying", price: "$60" },
-      { name: "Minor Surgery", price: "$40" },
-      { name: "Tumor Removal", price: "$90" },
-      { name: "Advanced Surgery", price: "$120" },
+      {
+        name: "Neutering / Spaying",
+        price: "$60",
+        duration: "60 min",
+        description: "Routine sterilization surgery.",
+        image:
+          "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Minor Surgery",
+        price: "$40",
+        duration: "45 min",
+        description: "Small surgical procedures and wound care.",
+        image:
+          "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Tumor Removal",
+        price: "$90",
+        duration: "90 min",
+        description: "Surgical removal of tumors and growths.",
+        image:
+          "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Advanced Surgery",
+        price: "$120",
+        duration: "120 min",
+        description: "Complex surgical interventions.",
+        image:
+          "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
   {
@@ -386,9 +498,30 @@ const veterinaryServicesData = [
     img: "/dentalcleanning.jpg",
     priceRange: "$15 – $40",
     items: [
-      { name: "Dental Cleaning", price: "$20" },
-      { name: "Tartar Removal", price: "$25" },
-      { name: "Tooth Extraction", price: "$40" },
+      {
+        name: "Dental Cleaning",
+        price: "$20",
+        duration: "30 min",
+        description: "Professional teeth cleaning for pets.",
+        image:
+          "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Tartar Removal",
+        price: "$25",
+        duration: "35 min",
+        description: "Remove plaque and tartar buildup.",
+        image:
+          "https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Tooth Extraction",
+        price: "$40",
+        duration: "45 min",
+        description: "Safe extraction of damaged teeth.",
+        image:
+          "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
   {
@@ -399,9 +532,30 @@ const veterinaryServicesData = [
     img: "https://images.unsplash.com/photo-1584813470613-5b1c1cad3d69?auto=format&fit=crop&q=80&w=400",
     priceRange: "$12 – $50",
     items: [
-      { name: "Emergency Consultation", price: "$12" },
-      { name: "Emergency Treatment", price: "$30" },
-      { name: "Critical Stabilization", price: "$50" },
+      {
+        name: "Emergency Consultation",
+        price: "$12",
+        duration: "15 min",
+        description: "Urgent assessment and triage.",
+        image:
+          "https://images.unsplash.com/photo-1584813470613-5b1c1cad3d69?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Emergency Treatment",
+        price: "$30",
+        duration: "40 min",
+        description: "Immediate medical intervention.",
+        image:
+          "https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?auto=format&fit=crop&q=80&w=400",
+      },
+      {
+        name: "Critical Stabilization",
+        price: "$50",
+        duration: "60 min",
+        description: "Life-saving stabilization care.",
+        image:
+          "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400",
+      },
     ],
   },
 ];
@@ -496,150 +650,175 @@ const CATEGORY_TAG_MAP = {
 // ─── Reusable search result card (manages its own expand state) ───────────────
 const ServiceResultCard = ({ service, idx }) => {
   const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
   const isVet = service.category === "Veterinary";
   const hasItems = isVet && service.items && service.items.length > 0;
+
+  const tagColor = service.tagColor || "#7FB069";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: idx * 0.04 }}
-      className="bg-white rounded-[20px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-[#1F2A37]/5 transition-all duration-300 flex flex-col group hover:shadow-[0_10px_30px_rgba(0,0,0,0.1)]"
+      className="flex flex-col"
     >
-      {/* Thumbnail Image */}
-      <div className="relative h-44 overflow-hidden shrink-0">
-        {service.image ? (
-          <img
-            src={service.image}
-            alt={service.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div
-            className="w-full h-full"
+      {/* ─── Main Card: horizontal layout  [Image | Title+Desc | Price ▼] ─── */}
+      <div
+        className={`bg-white shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-[#1F2A37]/5 transition-all duration-300 flex flex-row items-stretch group hover:shadow-[0_10px_30px_rgba(0,0,0,0.1)] overflow-hidden ${
+          expanded ? "rounded-t-[24px] rounded-b-none" : "rounded-[24px]"
+        }`}
+      >
+        {/* LEFT — Image */}
+        <div className="relative w-28 md:w-36 shrink-0 overflow-hidden">
+          {service.image ? (
+            <img
+              src={service.image}
+              alt={service.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          ) : (
+            <div
+              className="w-full h-full"
+              style={{
+                background: `linear-gradient(135deg, ${tagColor}22 0%, ${tagColor}44 100%)`,
+              }}
+            />
+          )}
+          {/* Category badge */}
+          <span
+            className="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border backdrop-blur-md"
             style={{
-              background: `linear-gradient(135deg, ${service.tagColor}22 0%, ${service.tagColor}44 100%)`,
+              color: "#fff",
+              borderColor: `${tagColor}60`,
+              backgroundColor: `${tagColor}CC`,
             }}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-        <span
-          className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border backdrop-blur-md"
-          style={{
-            color: "#fff",
-            borderColor: `${service.tagColor}60`,
-            backgroundColor: `${service.tagColor}CC`,
-          }}
-        >
-          {service.category}
-        </span>
-        <div
-          className="absolute bottom-3 left-3 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg"
-          style={{ backgroundColor: service.tagColor || "#7FB069" }}
-        >
-          {service.icon || <Sparkles size={16} />}
+          >
+            {service.category}
+          </span>
+          {/* Icon */}
+          <div
+            className="absolute bottom-2 left-2 w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-md"
+            style={{ backgroundColor: tagColor }}
+          >
+            {service.icon || <Sparkles size={14} />}
+          </div>
         </div>
-      </div>
 
-      {/* Card Body */}
-      <div className="flex flex-col p-4 flex-grow gap-2">
-        {/* Title + description */}
-        <div className="flex-grow">
-          <h3 className="font-bold text-[#1F2A37] text-[15px] mb-1 leading-snug">
+        {/* CENTER — Title + Description */}
+        <div className="flex-grow flex flex-col justify-center px-4 py-3 min-w-0">
+          <h3 className="font-bold text-[#1F2A37] text-[15px] leading-snug mb-1 truncate">
             {service.title}
           </h3>
-          <p className="text-[12px] text-[#1F2A37]/55 leading-relaxed">
+          <p className="text-[12px] text-[#1F2A37]/55 leading-relaxed line-clamp-2">
             {service.description}
           </p>
         </div>
 
-        {/* Expandable sub-items */}
-        <AnimatePresence initial={false}>
-          {hasItems && expanded && (
-            <motion.div
-              key="items"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: "easeInOut" }}
-              className="overflow-hidden"
+        {/* RIGHT — Price tag (dropdown trigger if hasItems, static otherwise) */}
+        <div className="flex items-center shrink-0 pr-4">
+          {hasItems ? (
+            <button
+              onClick={() => setExpanded((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border transition-all select-none cursor-pointer whitespace-nowrap"
+              style={{
+                color: tagColor,
+                borderColor: `${tagColor}40`,
+                backgroundColor: expanded ? `${tagColor}15` : `${tagColor}08`,
+              }}
+            >
+              <span className="font-black text-[14px] tabular-nums">
+                {service.price}
+              </span>
+              <ChevronDown
+                size={14}
+                className="transition-transform duration-300"
+                style={{
+                  transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
+            </button>
+          ) : (
+            <div className="flex flex-col items-end gap-2">
+              <span
+                className="font-black text-[15px] whitespace-nowrap"
+                style={{ color: tagColor }}
+              >
+                {service.price}
+              </span>
+              <button
+                onClick={() => navigate("/booking")}
+                className="text-[11px] font-bold text-white rounded-full px-4 py-1.5 transition-all hover:opacity-90 hover:shadow-md active:scale-95 whitespace-nowrap"
+                style={{ backgroundColor: tagColor }}
+              >
+                Book Now
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Dropdown Panel — appears below card, visually attached ─── */}
+      <AnimatePresence initial={false}>
+        {hasItems && expanded && (
+          <motion.div
+            key="dropdown-panel"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.32, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div
+              className="bg-white rounded-b-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-t-0 px-4 pb-5 pt-3"
+              style={{ borderColor: `${tagColor}20` }}
             >
               <ul
-                className="divide-y rounded-[12px] overflow-hidden border"
-                style={{ borderColor: `${service.tagColor}25` }}
+                className="divide-y rounded-[16px] overflow-hidden border"
+                style={{ borderColor: `${tagColor}20` }}
               >
                 {service.items.map((item, iIdx) => (
                   <li
                     key={iIdx}
-                    className="flex items-center justify-between px-3 py-2"
+                    className="flex items-center justify-between px-4 py-3 transition-colors"
                     style={{
                       backgroundColor:
-                        iIdx % 2 === 0 ? `${service.tagColor}05` : "white",
+                        iIdx % 2 === 0 ? `${tagColor}06` : "white",
                     }}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <span
                         className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: service.tagColor }}
+                        style={{ backgroundColor: tagColor }}
                       />
-                      <span className="text-[12px] font-semibold text-[#1F2A37]/75">
+                      <span className="text-[13px] font-semibold text-[#1F2A37]/80">
                         {item.name}
                       </span>
                     </div>
                     <span
-                      className="text-[12px] font-black tabular-nums"
-                      style={{ color: service.tagColor }}
+                      className="text-[13px] font-black tabular-nums"
+                      style={{ color: tagColor }}
                     >
                       {item.price}
                     </span>
                   </li>
                 ))}
               </ul>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
-        {/* Price + Book button row — icon toggle merged in */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-[#1F2A37]/6 mt-auto">
-          <div className="flex items-center gap-2">
-            <span
-              className="font-black text-[16px]"
-              style={{ color: service.tagColor || "#7FB069" }}
-            >
-              {service.price}
-            </span>
-            {/* Icon-only toggle for Vet items — no extra line */}
-            {hasItems && (
-              <button
-                onClick={() => setExpanded((prev) => !prev)}
-                title={expanded ? "Hide details" : "View included services"}
-                className="w-6 h-6 rounded-full flex items-center justify-center border transition-all shrink-0"
-                style={{
-                  color: service.tagColor,
-                  borderColor: `${service.tagColor}40`,
-                  backgroundColor: expanded
-                    ? `${service.tagColor}15`
-                    : `${service.tagColor}08`,
-                }}
-              >
-                <ChevronDown
-                  size={13}
-                  className="transition-transform duration-300"
-                  style={{
-                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                />
-              </button>
-            )}
-          </div>
-          <button
-            className="text-[11px] font-bold text-white rounded-full px-4 py-1.5 transition-all hover:opacity-90 hover:shadow-md active:scale-95"
-            style={{ backgroundColor: service.tagColor || "#7FB069" }}
-          >
-            Book Now
-          </button>
-        </div>
-      </div>
+              {/* Book Service — centered, only navigates */}
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => navigate("/booking")}
+                  className="text-[13px] font-bold text-white rounded-full px-7 py-2.5 transition-all hover:opacity-90 hover:shadow-lg active:scale-95"
+                  style={{ backgroundColor: tagColor }}
+                >
+                  Book Service
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -651,6 +830,7 @@ const ServicePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpa, setActiveSpa] = useState(0);
   const [expandedVetCard, setExpandedVetCard] = useState(null);
+  const [serviceModalCategory, setServiceModalCategory] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
   // Search result mode state
@@ -1081,7 +1261,7 @@ const ServicePage = () => {
           {/* NEW AI HEALTH SCAN SECTION */}
           <section
             id="ai-health"
-            className={`relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 ${sortBy === "Name (A - Z)" ? "order-1 mt-2 mb-2" : sortBy === "Name (Z - A)" ? "order-4 mt-6 mb-2" : "order-2 mt-4 mb-4"}`}
+            className={`relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 ${sortBy === "Name (A - Z)" ? "order-5 mt-6 mb-2" : sortBy === "Name (Z - A)" ? "order-5 mt-6 mb-2" : "order-6 mt-6 mb-4"}`}
           >
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               {/* Left Content */}
@@ -1316,30 +1496,27 @@ const ServicePage = () => {
                     ))}
                   </ul>
 
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="bg-[#E07A5F] text-white px-7 py-4 rounded-full font-bold text-[14px] hover:bg-[#c56a52] transition-colors shadow-lg w-max flex items-center gap-2 mt-2"
-                  >
-                    <Calendar size={18} /> Book Veterinary Appointment
-                  </motion.button>
+                  <div className="inline-flex items-center gap-2 bg-[#E07A5F]/10 border border-[#E07A5F]/20 text-[#E07A5F] px-5 py-2.5 rounded-full font-bold text-[13px] mt-2 w-max">
+                    <Stethoscope size={16} /> Professional Veterinary Services
+                  </div>
                 </div>
               </motion.div>
 
-              {/* Service Cards Grid - Expandable */}
+              {/* Service Cards Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
                 {displayedVetServices.map((service, idx) => {
                   const isExpanded = expandedVetCard === idx;
                   return (
-                    <div
-                      key={idx}
-                      onClick={() =>
-                        setExpandedVetCard(isExpanded ? null : idx)
-                      }
-                      className="bg-white rounded-[20px] p-4 md:p-5 flex flex-col group cursor-pointer hover:bg-[#FDF9F8] transition-colors duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_rgba(224,122,95,0.08)] border border-[#1F2A37]/5 hover:border-[#E07A5F]/30 relative overflow-hidden"
-                    >
-                      {/* Top Section / Header */}
-                      <div className="flex gap-3 md:gap-4 items-center w-full">
+                    <div key={idx} className="flex flex-col">
+                      {/* ─── Main Card: [Image] [Title+Desc] [Price ▼] ─── */}
+                      <div
+                        className={`bg-white p-4 md:p-5 flex flex-row items-center gap-3 md:gap-4 group hover:bg-[#FDF9F8] transition-all duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_rgba(224,122,95,0.08)] border border-[#1F2A37]/5 hover:border-[#E07A5F]/30 relative overflow-hidden ${
+                          isExpanded
+                            ? "rounded-t-[24px] rounded-b-none"
+                            : "rounded-[24px]"
+                        }`}
+                      >
+                        {/* LEFT — Image */}
                         <div className="w-[60px] h-[60px] md:w-[70px] md:h-[70px] rounded-[12px] overflow-hidden shrink-0 shadow-sm relative">
                           <img
                             src={service.img}
@@ -1347,33 +1524,52 @@ const ServicePage = () => {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                           />
                         </div>
-                        <div className="flex flex-col justify-center flex-grow">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                              <div className="w-5 h-5 md:w-6 md:h-6 rounded-md bg-[#E07A5F]/10 text-[#E07A5F] flex items-center justify-center shrink-0">
-                                {React.cloneElement(service.icon, { size: 14 })}
-                              </div>
-                              <h4 className="font-bold text-[#1F2A37] text-[13px] md:text-[14px] group-hover:text-[#E07A5F] transition-colors">
-                                {service.title}
-                              </h4>
+
+                        {/* CENTER — Title + Description */}
+                        <div className="flex flex-col justify-center flex-grow min-w-0">
+                          <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                            <div className="w-5 h-5 md:w-6 md:h-6 rounded-md bg-[#E07A5F]/10 text-[#E07A5F] flex items-center justify-center shrink-0">
+                              {React.cloneElement(service.icon, { size: 14 })}
                             </div>
-                            <div
-                              className={`bg-[#E07A5F]/10 text-[#E07A5F] px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-[10px] md:text-[11px] font-bold tracking-wide flex items-center gap-1 md:gap-1.5 shrink-0 transition-all ${isExpanded ? "bg-[#E07A5F] text-white shadow-md" : ""}`}
-                            >
-                              {service.priceRange}
-                              <ChevronDown
-                                size={14}
-                                className={`transition-transform duration-300 ${isExpanded ? "rotate-180 text-white" : "text-[#E07A5F]"}`}
-                              />
-                            </div>
+                            <h4 className="font-bold text-[#1F2A37] text-[13px] md:text-[14px] group-hover:text-[#E07A5F] transition-colors truncate">
+                              {service.title}
+                            </h4>
                           </div>
-                          <p className="text-[11px] md:text-[12px] text-[#1F2A37]/60 leading-snug pr-1 md:pr-2">
+                          <p className="text-[11px] md:text-[12px] text-[#1F2A37]/60 leading-snug pr-1 md:pr-2 line-clamp-2">
                             {service.desc}
                           </p>
                         </div>
+
+                        {/* RIGHT — Price tag with dropdown arrow (ONLY toggle) */}
+                        <button
+                          onClick={() =>
+                            setExpandedVetCard(isExpanded ? null : idx)
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 md:px-3.5 md:py-2 rounded-full border transition-all select-none cursor-pointer whitespace-nowrap shrink-0"
+                          style={{
+                            color: "#E07A5F",
+                            borderColor: "rgba(224,122,95,0.4)",
+                            backgroundColor: isExpanded
+                              ? "rgba(224,122,95,0.15)"
+                              : "rgba(224,122,95,0.08)",
+                          }}
+                        >
+                          <span className="font-black text-[12px] md:text-[13px] tabular-nums">
+                            {service.priceRange}
+                          </span>
+                          <ChevronDown
+                            size={14}
+                            className="transition-transform duration-300"
+                            style={{
+                              transform: isExpanded
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                            }}
+                          />
+                        </button>
                       </div>
 
-                      {/* Expanded Details Section */}
+                      {/* ─── Dropdown Panel — appears below card ─── */}
                       <AnimatePresence>
                         {isExpanded && (
                           <motion.div
@@ -1381,27 +1577,51 @@ const ServicePage = () => {
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
                             transition={{ duration: 0.35, ease: "easeInOut" }}
-                            className="w-full mt-4 overflow-hidden"
+                            className="overflow-hidden"
                           >
-                            <div className="border-t border-[#1F2A37]/5 pt-3 pb-1">
-                              <ul className="space-y-1">
+                            <div
+                              className="bg-white rounded-b-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-t-0 px-4 md:px-5 pb-5 pt-3"
+                              style={{ borderColor: "rgba(224,122,95,0.2)" }}
+                            >
+                              <ul
+                                className="divide-y rounded-[16px] overflow-hidden border"
+                                style={{
+                                  borderColor: "rgba(224,122,95,0.2)",
+                                }}
+                              >
                                 {service.items.map((item, itemIdx) => (
                                   <li
                                     key={itemIdx}
-                                    className="flex items-center justify-between py-1.5 px-2 hover:bg-[#E07A5F]/5 rounded-lg transition-colors group/item"
+                                    className="flex items-center justify-between px-4 py-3 transition-colors"
+                                    style={{
+                                      backgroundColor:
+                                        itemIdx % 2 === 0
+                                          ? "rgba(224,122,95,0.04)"
+                                          : "white",
+                                    }}
                                   >
-                                    <div className="flex items-center gap-2">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-[#7FB069]/40 group-hover/item:bg-[#E07A5F]/60 transition-colors"></span>
-                                      <span className="text-[12px] font-semibold text-[#1F2A37]/80 group-hover/item:text-[#1F2A37] transition-colors">
-                                        {item.name}
-                                      </span>
-                                    </div>
-                                    <span className="text-[12px] font-bold text-[#E07A5F] border-b border-dashed border-[#E07A5F]/30 pb-0.5">
+                                    <span className="flex items-center gap-2.5 text-[12px] md:text-[13px] font-semibold text-[#1F2A37]/80">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#E07A5F] shrink-0" />
+                                      {item.name}
+                                    </span>
+                                    <span className="font-black text-[12px] md:text-[13px] text-[#E07A5F] tabular-nums">
                                       {item.price}
                                     </span>
                                   </li>
                                 ))}
                               </ul>
+
+                              {/* Book Service — centered, only navigates */}
+                              <div className="flex justify-center mt-4">
+                                <button
+                                  onClick={() =>
+                                    setServiceModalCategory(service)
+                                  }
+                                  className="text-[12px] md:text-[13px] font-bold text-white rounded-full px-7 py-2.5 transition-all hover:opacity-90 hover:shadow-lg active:scale-95 bg-[#E07A5F]"
+                                >
+                                  Book Service
+                                </button>
+                              </div>
                             </div>
                           </motion.div>
                         )}
@@ -1847,6 +2067,127 @@ const ServicePage = () => {
 
       {/* FOOTER */}
       <Footer />
+
+      {/* Service Selection — Full-screen premium glassmorphism card grid */}
+      <AnimatePresence>
+        {serviceModalCategory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-auto"
+            onClick={() => setServiceModalCategory(null)}
+          >
+            {/* Multi-layer gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1F2A37]/60 via-[#2d3a4a]/50 to-[#E07A5F]/20 backdrop-blur-xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(127,176,105,0.15)_0%,transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(224,122,95,0.12)_0%,transparent_50%)]" />
+
+            {/* Close icon — glass style */}
+            <button
+              onClick={() => setServiceModalCategory(null)}
+              className="absolute top-5 right-5 w-11 h-11 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-all cursor-pointer z-20"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                border: "1px solid rgba(255,255,255,0.2)",
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            {/* 4 premium floating glass cards */}
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 w-full max-w-[1200px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {serviceModalCategory.items.map((item, itemIdx) => (
+                <motion.div
+                  key={itemIdx}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: itemIdx * 0.1 }}
+                  onClick={() => {
+                    setServiceModalCategory(null);
+                    navigate(
+                      `/service-detail/${serviceModalCategory.id}-${itemIdx}`,
+                    );
+                  }}
+                  className="rounded-[24px] overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-2 group/card"
+                  style={{
+                    background: "rgba(255,255,255,0.75)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.4)",
+                    boxShadow:
+                      "0 10px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      "0 20px 50px rgba(224,122,95,0.18), 0 8px 20px rgba(0,0,0,0.08)";
+                    e.currentTarget.style.border =
+                      "1px solid rgba(255,255,255,0.6)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      "0 10px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)";
+                    e.currentTarget.style.border =
+                      "1px solid rgba(255,255,255,0.4)";
+                  }}
+                >
+                  {/* Image */}
+                  <div
+                    className="relative w-full overflow-hidden m-3 rounded-[18px]"
+                    style={{
+                      aspectRatio: "16 / 10",
+                      width: "calc(100% - 24px)",
+                    }}
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover rounded-[18px] group-hover/card:scale-105 transition-transform duration-[450ms] ease-out"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent pointer-events-none rounded-[18px]" />
+                    {/* Duration badge — glass pill */}
+                    <div
+                      className="absolute top-2.5 right-2.5 rounded-full px-3 py-1 flex items-center gap-1.5 text-[11px] font-bold text-[#1F2A37]/80"
+                      style={{
+                        background: "rgba(255,255,255,0.8)",
+                        backdropFilter: "blur(6px)",
+                        WebkitBackdropFilter: "blur(6px)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <Clock size={12} />
+                      {item.duration}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="px-4 pb-5 pt-1 flex flex-col gap-1.5">
+                    <h5 className="text-[15px] font-bold text-[#1F2A37] group-hover/card:text-[#E07A5F] transition-colors leading-snug">
+                      {item.name}
+                    </h5>
+                    <p className="text-[12px] text-[#1F2A37]/50 leading-relaxed line-clamp-2">
+                      {item.description}
+                    </p>
+                    <span className="text-[22px] font-extrabold text-[#E07A5F] mt-1.5 tracking-tight">
+                      {item.price}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

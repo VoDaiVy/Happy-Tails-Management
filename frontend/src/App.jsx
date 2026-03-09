@@ -14,6 +14,7 @@ import ServiceManagement from "./pages/dashboard/ServiceManagement";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Service from "./pages/Service";
+import ServiceDetail from "./pages/ServiceDetail";
 import News from "./pages/News";
 import Cart from "./pages/Cart";
 import CartDrawer from "./components/cart/CartDrawer";
@@ -27,6 +28,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/service" element={<Service />} />
+        <Route path="/service-detail/:id" element={<ServiceDetail />} />
         <Route path="/news" element={<News />} />
         <Route path="/cart" element={<Cart />} />
 

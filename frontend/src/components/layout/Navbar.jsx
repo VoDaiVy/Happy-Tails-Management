@@ -299,33 +299,6 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
 
           {/* ── Desktop Right ── */}
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
-            {/* Cart Icon */}
-            <button
-              onClick={toggleDrawer}
-              className={`relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-300
-                ${
-                  isScrolled
-                    ? "text-slate-300 hover:text-white hover:bg-white/10"
-                    : "text-slate-600 hover:text-[#E07A5F] hover:bg-orange-50"
-                }`}
-              aria-label="Open cart"
-            >
-              <ShoppingCart size={18} />
-              <AnimatePresence>
-                {itemCount > 0 && (
-                  <motion.span
-                    key={itemCount}
-                    initial={{ scale: 0.4, opacity: 0 }}
-                    animate={{ scale: badgePop ? [1, 1.35, 1] : 1, opacity: 1 }}
-                    exit={{ scale: 0.4, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-[#E07A5F] text-white text-[9px] font-black rounded-full px-1 shadow-md"
-                  >
-                    {itemCount > 99 ? "99+" : itemCount}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
             {user ? (
               <div
                 className="relative"
@@ -494,32 +467,8 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
             )}
           </div>
 
-          {/* ── Mobile Cart + Toggle ── */}
+          {/* ── Mobile Toggle ── */}
           <div className="md:hidden flex items-center gap-1">
-            {/* Mobile Cart Icon */}
-            <button
-              onClick={toggleDrawer}
-              className={`relative p-2 rounded-xl transition-colors duration-300
-                ${isScrolled ? "text-white hover:bg-white/10" : "text-slate-700 hover:bg-slate-100"}`}
-              aria-label="Open cart"
-            >
-              <ShoppingCart size={20} />
-              <AnimatePresence>
-                {itemCount > 0 && (
-                  <motion.span
-                    key={itemCount}
-                    initial={{ scale: 0.4, opacity: 0 }}
-                    animate={{ scale: badgePop ? [1, 1.4, 1] : 1, opacity: 1 }}
-                    exit={{ scale: 0.4, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] flex items-center justify-center bg-[#E07A5F] text-white text-[8px] font-black rounded-full px-0.5 shadow"
-                  >
-                    {itemCount > 99 ? "99+" : itemCount}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-
             <button
               className={`p-2 rounded-xl transition-colors duration-300
               ${isScrolled ? "text-white hover:bg-white/10" : "text-slate-700 hover:bg-slate-100"}`}
