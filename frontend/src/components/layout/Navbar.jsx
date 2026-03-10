@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   PawPrint,
@@ -28,6 +28,7 @@ const NAV_LINKS = [
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -267,7 +268,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 <Link
                   key={link.href}
                   to={link.href}
-                  onClick={() => setActiveLink(link.href)}
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                   className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
                     ${activeLink === link.href ? "active" : ""}
                     ${
@@ -282,7 +283,6 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 <a
                   key={link.href}
                   href={link.href}
-                  onClick={() => setActiveLink(link.href)}
                   className={`nav-item px-3.5 py-2 rounded-xl text-sm font-semibold
                     ${activeLink === link.href ? "active" : ""}
                     ${
@@ -575,7 +575,11 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all border-l-4 ${
+                    isActive 
+                      ? 'bg-orange-50 text-[#FF8C42] border-[#FF8C42]' 
+                      : 'text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] border-transparent'
+                  }`}
                 >
                   {link.label}
                 </a>

@@ -49,6 +49,9 @@ function App() {
           <Route path="bookings" element={<BookingBoard />} />
         </Route>
       </Routes>
+
+      {/* Floating Chat Bubble - Available on all pages */}
+      <FloatingChatBubble />
     </Router>
   );
 }
