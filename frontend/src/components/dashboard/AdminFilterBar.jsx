@@ -39,7 +39,7 @@ const CustomSelect = ({ label, icon: Icon, options, value, onChange }) => {
 
   return (
     <div
-      className={`relative flex flex-col min-w-[160px] lg:min-w-[175px] ${open ? "z-[60]" : "z-10"}`}
+      className={`relative flex flex-col flex-1 min-w-[160px] ${open ? "z-[60]" : "z-10"}`}
     >
       {label && (
         <span className="text-[11px] font-bold text-[#D97853] uppercase tracking-widest ml-1 mb-1.5">
@@ -136,7 +136,7 @@ const AdminFilterBar = ({
 }) => (
   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end bg-white p-3 rounded-[24px] shadow-sm border border-[#2D3436]/5">
     {/* ── Search ── */}
-    <div className="relative flex-grow min-w-[180px] lg:min-w-[220px] flex flex-col">
+    <div className="relative flex-[4] min-w-[180px] flex flex-col">
       <span className="text-[11px] font-bold text-[#D97853] uppercase tracking-widest ml-1 mb-1.5">
         Search
       </span>
@@ -186,7 +186,7 @@ const AdminFilterBar = ({
 
     {/* ── Date picker ── */}
     {onDateChange && (
-      <div className="flex flex-col min-w-[155px]">
+      <div className="flex flex-col flex-1 min-w-[155px]">
         <span className="text-[11px] font-bold text-[#D97853] uppercase tracking-widest ml-1 mb-1.5">
           {dateLabel}
         </span>
@@ -210,9 +210,6 @@ const AdminFilterBar = ({
         </div>
       </div>
     )}
-
-    {/* ── Spacer ── */}
-    <div className="flex-1 hidden lg:block" />
 
     {/* ── Extra actions ── */}
     {extraActions}
