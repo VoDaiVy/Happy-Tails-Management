@@ -13,6 +13,8 @@ const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const { createError } = require('../utils/AppError');
 const logger = require('../utils/logger');
+const notificationService = require('./notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
 /**
  * Get user's cart (create if not exists)
@@ -308,6 +310,26 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
     await session.endSession();
     
     logger.info(`Wallet order completed: orderCode=${order.orderCode}, userId=${userId}, amount=${order.totalPrice}`);
+
+    // Notify: order created (fire-and-forget — must not block caller)
+    setImmediate(() => {
+      notificationService.send(
+        userId,
+        NOTIFICATION_TEMPLATES.ORDER_CREATED(order.orderCode, order.totalPrice)
+      ).catch(err => console.error('[Notif] order_created:', err.message));
+    });
+
+    // Notify: payment success
+    setImmediate(() => {
+      notificationService.send(
+        userId,
+        NOTIFICATION_TEMPLATES.PAYMENT_SUCCESS(
+          order.totalPrice,
+          order.orderCode,
+          wallet.balance
+        )
+      ).catch(err => console.error('[Notif] payment_success:', err.message));
+    });
     
     return {
       order,
