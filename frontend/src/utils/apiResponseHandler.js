@@ -12,10 +12,11 @@ export const normalizeResponse = (axiosResponse) => {
   const data = axiosResponse.data || axiosResponse;
 
   // New format: { success: true, message, data, pagination }
+  // Also handles error format: { success: false, error: { message, ... }, data, pagination }
   if (data.success !== undefined) {
     return {
       success: data.success,
-      message: data.message,
+      message: data.message || data.error?.message,
       data: data.data,
       pagination: data.pagination,
     };
