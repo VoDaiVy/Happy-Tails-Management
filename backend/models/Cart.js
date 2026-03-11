@@ -81,9 +81,6 @@ const cartSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for fast lookup by userId
-cartSchema.index({ userId: 1 }, { unique: true });
-
 /**
  * Recalculate cart totals
  * Computes subtotal for each item and updates totalPrice/totalItems

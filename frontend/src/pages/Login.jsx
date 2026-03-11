@@ -1,20 +1,104 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { PawPattern } from "../components/PawPattern";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { loginApi } from "../api/authApi";
 
 export function Login() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Auto-dismiss success message after 3s
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  // Auto-dismiss error message after 5s
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Map backend error codes to user-friendly messages
+  const getErrorMessage = (err) => {
+    const code = err.response?.data?.error?.code;
+    const message = err.response?.data?.error?.message;
+
+    switch (code) {
+      case "INVALID_CREDENTIALS":
+        return "Invalid email or password. Please try again.";
+      case "ACCOUNT_LOCKED":
+        return message || "Account locked due to multiple failed login attempts. Please try again later.";
+      case "ACCOUNT_DISABLED":
+        return "Account has been disabled. Please contact administrator.";
+      case "VALIDATION_ERROR":
+        return "Please enter both email and password.";
+      case "RATE_LIMIT":
+        return "Too many attempts. Please wait a moment and try again.";
+      default:
+        if (!err.response) {
+          return "Cannot connect to server. Please check your network connection.";
+        }
+        return message || "Login failed. Please try again.";
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", { email, password });
+    setError("");
+    setSuccess("");
+
+    // Client-side validation
+    if (!email.trim()) {
+      setError("Please enter your email.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await loginApi(email, password);
+
+      // Save token and user info to localStorage
+      localStorage.setItem("accessToken", result.data.tokens.accessToken);
+      localStorage.setItem("user", JSON.stringify(result.data.user));
+
+      // Show success message
+      setSuccess(`Login successful! Welcome ${result.data.user.name || "back"} 🎉`);
+
+      // Redirect based on role after a short delay
+      const role = result.data.user.role;
+      setTimeout(() => {
+        if (role === "admin") {
+          navigate("/admin");
+        } else if (role === "staff") {
+          navigate("/staff");
+        } else {
+          navigate("/");
+        }
+      }, 1000);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -66,6 +150,22 @@ export function Login() {
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Success Notification */}
+            {success && (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-[16px] text-sm animate-in fade-in">
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
+
+            {/* Error Notification */}
+            {error && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-[16px] text-sm animate-in fade-in">
+                <XCircle className="w-5 h-5 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-gray-700">
                 Email or Phone
@@ -118,9 +218,17 @@ export function Login() {
 
             <Button
               type="submit"
-              className="w-full h-14 bg-[#FF8C42] hover:bg-[#E67A35] text-white rounded-[24px] shadow-lg hover:shadow-xl transition-all duration-200"
+              disabled={loading}
+              className="w-full h-14 bg-[#FF8C42] hover:bg-[#E67A35] text-white rounded-[24px] shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Login
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
             </Button>
 
             <div className="relative my-8">

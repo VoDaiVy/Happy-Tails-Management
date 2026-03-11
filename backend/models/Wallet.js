@@ -42,7 +42,7 @@ const walletSchema = new mongoose.Schema({
 });
 
 // Indexes
-walletSchema.index({ userId: 1 }, { unique: true });
+// Note: userId index is already created via field definition (unique: true)
 
 // ==================== INSTANCE METHODS ====================
 

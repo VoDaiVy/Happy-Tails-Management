@@ -15,7 +15,7 @@ const StaffDashboard = () => {
           <LayoutDashboard size={32} className="text-[#D97853]" />
         </div>
         <h2 className="text-xl font-bold text-[#2D3436] mb-2">Staff Dashboard</h2>
-        <p className="text-[#2D3436]/60 text-sm">Trang tổng quan dành cho nhân viên</p>
+        <p className="text-[#2D3436]/60 text-sm">Staff overview dashboard</p>
       </div>
     </motion.div>
   );

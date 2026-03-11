@@ -1,18 +1,36 @@
 ﻿import React, { useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
 
 const Home = () => {
+  const navigate = useNavigate();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
   const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
   
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    // Role-based navigation
+    if (userData.role === 'admin') {
+      navigate('/admin');
+    } else if (userData.role === 'staff') {
+      navigate('/staff');
+    }
+    // Customer stays on home page (no navigation needed)
+  };
 
   const toggleMusic = () => {
     if(!audioRef.current) return;
@@ -33,12 +51,13 @@ const Home = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
         initialMode={authModalMode}
+        onLoginSuccess={handleLoginSuccess}
       />
       <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
 
@@ -176,9 +195,9 @@ const Home = () => {
               <span className="text-[#D97853] font-bold tracking-widest uppercase text-xs">Our Expertise</span>
               <h2 className="text-3xl md:text-4xl font-black text-[#2D3436] mt-2">Holistic Services</h2>
             </div>
-            <button className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
+            <Link to="/service" className="hidden md:flex items-center gap-2 text-[#2D3436] font-bold text-sm border-b border-[#2D3436] pb-1 hover:text-[#D97853] hover:border-[#D97853] transition-all">
               View All Services <ArrowRight size={16} />
-            </button>
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 h-auto md:h-[450px]">
@@ -198,14 +217,16 @@ const Home = () => {
             </motion.div>
 
             <div className="md:col-span-1 flex flex-col gap-6">
-              <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#2D3436] rounded-[2.5rem] p-6 flex flex-col justify-center text-white relative overflow-hidden cursor-pointer">
-                 <div className="relative z-10">
-                   <Activity className="text-[#D97853] mb-3" size={28} />
-                   <h3 className="text-xl font-bold mb-1">AI Health Scan</h3>
-                   <p className="text-gray-400 text-xs">Instant dermatology and mood analysis.</p>
-                 </div>
-                 <div className="absolute right-0 bottom-0 opacity-10"><Activity size={100}/></div>
-              </motion.div>
+              <Link to="/ai-health-scan">
+                <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#2D3436] rounded-[2.5rem] p-6 flex flex-col justify-center text-white relative overflow-hidden cursor-pointer">
+                  <div className="relative z-10">
+                    <Activity className="text-[#D97853] mb-3" size={28} />
+                    <h3 className="text-xl font-bold mb-1">AI Health Scan</h3>
+                    <p className="text-gray-400 text-xs">Instant dermatology and mood analysis.</p>
+                  </div>
+                  <div className="absolute right-0 bottom-0 opacity-10"><Activity size={100}/></div>
+                </motion.div>
+              </Link>
               
               <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#F5E6CA] rounded-[2.5rem] p-6 flex flex-col justify-center text-[#2D3436] cursor-pointer">
                  <Heart className="text-[#D97853] mb-3" size={28} />
@@ -288,10 +309,10 @@ const Home = () => {
             <div className="md:col-span-2">
               <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Services</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</a></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</Link></li>
+                <li><Link to="/ai-health-scan" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</Link></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</Link></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</Link></li>
               </ul>
             </div>
 

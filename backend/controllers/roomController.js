@@ -61,15 +61,13 @@ exports.getRoomById = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.createRoom = catchAsync(async (req, res, next) => {
-  const { roomNumber, name, type, capacity, size, pricePerNight, amenities, images, petTypes, description } = req.body;
+  const { roomNumber, name, type, capacity, amenities, images, petTypes, description } = req.body;
 
   const room = await Room.create({
     roomNumber,
     name,
     type,
     capacity,
-    size,
-    pricePerNight,
     amenities,
     images,
     petTypes,
@@ -90,7 +88,7 @@ exports.createRoom = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.updateRoom = catchAsync(async (req, res, next) => {
-  const { roomNumber, name, type, capacity, size, pricePerNight, amenities, images, petTypes, isAvailable, isActive, description } = req.body;
+  const { roomNumber, name, type, capacity, amenities, images, petTypes, isAvailable, isActive, description } = req.body;
 
   const room = await Room.findByIdAndUpdate(
     req.params.id,
@@ -99,8 +97,6 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
       name,
       type,
       capacity,
-      size,
-      pricePerNight,
       amenities,
       images,
       petTypes,

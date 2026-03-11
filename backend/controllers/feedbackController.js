@@ -7,6 +7,7 @@ const Feedback = require('../models/Feedback');
 const Booking = require('../models/Booking');
 const { catchAsync } = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
+const { moderateFeedback } = require('../utils/aiService');
 
 /**
  * Get all feedback (public view)
@@ -86,6 +87,18 @@ exports.createFeedback = catchAsync(async (req, res, next) => {
     }
   }
 
+  // === AI MODERATION ===
+  if (comment) {
+    const moderation = await moderateFeedback(comment);
+    if (moderation.isToxic) {
+      return next(new AppError(
+        `Bình luận chứa từ ngữ vi phạm tiêu chuẩn cộng đồng: ${moderation.reason}`,
+        400,
+        'TOXIC_CONTENT'
+      ));
+    }
+  }
+
   const feedback = await Feedback.create({
     user: req.user.id,
     booking,
@@ -119,6 +132,18 @@ exports.updateFeedback = catchAsync(async (req, res, next) => {
 
   if (!feedback) {
     return next(new AppError('Feedback not found', 404, 'FEEDBACK_NOT_FOUND'));
+  }
+
+  // Re-moderate if comment changed
+  if (comment !== undefined && comment !== feedback.comment) {
+    const moderation = await moderateFeedback(comment);
+    if (moderation.isToxic) {
+      return next(new AppError(
+        `Bình luận chứa từ ngữ vi phạm tiêu chuẩn cộng đồng: ${moderation.reason}`,
+        400,
+        'TOXIC_CONTENT'
+      ));
+    }
   }
 
   if (rating !== undefined) feedback.rating = rating;
@@ -199,6 +224,45 @@ exports.respondToFeedback = catchAsync(async (req, res, next) => {
  * @route PUT /api/feedback/:id/publish
  * @access Private (Admin)
  */
+/**
+ * @desc    Get all published feedback for a specific service (public)
+ * @route   GET /api/feedback/service/:serviceId
+ * @access  Public
+ */
+exports.getFeedbacksByService = catchAsync(async (req, res, next) => {
+  const { serviceId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+
+  const query = { service: serviceId, isPublished: true };
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const [feedbacks, total] = await Promise.all([
+    Feedback.find(query)
+      .populate('user', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit)),
+    Feedback.countDocuments(query)
+  ]);
+
+  const totalPages = Math.ceil(total / parseInt(limit));
+
+  res.status(200).json({
+    status: 'success',
+    results: feedbacks.length,
+    data: {
+      feedbacks,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        total,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
+      }
+    }
+  });
+});
+
 exports.togglePublishStatus = catchAsync(async (req, res, next) => {
   const feedback = await Feedback.findById(req.params.id);
 
