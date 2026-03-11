@@ -14,7 +14,6 @@ const NAV_LINKS = [
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -62,7 +61,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const handleLogout = async () => {
     setIsDropdownOpen(false);
     setIsMobileMenuOpen(false);
-    try { await logoutApi(); } catch {}
+    try { await logoutApi(); } catch { /* ignore */ }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     onLogout?.();
@@ -270,9 +269,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       : 'border-slate-200 hover:border-orange-300 hover:bg-orange-50/50 bg-white shadow-sm'
                     }`}
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-xs shadow">
-                    {getInitials(user.name)}
-                  </div>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="avatar" className="w-7 h-7 rounded-lg object-cover shadow" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-xs shadow">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
                   <span className={`text-sm font-semibold max-w-[100px] truncate transition-colors duration-300 ${isScrolled ? 'text-white' : 'text-slate-800'}`}>
                     {user.name}
                   </span>
@@ -290,9 +293,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   >
                     <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-sm shadow">
-                          {getInitials(user.name)}
-                        </div>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="avatar" className="w-9 h-9 rounded-xl object-cover shadow" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-sm shadow">
+                            {getInitials(user.name)}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
                           <p className="text-xs text-slate-500 truncate">{user.email}</p>
@@ -417,9 +424,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
             {user ? (
               <>
                 <div className="flex items-center gap-3 px-4 py-3 bg-orange-50/80 rounded-xl mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold">
-                    {getInitials(user.name)}
-                  </div>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt="avatar" className="w-10 h-10 rounded-xl object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
                     <p className="text-xs text-slate-500 truncate">{user.email}</p>

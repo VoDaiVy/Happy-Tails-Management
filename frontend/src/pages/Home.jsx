@@ -1,5 +1,6 @@
 ﻿import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
@@ -8,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
@@ -29,7 +31,6 @@ const Home = () => {
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
 
   const handleLoginSuccess = (userData) => {
-    setUser(userData);
     setIsAuthModalOpen(false);
     // Role-based navigation
     if (userData.role === 'admin') {
@@ -59,7 +60,7 @@ const Home = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 

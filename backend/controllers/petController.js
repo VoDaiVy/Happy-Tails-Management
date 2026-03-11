@@ -118,7 +118,7 @@ const createPet = catchAsync(async (req, res, next) => {
   const petData = { ...req.body, userID };
 
   // Validate required fields
-  const requiredFields = ['petName', 'petID', 'breed', 'gender', 'weight'];
+  const requiredFields = ['petName', 'breed', 'gender', 'weight'];
   const missingFields = requiredFields.filter(field => !petData[field]);
   
   if (missingFields.length > 0) {

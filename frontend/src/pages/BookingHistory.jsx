@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays, Stethoscope, Clock, CheckCircle2, XCircle, Loader2,
@@ -11,26 +12,26 @@ import { getMyBookings, getMyPetsMedicalRecords, getMedicalRecordById } from '..
 
 /* ───────── helpers ───────── */
 const STATUS_MAP = {
-  completed: { label: 'Đã xong', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
-  confirmed: { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
-  'in-progress': { label: 'Đang thực hiện', color: 'bg-amber-100 text-amber-700', icon: Loader2 },
-  pending: { label: 'Đang chờ', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-700', icon: XCircle },
+  completed: { label: 'Completed', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+  confirmed: { label: 'Confirmed', color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
+  'in-progress': { label: 'In Progress', color: 'bg-amber-100 text-amber-700', icon: Loader2 },
+  pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
 const RECORD_TYPE_MAP = {
-  checkup: 'Khám tổng quát',
-  vaccination: 'Tiêm phòng',
-  treatment: 'Điều trị',
-  surgery: 'Phẫu thuật',
-  emergency: 'Cấp cứu',
-  grooming: 'Làm đẹp',
-  other: 'Khác',
+  checkup: 'General Checkup',
+  vaccination: 'Vaccination',
+  treatment: 'Treatment',
+  surgery: 'Surgery',
+  emergency: 'Emergency',
+  grooming: 'Grooming',
+  other: 'Other',
 };
 
 const formatDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 /* ───────── Status Badge ───────── */
@@ -65,7 +66,7 @@ const BookingCard = ({ booking }) => {
           </div>
           <div>
             <p className="font-bold text-slate-800 text-sm leading-tight">
-              {pets?.length ? pets.join(', ') : 'Không rõ'}
+              {pets?.length ? pets.join(', ') : 'Unknown'}
             </p>
             <p className="text-xs text-slate-500">{booking.bookingNumber}</p>
           </div>
@@ -96,9 +97,9 @@ const BookingCard = ({ booking }) => {
 
       {/* total */}
       <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-        <span className="text-xs text-slate-400">Tổng</span>
+        <span className="text-xs text-slate-400">Total</span>
         <span className="font-bold text-[#FF8C42]">
-          {booking.totalAmount?.toLocaleString('vi-VN')}đ
+          ${booking.totalAmount?.toLocaleString('en-US')}
         </span>
       </div>
     </motion.div>
@@ -120,7 +121,7 @@ const MedicalRecordCard = ({ record, onViewDetail }) => (
         </div>
         <div>
           <p className="font-bold text-slate-800 text-sm leading-tight">
-            {record.userPet?.petName || record.userPet?.name || 'Thú cưng'}
+            {record.userPet?.petName || record.userPet?.name || 'Pet'}
           </p>
           <p className="text-xs text-slate-500">
             {RECORD_TYPE_MAP[record.recordType] || record.recordType}
@@ -133,7 +134,7 @@ const MedicalRecordCard = ({ record, onViewDetail }) => (
     {/* Doctor */}
     <div className="flex items-center gap-2 text-sm text-slate-600">
       <User size={15} className="text-slate-400" />
-      <span>BS. {record.createdBy?.name || 'Không rõ'}</span>
+      <span>Dr. {record.createdBy?.name || 'Unknown'}</span>
     </div>
 
     {/* Diagnosis summary */}
@@ -143,12 +144,13 @@ const MedicalRecordCard = ({ record, onViewDetail }) => (
       onClick={() => onViewDetail(record._id)}
       className="mt-auto self-start flex items-center gap-1.5 text-sm font-semibold text-[#FF8C42] hover:text-orange-600 transition-colors cursor-pointer"
     >
-      <FileText size={15} /> Xem chi tiết
+      <FileText size={15} /> View Details
     </button>
   </motion.div>
 );
 
 /* ───────── Section helper ───────── */
+// eslint-disable-next-line no-unused-vars
 const SectionBlock = ({ icon: SectionIcon, title, children }) => (
   <div className="space-y-2">
     <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
@@ -183,7 +185,7 @@ const MedicalDetailModal = ({ record, onClose }) => {
           {/* Modal header */}
           <div className="sticky top-0 bg-white rounded-t-3xl border-b border-slate-100 px-6 py-4 flex items-center justify-between z-10">
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Chi tiết Bệnh án</h3>
+              <h3 className="text-lg font-bold text-slate-800">Medical Record Details</h3>
               <p className="text-xs text-slate-500">
                 {record.userPet?.petName || record.userPet?.name} — {formatDate(record.createdAt)}
               </p>
@@ -207,7 +209,7 @@ const MedicalDetailModal = ({ record, onClose }) => {
                   <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-2">
                     <Activity size={16} className="text-emerald-500" />
                     <div>
-                      <p className="text-[11px] text-slate-400">Cân nặng</p>
+                      <p className="text-[11px] text-slate-400">Weight</p>
                       <p className="text-sm font-semibold text-slate-700">{record.vitals.weight} kg</p>
                     </div>
                   </div>
@@ -216,7 +218,7 @@ const MedicalDetailModal = ({ record, onClose }) => {
                   <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-2">
                     <Thermometer size={16} className="text-red-400" />
                     <div>
-                      <p className="text-[11px] text-slate-400">Nhiệt độ</p>
+                      <p className="text-[11px] text-slate-400">Temperature</p>
                       <p className="text-sm font-semibold text-slate-700">{record.vitals.temperature}°C</p>
                     </div>
                   </div>
@@ -225,7 +227,7 @@ const MedicalDetailModal = ({ record, onClose }) => {
                   <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-2">
                     <Heart size={16} className="text-pink-500" />
                     <div>
-                      <p className="text-[11px] text-slate-400">Nhịp tim</p>
+                      <p className="text-[11px] text-slate-400">Heart Rate</p>
                       <p className="text-sm font-semibold text-slate-700">{record.vitals.heartRate} bpm</p>
                     </div>
                   </div>
@@ -234,8 +236,8 @@ const MedicalDetailModal = ({ record, onClose }) => {
                   <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-2">
                     <Wind size={16} className="text-sky-500" />
                     <div>
-                      <p className="text-[11px] text-slate-400">Nhịp thở</p>
-                      <p className="text-sm font-semibold text-slate-700">{record.vitals.respiratoryRate} lần/ph</p>
+                      <p className="text-[11px] text-slate-400">Respiratory Rate</p>
+                      <p className="text-sm font-semibold text-slate-700">{record.vitals.respiratoryRate} bpm</p>
                     </div>
                   </div>
                 )}
@@ -243,31 +245,31 @@ const MedicalDetailModal = ({ record, onClose }) => {
             )}
 
             {/* Condition / Symptoms */}
-            <SectionBlock icon={AlertCircle} title="Triệu chứng / Tình trạng">
+            <SectionBlock icon={AlertCircle} title="Symptoms / Condition">
               <p className="whitespace-pre-line">{record.condition || '—'}</p>
             </SectionBlock>
 
             {/* Diagnosis */}
-            <SectionBlock icon={Stethoscope} title="Chẩn đoán">
+            <SectionBlock icon={Stethoscope} title="Diagnosis">
               <p className="whitespace-pre-line">{record.diagnosis || '—'}</p>
             </SectionBlock>
 
             {/* Treatment */}
-            <SectionBlock icon={FileText} title="Phương pháp điều trị">
+            <SectionBlock icon={FileText} title="Treatment">
               <p className="whitespace-pre-line">{record.treatment || '—'}</p>
             </SectionBlock>
 
             {/* Medications */}
             {record.medications?.length > 0 && (
-              <SectionBlock icon={Pill} title="Đơn thuốc">
+              <SectionBlock icon={Pill} title="Medications">
                 <div className="space-y-2">
                   {record.medications.map((med, i) => (
                     <div key={i} className="bg-orange-50 rounded-xl p-3">
                       <p className="font-semibold text-slate-700 text-sm">{med.name}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-slate-500">
-                        {med.dosage && <span>Liều: {med.dosage}</span>}
-                        {med.frequency && <span>Tần suất: {med.frequency}</span>}
-                        {med.duration && <span>Thời gian: {med.duration}</span>}
+                        {med.dosage && <span>Dosage: {med.dosage}</span>}
+                        {med.frequency && <span>Frequency: {med.frequency}</span>}
+                        {med.duration && <span>Duration: {med.duration}</span>}
                       </div>
                     </div>
                   ))}
@@ -277,7 +279,7 @@ const MedicalDetailModal = ({ record, onClose }) => {
 
             {/* Doctor notes */}
             {record.notes && (
-              <SectionBlock icon={MessageSquare} title="Lời dặn bác sĩ">
+              <SectionBlock icon={MessageSquare} title="Doctor's Notes">
                 <p className="whitespace-pre-line">{record.notes}</p>
               </SectionBlock>
             )}
@@ -286,13 +288,13 @@ const MedicalDetailModal = ({ record, onClose }) => {
             {record.followUpDate && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2 text-sm text-amber-700">
                 <CalendarDays size={16} />
-                <span>Tái khám: <strong>{formatDate(record.followUpDate)}</strong></span>
+                <span>Follow-up: <strong>{formatDate(record.followUpDate)}</strong></span>
               </div>
             )}
 
             {/* Doctor info */}
             <div className="text-xs text-slate-400 pt-2 border-t border-slate-100">
-              Bác sĩ phụ trách: {record.createdBy?.name || '—'}
+              Attending Doctor: {record.createdBy?.name || '—'}
             </div>
           </div>
         </motion.div>
@@ -303,12 +305,12 @@ const MedicalDetailModal = ({ record, onClose }) => {
 
 /* ───────── Filter Tabs for status ───────── */
 const STATUS_FILTERS = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'pending', label: 'Đang chờ' },
-  { value: 'confirmed', label: 'Đã xác nhận' },
-  { value: 'in-progress', label: 'Đang thực hiện' },
-  { value: 'completed', label: 'Đã xong' },
-  { value: 'cancelled', label: 'Đã hủy' },
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 /* ═══════════════════════════════════════════
@@ -335,7 +337,8 @@ const BookingHistory = () => {
   const fetchBookings = useCallback(async () => {
     setLoadingBookings(true);
     try {
-      const data = await getMyBookings(statusFilter);
+      const params = statusFilter !== 'all' ? { status: statusFilter } : {};
+      const data = await getMyBookings(params);
       setBookings(data.data?.bookings || data.data || []);
     } catch {
       setBookings([]);
@@ -380,14 +383,14 @@ const BookingHistory = () => {
 
   /* ── tab config ── */
   const tabs = [
-    { key: 'bookings', label: 'Lịch sử Đặt lịch', icon: CalendarDays },
-    { key: 'records', label: 'Hồ sơ Bệnh án', icon: Stethoscope },
+    { key: 'bookings', label: 'Booking History', icon: CalendarDays },
+    { key: 'records', label: 'Medical Records', icon: Stethoscope },
   ];
 
   const isLoading = activeTab === 'bookings' ? loadingBookings : loadingRecords;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#FDFBF7]">
       {/* Back navigation + title */}
       <div className="bg-white border-b border-slate-100">
         <div className="container mx-auto px-6 py-5 flex items-center gap-4">
@@ -398,8 +401,8 @@ const BookingHistory = () => {
             <ChevronLeft size={22} className="text-slate-600" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Lịch sử & Bệnh án</h1>
-            <p className="text-sm text-slate-500">Quản lý lịch đặt và hồ sơ sức khỏe thú cưng</p>
+            <h1 className="text-xl font-bold text-slate-800">History & Medical Records</h1>
+            <p className="text-sm text-slate-500">Manage your bookings and pet health records</p>
           </div>
         </div>
       </div>
@@ -450,7 +453,7 @@ const BookingHistory = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <Loader2 size={32} className="animate-spin mb-3" />
-            <p className="text-sm">Đang tải dữ liệu...</p>
+            <p className="text-sm">Loading data...</p>
           </div>
         ) : (
           <AnimatePresence mode="wait">
@@ -465,8 +468,8 @@ const BookingHistory = () => {
                 {bookings.length === 0 ? (
                   <EmptyState
                     icon={CalendarDays}
-                    title="Chưa có lịch đặt nào"
-                    desc="Bạn chưa đặt lịch dịch vụ nào. Hãy khám phá các dịch vụ của chúng tôi!"
+                    title="No bookings yet"
+                    desc="You haven't made any bookings yet. Explore our services!"
                   />
                 ) : (
                   <div className="grid md:grid-cols-2 gap-4">
@@ -489,8 +492,8 @@ const BookingHistory = () => {
                 {records.length === 0 ? (
                   <EmptyState
                     icon={Stethoscope}
-                    title="Chưa có hồ sơ bệnh án"
-                    desc="Thú cưng của bạn chưa có hồ sơ bệnh án nào."
+                    title="No medical records"
+                    desc="Your pets don't have any medical records yet."
                   />
                 ) : (
                   <div className="grid md:grid-cols-2 gap-4">
@@ -510,7 +513,7 @@ const BookingHistory = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-6 flex flex-col items-center gap-3 shadow-xl">
             <Loader2 size={28} className="animate-spin text-[#FF8C42]" />
-            <p className="text-sm text-slate-600">Đang tải bệnh án...</p>
+            <p className="text-sm text-slate-600">Loading medical record...</p>
           </div>
         </div>
       )}
@@ -524,6 +527,7 @@ const BookingHistory = () => {
 };
 
 /* ───────── Empty State ───────── */
+// eslint-disable-next-line no-unused-vars
 const EmptyState = ({ icon: EmptyIcon, title, desc }) => (
   <div className="flex flex-col items-center justify-center py-20 text-center">
     <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">

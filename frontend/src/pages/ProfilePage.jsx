@@ -2,46 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import {
-  User, PawPrint, Camera, Save, X, Plus, Edit3, Trash2,
+  User, Camera, Save, X, Edit3,
   Phone, Mail, MapPin, Calendar, ChevronLeft, Loader2,
-  Dog, Cat, Bird, Fish, Rabbit, Heart, Weight, Palette
+  Heart, Trash2, AlertTriangle, CheckCircle2, Circle
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
-import AuthModal from '../components/AuthModal';
 import { useAuth } from '../context/AuthContext';
 import {
-  getMyProfile, updateMyProfile, updateAvatar
+  getMyProfile, updateMyProfile, updateAvatar,
+  getProfileCompletion, deleteMyProfile
 } from '../api/profileApi';
-import {
-  getMyPets, createPet, updatePet, deletePet
-} from '../api/profileApi';
-
-const PET_TYPES = [
-  { value: 'dog', label: 'Dog', icon: '🐕' },
-  { value: 'cat', label: 'Cat', icon: '🐈' },
-  { value: 'bird', label: 'Bird', icon: '🐦' },
-  { value: 'fish', label: 'Fish', icon: '🐟' },
-  { value: 'rabbit', label: 'Rabbit', icon: '🐇' },
-  { value: 'hamster', label: 'Hamster', icon: '🐹' },
-  { value: 'other', label: 'Other', icon: '🐾' },
-];
-
-const GENDERS = [
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
-  { value: 'unknown', label: 'Unknown' },
-];
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
-
-  // Auth modal
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState('login');
-
-  // Tabs
-  const [activeTab, setActiveTab] = useState('profile');
 
   // Profile state
   const [profile, setProfile] = useState(null);
@@ -59,20 +33,9 @@ const ProfilePage = () => {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState('');
-
-  // Pets state
-  const [pets, setPets] = useState([]);
-  const [petsLoading, setPetsLoading] = useState(true);
-  const [petModalOpen, setPetModalOpen] = useState(false);
-  const [editingPet, setEditingPet] = useState(null);
-  const [petForm, setPetForm] = useState({
-    petName: '', petType: 'dog', breed: '', gender: 'male',
-    weight: '', dateOfBirth: '', color: '', petID: '',
-    specialNeeds: '', notes: ''
-  });
-  const [petSaving, setPetSaving] = useState(false);
-  const [petError, setPetError] = useState('');
-  const [deletingPetId, setDeletingPetId] = useState(null);
+  const [completionInfo, setCompletionInfo] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch profile
   const fetchProfile = useCallback(async () => {
@@ -101,6 +64,13 @@ const ProfilePage = () => {
       if (p.avatar && user.avatar !== p.avatar) {
         updateUser({ ...user, avatar: p.avatar });
       }
+      // Fetch completion details
+      try {
+        const completionRes = await getProfileCompletion();
+        setCompletionInfo(completionRes.data);
+      } catch {
+        // ignore
+      }
     } catch {
       // Profile may not exist yet
     } finally {
@@ -108,26 +78,11 @@ const ProfilePage = () => {
     }
   }, [user, updateUser]);
 
-  // Fetch pets
-  const fetchPets = useCallback(async () => {
-    if (!user) return;
-    try {
-      setPetsLoading(true);
-      const res = await getMyPets();
-      setPets(res.data.pets);
-    } catch {
-      setPets([]);
-    } finally {
-      setPetsLoading(false);
-    }
-  }, [user]);
-
   useEffect(() => {
     if (user) {
       fetchProfile();
-      fetchPets();
     }
-  }, [user, fetchProfile, fetchPets]);
+  }, [user, fetchProfile]);
 
   // Profile handlers
   const handleProfileChange = (e) => {
@@ -191,77 +146,27 @@ const ProfilePage = () => {
     }
   };
 
-  // Pet handlers
-  const openAddPet = () => {
-    setEditingPet(null);
-    setPetForm({
-      petName: '', petType: 'dog', breed: '', gender: 'male',
-      weight: '', dateOfBirth: '', color: '', petID: '',
-      specialNeeds: '', notes: ''
-    });
-    setPetError('');
-    setPetModalOpen(true);
-  };
-
-  const openEditPet = (pet) => {
-    setEditingPet(pet);
-    setPetForm({
-      petName: pet.petName || '',
-      petType: pet.petType || 'dog',
-      breed: pet.breed || '',
-      gender: pet.gender || 'male',
-      weight: pet.weight || '',
-      dateOfBirth: pet.dateOfBirth ? pet.dateOfBirth.slice(0, 10) : '',
-      color: pet.color || '',
-      petID: pet.petID || '',
-      specialNeeds: pet.specialNeeds || '',
-      notes: pet.notes || ''
-    });
-    setPetError('');
-    setPetModalOpen(true);
-  };
-
-  const handlePetChange = (e) => {
-    const { name, value } = e.target;
-    setPetForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePetSave = async () => {
-    setPetError('');
-    setPetSaving(true);
+  // Delete profile handler
+  const handleDeleteProfile = async () => {
+    setDeleting(true);
     try {
-      const data = { ...petForm, weight: parseFloat(petForm.weight) };
-      if (editingPet) {
-        await updatePet(editingPet._id, data);
-      } else {
-        await createPet(data);
-      }
-      setPetModalOpen(false);
-      fetchPets();
+      await deleteMyProfile();
+      setDeleteModalOpen(false);
+      setProfile(null);
+      setProfileForm({
+        firstName: '', lastName: '', tel: '', dob: '', gender: '',
+        bio: '', avatar: '',
+        address: { street: '', district: '', city: '', province: '' }
+      });
+      setCompletionInfo(null);
+      setProfileSuccess('Profile deleted successfully. You can create a new one.');
+      setTimeout(() => setProfileSuccess(''), 5000);
     } catch (err) {
-      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to save pet';
-      setPetError(msg);
+      const msg = err.response?.data?.error?.message || 'Failed to delete profile';
+      setProfileError(msg);
     } finally {
-      setPetSaving(false);
+      setDeleting(false);
     }
-  };
-
-  const handleDeletePet = async (petId) => {
-    if (!window.confirm('Are you sure you want to remove this pet?')) return;
-    setDeletingPetId(petId);
-    try {
-      await deletePet(petId);
-      fetchPets();
-    } catch {
-      // ignore
-    } finally {
-      setDeletingPetId(null);
-    }
-  };
-
-  const getPetIcon = (type) => {
-    const found = PET_TYPES.find(p => p.value === type);
-    return found ? found.icon : '🐾';
   };
 
   // ProtectedRoute already handles redirect; just show nothing briefly during transitions
@@ -275,16 +180,7 @@ const ProfilePage = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436]">
-      <Navbar
-        onLoginClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
-        onRegisterClick={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }}
-      />
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        initialMode={authModalMode}
-        onLoginSuccess={() => { setIsAuthModalOpen(false); }}
-      />
+      <Navbar user={user} />
 
       <div className="pt-28 pb-16 px-4 max-w-5xl mx-auto">
         {/* Page header */}
@@ -295,24 +191,8 @@ const ProfilePage = () => {
           <h1 className="text-3xl font-black tracking-tight">My Profile</h1>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white p-1 rounded-2xl shadow-sm mb-8 w-fit">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'profile' ? 'bg-[#FF8C42] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            <User size={18} /> Personal Info
-          </button>
-          <button
-            onClick={() => setActiveTab('pets')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'pets' ? 'bg-[#FF8C42] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
-          >
-            <PawPrint size={18} /> My Pets
-          </button>
-        </div>
-
-        {/* ====== PROFILE TAB ====== */}
-        {activeTab === 'profile' && (
+        {/* ====== PROFILE ====== */}
+        {(
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             {profileLoading ? (
               <div className="flex items-center justify-center py-20">
@@ -425,202 +305,46 @@ const ProfilePage = () => {
                   <Field label="City" name="address.city" value={profileForm.address.city} onChange={handleProfileChange} disabled={!isEditingProfile} placeholder="City" />
                   <Field label="Province" name="address.province" value={profileForm.address.province} onChange={handleProfileChange} disabled={!isEditingProfile} placeholder="Province" />
                 </div>
-              </div>
-            )}
-          </motion.div>
-        )}
 
-        {/* ====== PETS TAB ====== */}
-        {activeTab === 'pets' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            {/* Add button */}
-            <div className="flex justify-between items-center mb-6">
-              <p className="text-slate-500 font-medium">{pets.length} pet{pets.length !== 1 ? 's' : ''} registered</p>
-              <button
-                onClick={openAddPet}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#FF8C42] text-white rounded-xl font-bold text-sm hover:bg-[#e07a35] transition-colors shadow-md"
-              >
-                <Plus size={18} /> Add New Pet
-              </button>
-            </div>
-
-            {petsLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="animate-spin text-[#FF8C42]" size={32} />
-              </div>
-            ) : pets.length === 0 ? (
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-16 text-center">
-                <div className="text-6xl mb-4">🐾</div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">No pets yet</h3>
-                <p className="text-slate-500 mb-6">Add your furry friends to manage their care</p>
-                <button onClick={openAddPet} className="px-6 py-3 bg-[#FF8C42] text-white rounded-xl font-bold hover:bg-[#e07a35] transition-colors">
-                  Add Your First Pet
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pets.map(pet => (
-                  <motion.div
-                    key={pet._id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow group"
-                  >
-                    {/* Pet image */}
-                    <div className="h-44 bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center relative">
-                      {pet.avatar ? (
-                        <img src={pet.avatar} alt={pet.petName} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-7xl">{getPetIcon(pet.petType)}</span>
-                      )}
-                      {/* Action buttons overlay */}
-                      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openEditPet(pet)}
-                          className="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 transition-colors"
-                        >
-                          <Edit3 size={14} className="text-blue-600" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePet(pet._id)}
-                          disabled={deletingPetId === pet._id}
-                          className="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
-                          {deletingPetId === pet._id
-                            ? <Loader2 size={14} className="animate-spin text-red-500" />
-                            : <Trash2 size={14} className="text-red-500" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Pet info */}
-                    <div className="p-5">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-bold text-slate-800">{pet.petName}</h3>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-50 text-[#FF8C42] capitalize">{pet.petType}</span>
-                      </div>
-                      <p className="text-sm text-slate-500 mb-3">{pet.breed}</p>
-                      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                        {pet.age && (
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} /> {pet.age}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1 capitalize">
-                          {pet.gender === 'male' ? '♂' : pet.gender === 'female' ? '♀' : '?'} {pet.gender}
+                {/* Profile Completion Details */}
+                {completionInfo && completionInfo.missingFields && completionInfo.missingFields.length > 0 && (
+                  <div className="mt-8 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                      <AlertTriangle size={16} /> Complete your profile ({completionInfo.completionPercentage}%)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {completionInfo.missingFields.map(field => (
+                        <span key={field} className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
+                          <Circle size={8} /> {field}
                         </span>
-                        {pet.weight && (
-                          <span className="flex items-center gap-1">
-                            ⚖️ {pet.weight} kg
-                          </span>
-                        )}
-                        {pet.color && (
-                          <span className="flex items-center gap-1">
-                            <Palette size={12} /> {pet.color}
-                          </span>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  </motion.div>
-                ))}
+                  </div>
+                )}
+                {completionInfo && completionInfo.isProfileComplete && (
+                  <div className="mt-8 p-5 bg-green-50 border border-green-200 rounded-2xl">
+                    <h3 className="text-sm font-bold text-green-700 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Your profile is 100% complete!
+                    </h3>
+                  </div>
+                )}
+
+                {/* Delete Profile */}
+                {profile && (
+                  <div className="mt-8 pt-6 border-t border-red-100">
+                    <button
+                      onClick={() => setDeleteModalOpen(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 text-red-500 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={16} /> Delete Profile
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>
         )}
       </div>
-
-      {/* ====== PET MODAL ====== */}
-      <AnimatePresence>
-        {petModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-            onClick={() => setPetModalOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-black">{editingPet ? 'Edit Pet' : 'Add New Pet'}</h2>
-                  <button onClick={() => setPetModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {petError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{petError}</div>
-                )}
-
-                <div className="space-y-4">
-                  <Field label="Pet Name *" name="petName" value={petForm.petName} onChange={handlePetChange} placeholder="e.g. Buddy" />
-                  <Field label="Pet ID *" name="petID" value={petForm.petID} onChange={handlePetChange} placeholder="e.g. PET001" disabled={!!editingPet} />
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Pet Type *</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {PET_TYPES.map(t => (
-                        <button
-                          key={t.value}
-                          type="button"
-                          onClick={() => setPetForm(prev => ({ ...prev, petType: t.value }))}
-                          className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-sm font-bold transition-all ${petForm.petType === t.value ? 'border-[#FF8C42] bg-orange-50 text-[#FF8C42]' : 'border-slate-100 hover:border-slate-200'}`}
-                        >
-                          <span className="text-xl">{t.icon}</span>
-                          <span className="text-xs">{t.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Field label="Breed *" name="breed" value={petForm.breed} onChange={handlePetChange} placeholder="e.g. Golden Retriever" />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Gender *</label>
-                      <select
-                        name="gender" value={petForm.gender} onChange={handlePetChange}
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-[#FF8C42] focus:border-transparent outline-none"
-                      >
-                        {GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-                      </select>
-                    </div>
-                    <Field label="Weight (kg) *" name="weight" type="number" value={petForm.weight} onChange={handlePetChange} placeholder="e.g. 12.5" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Date of Birth" name="dateOfBirth" type="date" value={petForm.dateOfBirth} onChange={handlePetChange} />
-                    <Field label="Color" name="color" value={petForm.color} onChange={handlePetChange} placeholder="e.g. Golden" />
-                  </div>
-
-                  <Field label="Special Needs" name="specialNeeds" value={petForm.specialNeeds} onChange={handlePetChange} placeholder="Any special care requirements" />
-                  <Field label="Notes" name="notes" value={petForm.notes} onChange={handlePetChange} placeholder="Additional notes" />
-                </div>
-
-                <div className="flex gap-3 mt-8">
-                  <button
-                    onClick={() => setPetModalOpen(false)}
-                    className="flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePetSave}
-                    disabled={petSaving}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#FF8C42] text-white rounded-xl font-bold text-sm hover:bg-[#e07a35] transition-colors disabled:opacity-50"
-                  >
-                    {petSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {editingPet ? 'Update Pet' : 'Add Pet'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ====== AVATAR MODAL ====== */}
       <AnimatePresence>
@@ -681,6 +405,49 @@ const ProfilePage = () => {
                   >
                     {avatarSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     Save Avatar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ====== DELETE CONFIRMATION MODAL ====== */}
+      <AnimatePresence>
+        {deleteModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDeleteModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle size={28} className="text-red-500" />
+                </div>
+                <h2 className="text-xl font-black mb-2">Delete Profile?</h2>
+                <p className="text-sm text-slate-500 mb-6">
+                  This will permanently remove your profile information. Your account will remain active and you can create a new profile later.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteProfile}
+                    disabled={deleting}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
+                  >
+                    {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    Delete
                   </button>
                 </div>
               </div>

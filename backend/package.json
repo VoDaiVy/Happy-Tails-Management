@@ -18,8 +18,8 @@
         "supertest": "^6.3.3"
     },
     "dependencies": {
-        "@payos/node": "^2.0.5",
         "@google/generative-ai": "^0.24.1",
+        "@payos/node": "^2.0.5",
         "axios": "^1.13.6",
         "bcryptjs": "^2.4.3",
         "cookie-parser": "^1.4.6",
