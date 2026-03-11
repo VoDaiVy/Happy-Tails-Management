@@ -114,10 +114,10 @@ export default function VoucherManagement() {
       }
 
       const response = await getAllVouchers(params);
-      setVouchers(response.data.data.vouchers || []);
+      setVouchers(response.data || []);
       setPagination((prev) => ({
         ...prev,
-        ...response.data.data.pagination,
+        ...(response.pagination || {}),
       }));
     } catch (err) {
       setError(
@@ -143,7 +143,7 @@ export default function VoucherManagement() {
       setDetailLoading(true);
       setShowDetailModal(true);
       const response = await getVoucherById(voucher._id);
-      setSelectedVoucher(response.data.data.voucher);
+      setSelectedVoucher(response.data);
     } catch (err) {
       console.error("Error fetching voucher detail:", err);
       setError("Không thể tải chi tiết voucher");
@@ -262,7 +262,7 @@ export default function VoucherManagement() {
       setShowAIModal(true);
 
       const response = await aiSuggestVoucher();
-      setAiResult(response.data.data.voucher);
+      setAiResult(response.data);
       fetchVouchers(); // Refresh list
     } catch (err) {
       setError(err.response?.data?.message || "AI không thể tạo voucher");

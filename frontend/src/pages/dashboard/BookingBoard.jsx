@@ -162,7 +162,7 @@ const BookingBoard = () => {
         if (selectedDate) params.date = selectedDate;
 
         const response = await getAllBookings(params);
-        let fetchedBookings = response.data?.bookings || [];
+        let fetchedBookings = response.data || [];
 
         // Staff only sees: unassigned pending bookings OR their own accepted bookings
         if (role === "staff" && currentUserId) {

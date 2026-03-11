@@ -105,7 +105,7 @@ export default function TransactionManagement() {
       if (dateRange.end) params.endDate = dateRange.end;
 
       const response = await getAllTransactions(params);
-      const data = response.data.data.transactions || [];
+      const data = response.data || [];
       setTransactions(data);
 
       // Calculate stats
@@ -154,7 +154,7 @@ export default function TransactionManagement() {
       setDetailLoading(true);
       setShowDetailModal(true);
       const response = await getTransactionById(transaction._id);
-      setSelectedTransaction(response.data.data.transaction);
+      setSelectedTransaction(response.data);
     } catch (err) {
       console.error("Error fetching transaction detail:", err);
       setError("Không thể tải chi tiết giao dịch");

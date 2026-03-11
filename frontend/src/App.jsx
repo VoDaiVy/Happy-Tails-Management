@@ -17,6 +17,7 @@ import Service from "./pages/Service";
 import News from "./pages/News";
 import Cart from "./pages/Cart";
 import CartDrawer from "./components/cart/CartDrawer";
+import FloatingChatBubble from "./components/FloatingChatBubble";
 
 function App() {
   return (

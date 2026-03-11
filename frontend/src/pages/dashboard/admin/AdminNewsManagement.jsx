@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { getAllNews, deleteNews as deleteNewsApi, createNews as createNewsApi } from "../../../api/newsApi";
 
 const CustomSelect = ({
   label,
@@ -264,6 +265,9 @@ const AdminNewsManagement = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [newsData, setNewsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [editForm, setEditForm] = useState({
     title: "",
     category: "",
@@ -274,6 +278,41 @@ const AdminNewsManagement = () => {
   const [isEditCatOpen, setIsEditCatOpen] = useState(false);
   const [isEditAudOpen, setIsEditAudOpen] = useState(false);
   const [isEditStatOpen, setIsEditStatOpen] = useState(false);
+
+  // Fetch news data from backend
+  useEffect(() => {
+    fetchNewsData();
+  }, []);
+
+  const fetchNewsData = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllNews();
+      const newsArray = response.data?.news || [];
+      const transformedNews = newsArray.map((item) => ({
+        id: item._id,
+        title: item.title,
+        category: item.category || "General",
+        audience: item.tags?.join(", ") || "All customers",
+        status: item.isPublished ? "Published" : "Draft",
+        date: new Date(item.publishedAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+        views: item.views || 0,
+        img: item.coverImage,
+      }));
+      setNewsData(transformedNews);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch news:", err);
+      setError("Failed to load news");
+      setNewsData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // In-page Toast
   const [toast, setToast] = useState(null);
@@ -316,6 +355,19 @@ const AdminNewsManagement = () => {
     setIsDeleteOpen(true);
   };
 
+  const handleDeleteNews = async () => {
+    if (!selectedNews) return;
+    try {
+      await deleteNewsApi(selectedNews.id);
+      showToast("Article deleted successfully!", "success");
+      setIsDeleteOpen(false);
+      fetchNewsData(); // Refresh the list
+    } catch (err) {
+      console.error("Failed to delete news:", err);
+      showToast("Failed to delete article", "error");
+    }
+  };
+
   // Top Filter States
   const [filterCategory, setFilterCategory] = useState("All Categories");
   const [filterStatus, setFilterStatus] = useState("All Status");
@@ -356,6 +408,83 @@ const AdminNewsManagement = () => {
     "VIP Members",
   ];
   const modalStatOpts = ["Save as Draft", "Publish Now", "Schedule Later"];
+
+  // Map frontend category to backend enum
+  const categoryMap = {
+    "Select Category": "general",
+    "Pet Health": "tips",
+    "Nutrition": "tips",
+    "Promotion": "promotion",
+    "Campaign": "announcement",
+  };
+
+  // Create News Form States
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalContent, setModalContent] = useState("");
+  const [modalCoverImage, setModalCoverImage] = useState("");
+  const [isCreatingNews, setIsCreatingNews] = useState(false);
+
+  const handleCreateNews = async () => {
+    // Validate input
+    if (!modalTitle.trim()) {
+      showToast("Title is required", "error");
+      return;
+    }
+    if (modalCat === "Select Category") {
+      showToast("Please select a category", "error");
+      return;
+    }
+    if (!modalContent.trim()) {
+      showToast("Content is required", "error");
+      return;
+    }
+
+    try {
+      setIsCreatingNews(true);
+      
+      // Map frontend category to backend enum value
+      const backendCategory = categoryMap[modalCat] || "general";
+      
+      // Build form data
+      const newsData = {
+        title: modalTitle.trim(),
+        content: modalContent.trim(),
+        excerpt: modalContent.substring(0, 500).trim(),
+        coverImage: modalCoverImage || null,
+        category: backendCategory,
+        tags: modalAud ? [modalAud.toLowerCase()] : [],
+        images: [],
+        isPublished: modalStat === "Publish Now",
+      };
+
+      console.log("Creating news with data:", newsData);
+      console.log("Backend category mapped from '", modalCat, "' to '", backendCategory, "'");
+      
+      const response = await createNewsApi(newsData);
+      console.log("Create response:", response);
+      
+      showToast("Article created successfully!", "success");
+      setIsModalOpen(false);
+      
+      // Reset form
+      setModalTitle("");
+      setModalContent("");
+      setModalCoverImage("");
+      setModalCat("Select Category");
+      setModalAud("All Customers");
+      setModalStat("Save as Draft");
+      setPublishDate(new Date());
+      
+      // Refresh news list
+      fetchNewsData();
+    } catch (err) {
+      console.error("Error creating news:", err);
+      const errorMessage = err.response?.data?.message || err.message || "Failed to create article";
+      showToast(errorMessage, "error");
+    } finally {
+      setIsCreatingNews(false);
+    }
+  };
 
   // Filter Logic
   const filteredNews = newsData.filter((item) => {
@@ -498,7 +627,18 @@ const AdminNewsManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {filteredNews.length > 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853] mb-4"></div>
+                          <p className="text-sm font-bold text-[#2D3436]">
+                            Loading news...
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredNews.length > 0 ? (
                     filteredNews.map((item, idx) => (
                       <motion.tr
                         initial={{ opacity: 0, y: 10 }}
@@ -509,12 +649,18 @@ const AdminNewsManagement = () => {
                         onClick={() => openDetail(item)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#2D3436]/10 shadow-sm">
-                            <img
-                              src={item.img}
-                              alt={item.title}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            />
+                          <div className="w-14 h-14 rounded-xl overflow-hidden border border-[#2D3436]/10 shadow-sm bg-[#FDFBF7]">
+                            {item.img ? (
+                              <img
+                                src={item.img}
+                                alt={item.title}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[#2D3436]/20">
+                                <FileText size={24} />
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 max-w-[250px]">
@@ -800,11 +946,26 @@ const AdminNewsManagement = () => {
                   <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Cover Thumbnail <span className="text-[#D97853]">*</span>
                   </label>
-                  <div className="w-full h-[180px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-3 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group">
-                    <div className="w-12 h-12 rounded-full bg-[#2D3436]/5 group-hover:bg-white flex items-center justify-center shadow-sm transition-colors">
+                  <div className="w-full h-[180px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-3 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setModalCoverImage(event.target?.result || "");
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full cursor-pointer opacity-0"
+                    />
+                    <div className="w-12 h-12 rounded-full bg-[#2D3436]/5 group-hover:bg-white flex items-center justify-center shadow-sm transition-colors pointer-events-none">
                       <UploadCloud size={24} className="text-[#D97853]" />
                     </div>
-                    <div className="text-center">
+                    <div className="text-center pointer-events-none">
                       <p className="text-sm font-bold text-[#2D3436]">
                         Click to upload or drag & drop
                       </p>
@@ -824,6 +985,8 @@ const AdminNewsManagement = () => {
                     </label>
                     <input
                       type="text"
+                      value={modalTitle}
+                      onChange={(e) => setModalTitle(e.target.value)}
                       placeholder="e.g. 5 Tips to Keep Your Dog Healthy..."
                       className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                     />
@@ -864,6 +1027,8 @@ const AdminNewsManagement = () => {
                     </label>
                     <textarea
                       rows={5}
+                      value={modalContent}
+                      onChange={(e) => setModalContent(e.target.value)}
                       placeholder="Write your article content here..."
                       className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
                     ></textarea>
@@ -910,16 +1075,29 @@ const AdminNewsManagement = () => {
               <div className="px-6 py-4 md:px-8 border-t border-[#2D3436]/10 bg-white flex items-center justify-end gap-3 sticky bottom-0 z-30">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors disabled:opacity-50"
+                  disabled={isCreatingNews}
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                <motion.button
+                  onClick={handleCreateNews}
+                  disabled={isCreatingNews}
+                  whileHover={{ scale: isCreatingNews ? 1 : 1.02 }}
+                  whileTap={{ scale: isCreatingNews ? 1 : 0.98 }}
+                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
-                  <CheckCircle2 size={18} /> Publish Post
-                </button>
+                  {isCreatingNews ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} /> Publish Post
+                    </>
+                  )}
+                </motion.button>
               </div>
             </motion.div>
           </>
@@ -1252,10 +1430,7 @@ const AdminNewsManagement = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    showToast(" Article deleted successfully", "error");
-                    setIsDeleteOpen(false);
-                  }}
+                  onClick={handleDeleteNews}
                   className="bg-red-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(239,68,68,0.3)] hover:bg-red-600 transition-all flex items-center gap-2"
                 >
                   <Trash2 size={16} /> Delete

@@ -18,6 +18,7 @@ import Footer from "../components/layout/Footer";
 import AuthModal from "../components/AuthModal";
 import CartItemCard from "../components/cart/CartItemCard";
 import useCartStore from "../store/cartStore";
+import { getMyPets } from "../api/petApi";
 
 /* ─── constants ─────────────────────── */
 const TAX_RATE = 0.08;
@@ -199,6 +200,9 @@ const Cart = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
   const [toast, setToast] = useState(null);
+  const [pets, setPets] = useState([]);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState(null);
 
   const {
     cart,
@@ -216,6 +220,29 @@ const Cart = () => {
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
+
+  /* fetch user's pets */
+  useEffect(() => {
+    if (user) {
+      fetchPets();
+    }
+  }, [user]);
+
+  const fetchPets = async () => {
+    try {
+      setPetsLoading(true);
+      const response = await getMyPets({ limit: 50 });
+      setPets(response.data || []);
+      // Auto-select first pet if available
+      if (response.data && response.data.length > 0) {
+        setSelectedPetId(response.data[0]._id);
+      }
+    } catch (err) {
+      console.error("Error fetching pets:", err);
+    } finally {
+      setPetsLoading(false);
+    }
+  };
 
   /* auto-dismiss toast */
   useEffect(() => {
@@ -359,24 +386,52 @@ const Cart = () => {
                     Select Your Pet
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { name: "Bella", breed: "Golden Retriever", emoji: "🐕" },
-                      { name: "Milo", breed: "Cat", emoji: "🐈" },
-                    ].map((pet) => (
-                      <button
-                        key={pet.name}
-                        className="flex items-center gap-2 px-3 py-2 bg-[#F5F1EB] hover:bg-[#E07A5F]/10 border-2 border-transparent hover:border-[#E07A5F]/30 rounded-xl transition-all text-sm font-semibold text-[#1F2A37]"
-                      >
-                        <span>{pet.emoji}</span>
-                        <span>{pet.name}</span>
-                        <span className="text-xs text-slate-400 font-normal">
-                          — {pet.breed}
-                        </span>
-                      </button>
-                    ))}
-                    <button className="flex items-center gap-1.5 px-3 py-2 border-2 border-dashed border-slate-200 hover:border-[#E07A5F]/40 rounded-xl text-slate-400 hover:text-[#E07A5F] transition-all text-sm font-semibold">
-                      + Add pet
-                    </button>
+                    {petsLoading ? (
+                      <div className="text-sm text-slate-400">Loading pets...</div>
+                    ) : pets.length > 0 ? (
+                      <>
+                        {pets.map((pet) => {
+                          const petTypeEmoji = {
+                            dog: "🐕",
+                            cat: "🐈",
+                            bird: "🐦",
+                            rabbit: "🐰",
+                            hamster: "🐹",
+                            fish: "🐠",
+                            other: "🐾",
+                          }[pet.petType?.toLowerCase()] || "🐾";
+
+                          const isSelected = selectedPetId === pet._id;
+                          return (
+                            <button
+                              key={pet._id}
+                              onClick={() => setSelectedPetId(pet._id)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm font-semibold ${
+                                isSelected
+                                  ? "bg-[#E07A5F]/15 border-2 border-[#E07A5F] text-[#E07A5F]"
+                                  : "bg-[#F5F1EB] hover:bg-[#E07A5F]/10 border-2 border-transparent hover:border-[#E07A5F]/30 text-[#1F2A37]"
+                              }`}
+                            >
+                              <span>{petTypeEmoji}</span>
+                              <span>{pet.petName}</span>
+                              <span className="text-xs text-slate-400 font-normal">
+                                — {pet.breed || "Unknown"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        <button className="flex items-center gap-1.5 px-3 py-2 border-2 border-dashed border-slate-200 hover:border-[#E07A5F]/40 rounded-xl text-slate-400 hover:text-[#E07A5F] transition-all text-sm font-semibold">
+                          + Add pet
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-sm text-slate-400">
+                        No pets found.{" "}
+                        <Link to="/profile" className="text-[#E07A5F] hover:underline">
+                          Add your first pet
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
 

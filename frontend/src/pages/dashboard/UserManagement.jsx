@@ -106,7 +106,7 @@ const UserManagement = () => {
         }
 
         const response = await getUsersList(params);
-        setUsers(response.data?.users || response.data || []);
+        setUsers(response.data || []);
 
         if (response.pagination) {
           setPagination((prev) => ({

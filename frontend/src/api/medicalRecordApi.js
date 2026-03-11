@@ -1,4 +1,5 @@
 import axiosInstance from "./axiosInstance";
+import { normalizeResponse } from "../utils/apiResponseHandler";
 
 /**
  * Medical Record API
@@ -8,11 +9,18 @@ import axiosInstance from "./axiosInstance";
 // Get all medical records (Admin/Staff)
 export const getAllMedicalRecords = async (params = {}) => {
   const response = await axiosInstance.get("/medical-records", { params });
-  return response;
+  const normalized = normalizeResponse(response);
+  return {
+    data: normalized.data?.records || normalized.data || [],
+    pagination: normalized.data?.pagination || normalized.pagination,
+  };
 };
 
 // Get medical record by ID
 export const getMedicalRecordById = async (id) => {
   const response = await axiosInstance.get(`/medical-records/${id}`);
-  return response;
+  const normalized = normalizeResponse(response);
+  return {
+    data: normalized.data?.record || normalized.data,
+  };
 };

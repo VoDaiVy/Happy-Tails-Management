@@ -95,7 +95,7 @@ const RoomManagement = () => {
       params.isActive = "all";
 
       const response = await getRoomsList(params);
-      setRooms(response.data?.rooms || []);
+      setRooms(response.data || []);
     } catch (err) {
       setError(err.response?.data?.message || "Không thể tải danh sách phòng");
     } finally {

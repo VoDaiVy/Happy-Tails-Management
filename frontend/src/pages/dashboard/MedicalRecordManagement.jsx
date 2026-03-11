@@ -81,10 +81,10 @@ export default function MedicalRecordManagement() {
       }
 
       const response = await getAllMedicalRecords(params);
-      setRecords(response.data.data.records || []);
+      setRecords(response.data || []);
       setPagination((prev) => ({
         ...prev,
-        ...response.data.data.pagination,
+        ...(response.pagination || {}),
       }));
     } catch (err) {
       setError(
@@ -126,7 +126,7 @@ export default function MedicalRecordManagement() {
       setDetailLoading(true);
       setShowDetailModal(true);
       const response = await getMedicalRecordById(record._id);
-      setSelectedRecord(response.data.data.record);
+      setSelectedRecord(response.data);
     } catch (err) {
       console.error("Error fetching record detail:", err);
       setError("Không thể tải chi tiết bệnh án");
