@@ -320,98 +320,13 @@ const spaServices = [
   },
 ];
 
-const veterinaryServicesData = [
-  {
-    id: "diagnostics",
-    icon: <Activity size={16} />,
-    title: "Diagnostics",
-    desc: "State-of-the-art imaging and laboratory testing for accurate health assessments.",
-    img: "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=400",
-    priceRange: "$8 – $30",
-    items: [
-      { name: "General Health Check", price: "$8" },
-      { name: "Blood Test", price: "$15" },
-      { name: "X-ray Imaging", price: "$25" },
-      { name: "Ultrasound Scan", price: "$30" },
-    ],
-  },
-  {
-    id: "preventive",
-    icon: <Shield size={16} />,
-    title: "Preventive Care",
-    desc: "Comprehensive wellness exams, vaccinations, and parasite prevention plans.",
-    img: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
-    priceRange: "$6 – $18",
-    items: [
-      { name: "Vaccination", price: "$10" },
-      { name: "Deworming", price: "$6" },
-      { name: "Flea & Tick Treatment", price: "$12" },
-      { name: "Wellness Exam", price: "$18" },
-    ],
-  },
-  {
-    id: "medical",
-    icon: <Stethoscope size={16} />,
-    title: "Medical Treatment",
-    desc: "Expert care for acute illnesses and management of chronic conditions.",
-    img: "https://images.unsplash.com/photo-1576201836106-db1758fd1c97?auto=format&fit=crop&q=80&w=400",
-    priceRange: "$12 – $35",
-    items: [
-      { name: "Skin Treatment", price: "$15" },
-      { name: "Digestive Treatment", price: "$18" },
-      { name: "IV Fluid Therapy", price: "$25" },
-      { name: "Infection Treatment", price: "$35" },
-    ],
-  },
-  {
-    id: "surgery",
-    icon: <Scissors size={16} />,
-    title: "Surgery",
-    desc: "Advanced surgical procedures performed in our sterile, fully-equipped suites.",
-    img: "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&q=80&w=400",
-    priceRange: "$40 – $120",
-    items: [
-      { name: "Neutering / Spaying", price: "$60" },
-      { name: "Minor Surgery", price: "$40" },
-      { name: "Tumor Removal", price: "$90" },
-      { name: "Advanced Surgery", price: "$120" },
-    ],
-  },
-  {
-    id: "dentistry",
-    icon: <Smile size={16} />,
-    title: "Veterinary Dentistry",
-    desc: "Professional dental cleaning, extractions, and oral health maintenance.",
-    img: "/dentalcleanning.jpg",
-    priceRange: "$15 – $40",
-    items: [
-      { name: "Dental Cleaning", price: "$20" },
-      { name: "Tartar Removal", price: "$25" },
-      { name: "Tooth Extraction", price: "$40" },
-    ],
-  },
-  {
-    id: "emergency",
-    icon: <Heart size={16} />,
-    title: "Emergency Care",
-    desc: "Rapid response medical attention for critical and life-threatening situations.",
-    img: "https://images.unsplash.com/photo-1584813470613-5b1c1cad3d69?auto=format&fit=crop&q=80&w=400",
-    priceRange: "$12 – $50",
-    items: [
-      { name: "Emergency Consultation", price: "$12" },
-      { name: "Emergency Treatment", price: "$30" },
-      { name: "Critical Stabilization", price: "$50" },
-    ],
-  },
-];
-
 const ServicePage = () => {
   const navigate = useNavigate();
   const [category, setCategory] = useState("All Categories");
   const [sortBy, setSortBy] = useState("Default");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpa, setActiveSpa] = useState(0);
-  const [expandedVetCard, setExpandedVetCard] = useState(null);
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
   const [user, setUser] = useState(() => {
@@ -492,7 +407,6 @@ const ServicePage = () => {
             return catName.includes("ai") || catName.includes("health scan");
           if (category === "Spa & Grooming")
             return catName.includes("spa") || catName.includes("groom");
-          if (category === "Veterinary") return catName.includes("vet");
           if (category === "Boarding") return catName.includes("board");
           return false;
         });
@@ -604,7 +518,6 @@ const ServicePage = () => {
                     "All Categories",
                     "AI Health",
                     "Spa & Grooming",
-                    "Veterinary",
                     "Boarding",
                   ]}
                   selected={category}
@@ -923,168 +836,6 @@ const ServicePage = () => {
               </div>
             </section>
 
-            {/* VETERINARY SERVICES */}
-            <div
-              id="veterinary"
-              className="w-[100vw] relative left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#FFF5F2] py-10 overflow-hidden order-1 mt-2 mb-6"
-            >
-              {/* Subtle Paw Pattern */}
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTIwIDIwaDV2NUgyMHoiIGZpbGw9InJnYmEoMjI0LCAxMjIsIDk1LCAwLjA1KSIvPjwvc3ZnPg==')] opacity-100 z-0 pointer-events-none"></div>
-
-              <section className="relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4">
-                {/* Combined Header & Feature Block with Animation - No White Box Mode */}
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.6 }}
-                  className="flex flex-col md:flex-row items-stretch gap-10 lg:gap-16 mb-14"
-                >
-                  <div className="w-full md:w-[48%] relative min-h-[350px] lg:min-h-[450px] md:min-h-auto rounded-[24px] overflow-hidden shadow-[0_15px_40px_rgba(224,122,95,0.15)] border border-[#E07A5F]/30">
-                    <img
-                      src="/Veterinary.jpg"
-                      alt="Veterinary Services"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#E07A5F]/80 via-transparent to-transparent opacity-80" />
-                    <div className="absolute bottom-6 left-6 right-6 text-white text-[12px] font-bold tracking-widest uppercase flex items-center gap-2 drop-shadow-md">
-                      <Shield size={16} className="text-white" /> Trusted Pet
-                      Care
-                    </div>
-                  </div>
-
-                  <div className="w-full md:w-[52%] flex flex-col justify-center py-2 lg:py-6">
-                    <div className="inline-flex items-center gap-2 border border-[#E07A5F]/30 bg-white shadow-sm text-[#E07A5F] px-4 py-1.5 rounded-full font-bold text-[11px] uppercase tracking-widest mb-5 w-fit">
-                      <Activity size={14} /> Modern Clinical Excellence
-                    </div>
-                    <h2 className="text-4xl md:text-5xl font-serif font-black text-[#1F2A37] mb-4">
-                      Veterinary Services
-                    </h2>
-                    <p className="text-[#1F2A37]/70 text-[14px] md:text-[15px] leading-relaxed mb-8 max-w-[95%]">
-                      Compassionate, evidence-based care for your pet's lifelong
-                      health. Our hospital is equipped with the latest
-                      diagnostic technology to provide the highest standard of
-                      medical care perfectly tailored to them.
-                    </p>
-
-                    <ul className="space-y-4 mb-8">
-                      {[
-                        "Modern diagnostic equipment",
-                        "Certified veterinarians",
-                        "Preventive wellness programs",
-                        "24/7 emergency support",
-                      ].map((item, i) => (
-                        <li
-                          key={i}
-                          className="flex items-center gap-3 text-[14px] font-semibold text-[#1F2A37]"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-white shadow-sm border border-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                            <CheckCircle size={14} />
-                          </div>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="bg-[#E07A5F] text-white px-7 py-4 rounded-full font-bold text-[14px] hover:bg-[#c56a52] transition-colors shadow-lg w-max flex items-center gap-2 mt-2"
-                    >
-                      <Calendar size={18} /> Book Veterinary Appointment
-                    </motion.button>
-                  </div>
-                </motion.div>
-
-                {/* Service Cards Grid - Expandable */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-                  {veterinaryServicesData.map((service, idx) => {
-                    const isExpanded = expandedVetCard === idx;
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() =>
-                          setExpandedVetCard(isExpanded ? null : idx)
-                        }
-                        className="bg-white rounded-[20px] p-4 md:p-5 flex flex-col group cursor-pointer hover:bg-[#FDF9F8] transition-colors duration-300 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_25px_rgba(224,122,95,0.08)] border border-[#1F2A37]/5 hover:border-[#E07A5F]/30 relative overflow-hidden"
-                      >
-                        {/* Top Section / Header */}
-                        <div className="flex gap-3 md:gap-4 items-center w-full">
-                          <div className="w-[60px] h-[60px] md:w-[70px] md:h-[70px] rounded-[12px] overflow-hidden shrink-0 shadow-sm relative">
-                            <img
-                              src={service.img}
-                              alt={service.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                            />
-                          </div>
-                          <div className="flex flex-col justify-center flex-grow">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-1.5 md:gap-2">
-                                <div className="w-5 h-5 md:w-6 md:h-6 rounded-md bg-[#E07A5F]/10 text-[#E07A5F] flex items-center justify-center shrink-0">
-                                  {React.cloneElement(service.icon, {
-                                    size: 14,
-                                  })}
-                                </div>
-                                <h4 className="font-bold text-[#1F2A37] text-[13px] md:text-[14px] group-hover:text-[#E07A5F] transition-colors">
-                                  {service.title}
-                                </h4>
-                              </div>
-                              <div
-                                className={`bg-[#E07A5F]/10 text-[#E07A5F] px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-[10px] md:text-[11px] font-bold tracking-wide flex items-center gap-1 md:gap-1.5 shrink-0 transition-all ${isExpanded ? "bg-[#E07A5F] text-white shadow-md" : ""}`}
-                              >
-                                {service.priceRange}
-                                <ChevronDown
-                                  size={14}
-                                  className={`transition-transform duration-300 ${isExpanded ? "rotate-180 text-white" : "text-[#E07A5F]"}`}
-                                />
-                              </div>
-                            </div>
-                            <p className="text-[11px] md:text-[12px] text-[#1F2A37]/60 leading-snug pr-1 md:pr-2">
-                              {service.desc}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Expanded Details Section */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.35, ease: "easeInOut" }}
-                              className="w-full mt-4 overflow-hidden"
-                            >
-                              <div className="border-t border-[#1F2A37]/5 pt-3 pb-1">
-                                <ul className="space-y-1">
-                                  {service.items.map((item, itemIdx) => (
-                                    <li
-                                      key={itemIdx}
-                                      className="flex items-center justify-between py-1.5 px-2 hover:bg-[#E07A5F]/5 rounded-lg transition-colors group/item"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-[#7FB069]/40 group-hover/item:bg-[#E07A5F]/60 transition-colors"></span>
-                                        <span className="text-[12px] font-semibold text-[#1F2A37]/80 group-hover/item:text-[#1F2A37] transition-colors">
-                                          {item.name}
-                                        </span>
-                                      </div>
-                                      <span className="text-[12px] font-bold text-[#E07A5F] border-b border-dashed border-[#E07A5F]/30 pb-0.5">
-                                        {item.price}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            </div>
-
             {/* PREMIUM SPA & GROOMING SHOWCASE */}
             <section
               id="spa-grooming"
@@ -1201,7 +952,29 @@ const ServicePage = () => {
                               <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
                                 {service.price}
                               </span>
-                              <button className="px-3 py-1.5 bg-white text-[#1F2A37] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#F5F2EB] shadow-sm transition-colors">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate("/service-detail", {
+                                    state: {
+                                      service: {
+                                        name: service.title,
+                                        description: service.description,
+                                        price: service.price,
+                                        category: "Spa & Grooming",
+                                        image: service.image,
+                                        benefits: [
+                                          "Hypoallergenic products",
+                                          "Professional certified groomer",
+                                          "Pet-safe equipment",
+                                          "Post-service report",
+                                        ],
+                                      },
+                                    },
+                                  });
+                                }}
+                                className="px-3 py-1.5 bg-white text-[#1F2A37] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#F5F2EB] shadow-sm transition-colors"
+                              >
                                 Book Service
                               </button>
                             </motion.div>
@@ -1241,8 +1014,9 @@ const ServicePage = () => {
                 <div className="grid md:grid-cols-2 gap-8 mb-14">
                   {/* Standard Room */}
                   <div
-                    onClick={() => navigate('/service/standard-room')}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-300 relative flex flex-col cursor-pointer">
+                    onClick={() => navigate("/service/standard-room")}
+                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-300 relative flex flex-col cursor-pointer"
+                  >
                     <div className="relative h-48 bg-gray-800 overflow-hidden">
                       <img
                         src="/standard.webp"
@@ -1307,8 +1081,9 @@ const ServicePage = () => {
 
                   {/* VIP Penthouse */}
                   <div
-                    onClick={() => navigate('/service/vip-penthouse')}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-300 flex flex-col cursor-pointer">
+                    onClick={() => navigate("/service/vip-penthouse")}
+                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-300 flex flex-col cursor-pointer"
+                  >
                     <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/10 via-transparent to-transparent pointer-events-none z-10"></div>
                     <div className="relative h-48 bg-gray-800 overflow-hidden">
                       <img
