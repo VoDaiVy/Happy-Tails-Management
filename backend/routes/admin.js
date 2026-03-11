@@ -73,4 +73,9 @@ router.get('/transactions/export', exportTransactions);  // GET /api/admin/trans
 router.get('/transactions', getSystemTransactions);  // GET /api/admin/transactions - List all transactions
 router.get('/transactions/:id', getTransactionByIdAdmin);  // GET /api/admin/transactions/:id - Get any transaction detail
 
+// ==================== NOTIFICATION MANAGEMENT ====================
+
+router.post('/notifications/send', require('../controllers/adminController').sendNotification);  // POST /api/admin/notifications/send - Send to specific user or all
+router.post('/notifications/broadcast', require('../controllers/adminController').broadcastNotification);  // POST /api/admin/notifications/broadcast - Broadcast to filtered users
+
 module.exports = router;

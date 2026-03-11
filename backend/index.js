@@ -3,6 +3,7 @@
  * Main entry point with security middleware and authentication
  */
 
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -10,6 +11,7 @@ const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const hpp = require("hpp");
+const { initSocket } = require("./config/socket");
 
 // Load environment variables FIRST
 dotenv.config();
@@ -184,14 +186,21 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
 
-    // Start server
-    const server = app.listen(port, () => {
+    // Wrap Express app in a native HTTP server so Socket.IO can attach to it
+    const httpServer = http.createServer(app);
+
+    // Initialize Socket.IO AFTER creating httpServer
+    initSocket(httpServer);
+
+    // Start listening
+    httpServer.listen(port, () => {
       logger.info(`🚀 Server running on http://localhost:${port}`);
       logger.info(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
+      logger.info(`🔌 Socket.IO ready`);
     });
 
     // Handle unhandled promise rejections
-    handleUnhandledRejection(server);
+    handleUnhandledRejection(httpServer);
 
   } catch (error) {
     logger.error("Failed to start server", { error: error.message });
