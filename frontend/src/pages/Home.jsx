@@ -226,14 +226,16 @@ const Home = () => {
             </motion.div>
 
             <div className="md:col-span-1 flex flex-col gap-6">
-              <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#2D3436] rounded-[2.5rem] p-6 flex flex-col justify-center text-white relative overflow-hidden cursor-pointer">
-                 <div className="relative z-10">
-                   <Activity className="text-[#D97853] mb-3" size={28} />
-                   <h3 className="text-xl font-bold mb-1">AI Health Scan</h3>
-                   <p className="text-gray-400 text-xs">Instant dermatology and mood analysis.</p>
-                 </div>
-                 <div className="absolute right-0 bottom-0 opacity-10"><Activity size={100}/></div>
-              </motion.div>
+              <Link to="/ai-health-scan">
+                <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#2D3436] rounded-[2.5rem] p-6 flex flex-col justify-center text-white relative overflow-hidden cursor-pointer">
+                  <div className="relative z-10">
+                    <Activity className="text-[#D97853] mb-3" size={28} />
+                    <h3 className="text-xl font-bold mb-1">AI Health Scan</h3>
+                    <p className="text-gray-400 text-xs">Instant dermatology and mood analysis.</p>
+                  </div>
+                  <div className="absolute right-0 bottom-0 opacity-10"><Activity size={100}/></div>
+                </motion.div>
+              </Link>
               
               <motion.div whileHover={{ scale: 0.98 }} className="flex-1 bg-[#F5E6CA] rounded-[2.5rem] p-6 flex flex-col justify-center text-[#2D3436] cursor-pointer">
                  <Heart className="text-[#D97853] mb-3" size={28} />
@@ -316,10 +318,10 @@ const Home = () => {
             <div className="md:col-span-2">
               <h4 className="text-sm font-black uppercase tracking-wider text-[#2D3436] mb-5">Services</h4>
               <ul className="space-y-3 text-sm">
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</a></li>
-                <li><a href="#" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</a></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Organic Spa</Link></li>
+                <li><Link to="/ai-health-scan" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">AI Health Scan</Link></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Luxury Boarding</Link></li>
+                <li><Link to="/service" className="text-[#2D3436]/60 hover:text-[#D97853] transition-colors">Styling and Groom</Link></li>
               </ul>
             </div>
 

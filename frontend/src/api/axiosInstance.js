@@ -42,6 +42,7 @@ axiosInstance.interceptors.response.use(
       !isAuthEndpoint
     ) {
       originalRequest._retry = true;
+      console.log('🔄 Token expired, attempting refresh...');
 
       try {
         const { data } = await axios.post(
@@ -51,14 +52,31 @@ axiosInstance.interceptors.response.use(
         );
 
         const newAccessToken = data.data.tokens.accessToken;
+        console.log('✅ Token refreshed successfully');
         localStorage.setItem("accessToken", newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
+        // Retry the original request with new token
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+<<<<<<< HEAD
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
         window.location.href = "/login";
+=======
+        console.error('❌ Refresh token failed:', {
+          status: refreshError.response?.status,
+          message: refreshError.response?.data?.message
+        });
+        
+        // Only logout if refresh token is truly invalid (401/403)
+        if (refreshError.response?.status === 401 || refreshError.response?.status === 403) {
+          console.log('🚪 Logging out due to invalid refresh token');
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+          window.location.href = "/";
+        }
+>>>>>>> main
         return Promise.reject(refreshError);
       }
     }

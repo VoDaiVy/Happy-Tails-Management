@@ -201,24 +201,45 @@ exports.chatWithAI = catchAsync(async (req, res, next) => {
     return next(new AppError('Message is required', 400, 'MESSAGE_REQUIRED'));
   }
 
-  // System prompt
+  // Get current time in Vietnam timezone
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  
+  const timeContext = `[Context: Current time is ${currentHour}:${currentMinute.toString().padStart(2, '0')}, ${currentDay}/${currentMonth}/${currentYear}]`;
+
+  // System prompt - multilingual support
   const systemPrompt = {
     role: 'system',
-    content: `Bạn là chuyên gia chăm sóc thú cưng của tiệm Happy Tails Pet Care & Spa. 
-Nhiệm vụ của bạn:
-- Tư vấn về chăm sóc sức khỏe, dinh dưỡng, huấn luyện thú cưng
-- Giải đáp thắc mắc về dịch vụ spa, grooming, boarding
-- Đưa ra lời khuyên chuyên nghiệp, thân thiện và dễ hiểu
-- Luôn đề xuất khách hàng đặt lịch nếu cần dịch vụ chuyên sâu
+    content: `You are an AI pet care assistant for Happy Tails Pet Care & Spa.
 
-Hãy trả lời bằng tiếng Việt, giọng điệu ấm áp và chuyên nghiệp.`
+CURRENT TIME INFORMATION:
+- Current year: ${currentYear}
+- Current month: ${currentMonth}  
+- Current day: ${currentDay}
+- Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')}
+
+WHEN ASKED ABOUT TIME: Use the exact numbers above, DO NOT make up different times.
+
+Your responsibilities:
+- Provide advice on pet health care, nutrition, and training
+- Answer questions about spa, grooming, and boarding services
+- Give professional and friendly recommendations
+
+IMPORTANT: Respond in the SAME LANGUAGE as the user's question. If they ask in Vietnamese, respond in Vietnamese. If they ask in English, respond in English. Always use a warm and caring tone.`
   };
+
+  // Add time context to user message
+  const userMessageWithContext = `${timeContext}\n\n${message}`;
 
   // Build messages array
   const messages = [
     systemPrompt,
-    ...conversationHistory.slice(-10), // Last 10 messages for context
-    { role: 'user', content: message }
+    ...conversationHistory.slice(-10),
+    { role: 'user', content: userMessageWithContext }
   ];
 
   const aiResponse = await callAI(messages);
@@ -238,26 +259,38 @@ Hãy trả lời bằng tiếng Việt, giọng điệu ấm áp và chuyên ngh
  * @access Private
  */
 exports.diagnoseImage = catchAsync(async (req, res, next) => {
-  const { imageUrl, petId, symptoms } = req.body;
+  const { petId, symptoms } = req.body;
 
-  if (!imageUrl) {
-    return next(new AppError('Image URL is required', 400, 'IMAGE_URL_REQUIRED'));
+  // Check if file is uploaded
+  if (!req.file) {
+    return next(new AppError('Image file is required', 400, 'IMAGE_FILE_REQUIRED'));
   }
 
+  // Convert image buffer to base64 data URL
+  const base64Image = req.file.buffer.toString('base64');
+  const mimeType = req.file.mimetype;
+  const imageDataUrl = `data:${mimeType};base64,${base64Image}`;
+
+  // Detect language from symptoms (Vietnamese has diacritics)
+  const isVietnamese = symptoms && /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(symptoms);
+  
   // Get pet info if provided
   let petInfo = '';
   if (petId) {
     const pet = await UserPet.findOne({ _id: petId, userID: req.user.id });
     if (pet) {
-      petInfo = `Thông tin thú cưng: ${pet.name}, ${pet.species}, ${pet.breed}, ${pet.age} tháng tuổi, ${pet.weight}kg. `;
+      if (isVietnamese) {
+        petInfo = `Thông tin thú cưng: ${pet.name}, ${pet.species}, ${pet.breed}, ${pet.age} tháng tuổi, ${pet.weight}kg. `;
+      } else {
+        petInfo = `Pet information: ${pet.name}, ${pet.species}, ${pet.breed}, ${pet.age} months old, ${pet.weight}kg. `;
+      }
     }
   }
 
-  const messages = [
-    {
-      role: 'system',
-      content: `Bạn là bác sĩ thú y chuyên nghiệp. Phân tích hình ảnh và đưa ra chẩn đoán sơ bộ.
-QUAN TRỌNG: Trả về kết quả dưới dạng JSON với cấu trúc:
+  // Build system prompt based on language
+  const systemPrompt = isVietnamese ? 
+    `Bạn là bác sĩ thú y chuyên nghiệp. Phân tích hình ảnh và đưa ra chẩn đoán sơ bộ.
+QUAN TRỌNG: Trả về kết quả bằng TIẾNG VIỆT dưới dạng JSON với cấu trúc:
 {
   "symptoms": "Mô tả các triệu chứng quan sát được",
   "severity": "low/medium/high",
@@ -265,18 +298,37 @@ QUAN TRỌNG: Trả về kết quả dưới dạng JSON với cấu trúc:
   "advice": "Lời khuyên cụ thể",
   "urgency": "Có cần đến phòng khám ngay không? (yes/no)",
   "recommendedServices": ["Tên dịch vụ phù hợp"]
-}`
+}` :
+    `You are a professional veterinarian. Analyze the image and provide a preliminary diagnosis.
+IMPORTANT: Return the result in ENGLISH as JSON format with this structure:
+{
+  "symptoms": "Description of observed symptoms",
+  "severity": "low/medium/high",
+  "possibleConditions": ["Condition 1", "Condition 2"],
+  "advice": "Specific advice",
+  "urgency": "Is immediate vet visit needed? (yes/no)",
+  "recommendedServices": ["Suitable service names"]
+}`;
+
+  const userPrompt = isVietnamese ?
+    `${petInfo}${symptoms ? 'Triệu chứng bổ sung: ' + symptoms : ''}\n\nHãy phân tích hình ảnh này và đưa ra chẩn đoán.` :
+    `${petInfo}${symptoms ? 'Additional symptoms: ' + symptoms : ''}\n\nPlease analyze this image and provide a diagnosis.`;
+
+  const messages = [
+    {
+      role: 'system',
+      content: systemPrompt
     },
     {
       role: 'user',
       content: [
         {
           type: 'text',
-          text: `${petInfo}${symptoms ? 'Triệu chứng bổ sung: ' + symptoms : ''}\n\nHãy phân tích hình ảnh này và đưa ra chẩn đoán.`
+          text: userPrompt
         },
         {
           type: 'image_url',
-          image_url: { url: imageUrl }
+          image_url: { url: imageDataUrl }
         }
       ]
     }
@@ -306,7 +358,8 @@ QUAN TRỌNG: Trả về kết quả dưới dạng JSON với cấu trúc:
     status: 'success',
     data: {
       diagnosis,
-      imageUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
       analyzedAt: new Date().toISOString()
     }
   });

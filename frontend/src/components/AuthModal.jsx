@@ -57,6 +57,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     };
   }, [isOpen]);
 
+  // Sync mode with initialMode prop
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
+
   // Reset login form every time modal opens
   useEffect(() => {
     if (isOpen) {
