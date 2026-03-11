@@ -182,7 +182,7 @@ const handlePayOSWebhook = async (webhookBody) => {
 };
 
 /**
- * Get transaction history for user
+ * Get transaction history for user (enhanced version)
  * @param {ObjectId} userId - User ID
  * @param {Object} query - Query params
  * @returns {Promise<Object>} Transactions with pagination
@@ -200,42 +200,78 @@ const getTransactions = async (userId, query = {}) => {
     sortOrder = 'desc'
   } = query;
   
-  // Build filter
-  const filter = { userId };
+  // Step 1: Build filter
+  const filter = { userId: new mongoose.Types.ObjectId(userId) };
   
   if (type) filter.type = type;
   if (status) filter.status = status;
   if (method) filter.method = method;
   
+  // Date range filter with proper time boundaries
   if (from || to) {
     filter.createdAt = {};
-    if (from) filter.createdAt.$gte = new Date(from);
-    if (to) filter.createdAt.$lte = new Date(to);
+    if (from) filter.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+    if (to) filter.createdAt.$lte = new Date(to + 'T23:59:59.999Z');
   }
   
-  // Calculate pagination
-  const skip = (page - 1) * limit;
-  const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+  // Step 2: Build sort
+  const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
   
-  // Execute queries
+  // Step 3: Paginate
+  const skip = (page - 1) * limit;
+  
+  // Step 4: Execute queries in parallel
   const [transactions, total] = await Promise.all([
     Transaction.find(filter)
+      .select('transactionCode type method amount balanceBefore balanceAfter status referenceId note failureReason createdAt')
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .select('-metadata -__v'),
+      .lean(),
     Transaction.countDocuments(filter)
   ]);
+  
+  // Step 5: Return with enhanced pagination
+  const totalPages = Math.ceil(total / limit);
   
   return {
     data: transactions,
     pagination: {
+      total,
       page: parseInt(page),
       limit: parseInt(limit),
-      total,
-      totalPages: Math.ceil(total / limit)
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1
     }
   };
+};
+
+/**
+ * Get transaction by ID (user can only see their own)
+ * @param {ObjectId} userId - User ID from JWT
+ * @param {string} transactionId - Transaction ID
+ * @returns {Promise<Object>} Transaction document
+ */
+const getTransactionById = async (userId, transactionId) => {
+  // Validate transactionId is valid ObjectId
+  if (!mongoose.Types.ObjectId.isValid(transactionId)) {
+    throw createError.badRequest('Invalid transaction ID format');
+  }
+  
+  // Find transaction - userId check ensures user can ONLY see their own transactions
+  const transaction = await Transaction.findOne({
+    _id: transactionId,
+    userId: new mongoose.Types.ObjectId(userId)
+  })
+    .populate('walletId', 'balance currency')
+    .lean();
+  
+  if (!transaction) {
+    throw createError.notFound('Transaction not found');
+  }
+  
+  return transaction;
 };
 
 /**
@@ -318,5 +354,6 @@ module.exports = {
   deposit,
   handlePayOSWebhook,
   getTransactions,
+  getTransactionById,
   handlePayOSReturn
 };

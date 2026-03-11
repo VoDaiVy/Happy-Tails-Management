@@ -5,13 +5,15 @@
  * ❌ REMOVED: withdraw controller, checkoutWithWallet (moved to cart)
  * ✅ UPDATED: deposit controller (PayOS only, returns qrCode)
  * ✅ UPDATED: handlePayOSReturn (cleaner response)
+ * ✅ ADDED: getTransactionById (UC-26)
  * ⚠️ NOTE: Checkout is now handled by /api/cart/checkout
  */
 
 const walletService = require('../services/wallet.service');
 const {
   depositSchema,
-  getTransactionsQuerySchema
+  getTransactionsQuerySchema,
+  transactionIdParamSchema
 } = require('../validations/wallet.validation');
 const { catchAsync } = require('../utils/catchAsync');
 const { createError } = require('../utils/AppError');
@@ -91,6 +93,26 @@ const getTransactions = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get transaction by ID
+ * GET /api/wallet/transactions/:id
+ */
+const getTransactionById = catchAsync(async (req, res) => {
+  // Validate transaction ID param
+  const { error: paramError } = transactionIdParamSchema.validate(req.params, { abortEarly: false });
+  if (paramError) {
+    throw createError.badRequest('Invalid transaction ID format');
+  }
+  
+  const transaction = await walletService.getTransactionById(req.user._id, req.params.id);
+  
+  res.status(200).json({
+    success: true,
+    message: 'Transaction fetched successfully',
+    data: transaction
+  });
+});
+
+/**
  * Handle PayOS webhook
  * POST /api/wallet/payos/webhook
  * NOTE: This is a PUBLIC endpoint - NO JWT auth
@@ -141,6 +163,7 @@ module.exports = {
   getWallet,
   deposit,
   getTransactions,
+  getTransactionById,
   handlePayOSWebhook,
   handlePayOSReturn
 };
