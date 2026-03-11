@@ -14,7 +14,6 @@ const mongoose = require('mongoose');
 const transactionSchema = new mongoose.Schema({
   transactionCode: {
     type: String,
-    unique: true,
     required: [true, 'Transaction code is required']
   },
   // Legacy field alias
@@ -85,8 +84,7 @@ const transactionSchema = new mongoose.Schema({
   // PayOS specific fields
   payosOrderCode: {
     type: Number,
-    default: null,
-    sparse: true
+    default: null
   },
   payosPaymentLinkId: {
     type: String,

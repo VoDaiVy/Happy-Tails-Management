@@ -53,7 +53,6 @@ const orderItemSchema = new mongoose.Schema({
 const orderSchema = new mongoose.Schema({
   orderCode: {
     type: String,
-    unique: true,
     required: true
   },
   userId: {
@@ -90,8 +89,7 @@ const orderSchema = new mongoose.Schema({
   // PayOS specific fields
   payosOrderCode: {
     type: Number,
-    default: null,
-    sparse: true
+    default: null
   },
   payosPaymentLinkId: {
     type: String,
