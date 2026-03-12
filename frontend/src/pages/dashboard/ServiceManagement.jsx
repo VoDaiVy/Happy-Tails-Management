@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   Search,
   Briefcase,
@@ -80,6 +81,7 @@ export default function ServiceManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  useScrollLock(showDetailModal || showFormModal || showDeleteModal);
 
   // Selected item
   const [selectedService, setSelectedService] = useState(null);

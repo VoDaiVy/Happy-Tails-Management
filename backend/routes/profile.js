@@ -15,6 +15,7 @@ const {
 } = require('../controllers/profileController');
 
 const { protect, restrictTo } = require('../middleware/auth');
+const { handleUpload, avatarUpload } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ router.route('/me')
   .delete(deleteMyProfile);             // DELETE /api/profile/me - Delete my profile
 
 // Avatar Management
-router.put('/avatar', updateAvatar);    // PUT /api/profile/avatar - Update avatar
+router.put('/avatar', handleUpload(avatarUpload), updateAvatar);    // PUT /api/profile/avatar - Update avatar
 
 // Profile Completion
 router.get('/completion', getProfileCompletion);  // GET /api/profile/completion - Get completion status

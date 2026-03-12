@@ -9,7 +9,6 @@ const {
   getAllTransactions,
   getTransactionById,
   createDeposit,
-  createWithdrawal,
   processTransaction,
   getRevenueStatistics
 } = require('../controllers/transactionController');
@@ -24,7 +23,6 @@ router.use(protect);
 // Customer routes
 router.get('/my', restrictTo('customer'), getMyTransactions);  // GET /api/transactions/my - Get my transactions
 router.post('/deposit', restrictTo('customer'), createDeposit);  // POST /api/transactions/deposit - Create deposit
-router.post('/withdraw', restrictTo('customer'), createWithdrawal);  // POST /api/transactions/withdraw - Create withdrawal
 
 // Admin routes
 router.get('/statistics/revenue', restrictTo('admin'), getRevenueStatistics);  // GET /api/transactions/statistics/revenue - Get revenue stats

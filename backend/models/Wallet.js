@@ -12,8 +12,7 @@ const walletSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'User ID is required'],
-    unique: true
+    required: [true, 'User ID is required']
   },
   balance: {
     type: Number,

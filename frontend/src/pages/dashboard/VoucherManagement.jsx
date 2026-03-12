@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   Search,
   Ticket,
@@ -65,6 +66,7 @@ export default function VoucherManagement() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
+  useScrollLock(showDetailModal || showFormModal || showDeleteModal || showAIModal);
 
   // Selected item
   const [selectedVoucher, setSelectedVoucher] = useState(null);

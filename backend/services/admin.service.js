@@ -1,12 +1,18 @@
 /**
  * Admin Service
- * Business logic for admin operations: user management and statistics
+ * Business logic for admin operations: user management, statistics, and transactions
+ * 
+ * ✅ ADDED: getSystemTransactions(), getTransactionSummary(), getTransactionByIdAdmin(), getTransactionsForExport() (UC-39)
  */
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Order = require('../models/Order');
+const Transaction = require('../models/Transaction');
+const Wallet = require('../models/Wallet');
 const { createError } = require('../utils/AppError');
+const notificationService = require('./notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
 // ==================== PRIVATE HELPERS ====================
 
@@ -175,6 +181,14 @@ const blockUser = async (targetUserId, adminId, reason) => {
   
   // Block the user
   await user.block(adminId, reason);
+
+  // Notify: account blocked (fire-and-forget)
+  setImmediate(() => {
+    notificationService.send(
+      targetUserId,
+      NOTIFICATION_TEMPLATES.ACCOUNT_BLOCKED(reason)
+    ).catch(err => console.error('[Notif] account_blocked:', err.message));
+  });
   
   // Fetch updated user with populated blockedBy
   const updatedUser = await User.findById(targetUserId)
@@ -214,6 +228,14 @@ const unblockUser = async (targetUserId, adminId) => {
   
   // Unblock the user
   await user.unblock();
+
+  // Notify: account restored (fire-and-forget)
+  setImmediate(() => {
+    notificationService.send(
+      targetUserId,
+      NOTIFICATION_TEMPLATES.ACCOUNT_UNBLOCKED()
+    ).catch(err => console.error('[Notif] account_unblocked:', err.message));
+  });
   
   // Fetch updated user
   const updatedUser = await User.findById(targetUserId)
@@ -447,6 +469,272 @@ const getTopServices = async ({ from, to, limit = 10 }) => {
   };
 };
 
+// ==================== TRANSACTION MANAGEMENT (UC-39) ====================
+
+/**
+ * Get all system transactions with filters (Admin)
+ * @param {Object} query - Query parameters
+ * @returns {Promise<{ data: Transaction[], pagination: Object }>}
+ */
+const getSystemTransactions = async (query = {}) => {
+  const {
+    userId,
+    type,
+    status,
+    method,
+    from,
+    to,
+    minAmount,
+    maxAmount,
+    page = 1,
+    limit = 20,
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  } = query;
+  
+  // Step 1: Build filter dynamically
+  const filter = {};
+  
+  if (userId) filter.userId = new mongoose.Types.ObjectId(userId);
+  if (type) filter.type = type;
+  if (status) filter.status = status;
+  if (method) filter.method = method;
+  
+  // Amount range filter
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    filter.amount = {};
+    if (minAmount !== undefined) filter.amount.$gte = minAmount;
+    if (maxAmount !== undefined) filter.amount.$lte = maxAmount;
+  }
+  
+  // Date range filter with proper time boundaries
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+    if (to) filter.createdAt.$lte = new Date(to + 'T23:59:59.999Z');
+  }
+  
+  // Step 2: Build sort + pagination
+  const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+  const skip = (page - 1) * limit;
+  
+  // Step 3: Execute queries in parallel
+  const [transactions, total] = await Promise.all([
+    Transaction.find(filter)
+      .populate('userId', 'fullName email phone avatar role')
+      .populate('walletId', 'balance currency')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Transaction.countDocuments(filter)
+  ]);
+  
+  // Step 4: Return with pagination
+  const totalPages = Math.ceil(total / limit);
+  
+  return {
+    data: transactions,
+    pagination: {
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1
+    }
+  };
+};
+
+/**
+ * Get transaction summary statistics (Admin)
+ * @param {Object} params - Query parameters { from, to }
+ * @returns {Promise<Object>} Aggregated statistics
+ */
+const getTransactionSummary = async ({ from, to } = {}) => {
+  // Build date filter (default: last 30 days)
+  const defaults = getDefaultDateRange();
+  const fromDate = from ? new Date(from + 'T00:00:00.000Z') : defaults.from;
+  const toDate = to ? new Date(to + 'T23:59:59.999Z') : defaults.to;
+  
+  // Run MongoDB aggregation pipeline
+  const result = await Transaction.aggregate([
+    {
+      $match: { createdAt: { $gte: fromDate, $lte: toDate } }
+    },
+    {
+      $facet: {
+        // Overall totals
+        overall: [
+          {
+            $group: {
+              _id: null,
+              totalTransactions: { $sum: 1 },
+              totalAmount: { $sum: '$amount' },
+              avgAmount: { $avg: '$amount' }
+            }
+          }
+        ],
+        // Group by type
+        byType: [
+          {
+            $group: {
+              _id: '$type',
+              count: { $sum: 1 },
+              totalAmount: { $sum: '$amount' }
+            }
+          }
+        ],
+        // Group by method
+        byMethod: [
+          {
+            $group: {
+              _id: '$method',
+              count: { $sum: 1 },
+              totalAmount: { $sum: '$amount' }
+            }
+          }
+        ],
+        // Group by status
+        byStatus: [
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+              totalAmount: { $sum: '$amount' }
+            }
+          }
+        ],
+        // Daily trend (for mini chart)
+        dailyTrend: [
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              count: { $sum: 1 },
+              totalAmount: { $sum: '$amount' }
+            }
+          },
+          { $sort: { '_id': 1 } },
+          { $project: { _id: 0, date: '$_id', count: 1, totalAmount: 1 } }
+        ]
+      }
+    }
+  ]);
+  
+  // Post-process aggregation result
+  const overall = result[0].overall[0] || { totalTransactions: 0, totalAmount: 0, avgAmount: 0 };
+  
+  // Convert byType array → object
+  const byType = { deposit: { count: 0, amount: 0 }, payment: { count: 0, amount: 0 }, refund: { count: 0, amount: 0 } };
+  result[0].byType.forEach(item => {
+    byType[item._id] = { count: item.count, amount: item.totalAmount };
+  });
+  
+  // Convert byMethod array → object
+  const byMethod = { payos: { count: 0, amount: 0 }, system: { count: 0, amount: 0 } };
+  result[0].byMethod.forEach(item => {
+    byMethod[item._id] = { count: item.count, amount: item.totalAmount };
+  });
+  
+  // Convert byStatus array → object
+  const byStatus = { pending: { count: 0, amount: 0 }, completed: { count: 0, amount: 0 }, failed: { count: 0, amount: 0 }, cancelled: { count: 0, amount: 0 } };
+  result[0].byStatus.forEach(item => {
+    byStatus[item._id] = { count: item.count, amount: item.totalAmount };
+  });
+  
+  return {
+    period: {
+      from: fromDate.toISOString().split('T')[0],
+      to: toDate.toISOString().split('T')[0]
+    },
+    overall: {
+      totalTransactions: overall.totalTransactions,
+      totalAmount: overall.totalAmount,
+      avgAmount: Math.round(overall.avgAmount || 0)
+    },
+    byType,
+    byMethod,
+    byStatus,
+    dailyTrend: result[0].dailyTrend
+  };
+};
+
+/**
+ * Get transaction by ID (Admin - can see any transaction)
+ * @param {string} transactionId - Transaction ID
+ * @returns {Promise<Object>} Transaction document with populated user and wallet
+ */
+const getTransactionByIdAdmin = async (transactionId) => {
+  if (!isValidObjectId(transactionId)) {
+    throw createError.badRequest('Invalid transaction ID format');
+  }
+  
+  const transaction = await Transaction.findById(transactionId)
+    .populate('userId', 'fullName email phone avatar role isBlocked')
+    .populate('walletId', 'balance currency totalDeposited totalSpent')
+    .lean();
+  
+  if (!transaction) {
+    throw createError.notFound('Transaction not found');
+  }
+  
+  return transaction;
+};
+
+/**
+ * Get transactions for CSV export (Admin)
+ * @param {Object} query - Same filters as getSystemTransactions
+ * @returns {Promise<Array>} Array of transactions for export
+ */
+const getTransactionsForExport = async (query = {}) => {
+  const {
+    userId,
+    type,
+    status,
+    method,
+    from,
+    to,
+    minAmount,
+    maxAmount
+  } = query;
+  
+  // Build filter (same logic as getSystemTransactions)
+  const filter = {};
+  
+  if (userId) filter.userId = new mongoose.Types.ObjectId(userId);
+  if (type) filter.type = type;
+  if (status) filter.status = status;
+  if (method) filter.method = method;
+  
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    filter.amount = {};
+    if (minAmount !== undefined) filter.amount.$gte = minAmount;
+    if (maxAmount !== undefined) filter.amount.$lte = maxAmount;
+  }
+  
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from + 'T00:00:00.000Z');
+    if (to) filter.createdAt.$lte = new Date(to + 'T23:59:59.999Z');
+  }
+  
+  // Check total count first (hard limit: 10,000)
+  const total = await Transaction.countDocuments(filter);
+  
+  if (total > 10000) {
+    throw createError.badRequest('Too many records (max 10,000). Please apply filters to narrow results.');
+  }
+  
+  // Get all matching transactions
+  const transactions = await Transaction.find(filter)
+    .populate('userId', 'fullName email')
+    .select('transactionCode type method amount balanceBefore balanceAfter status note failureReason referenceId createdAt')
+    .sort({ createdAt: -1 })
+    .lean();
+  
+  return transactions;
+};
+
 module.exports = {
   getUsers,
   getUserById,
@@ -454,5 +742,10 @@ module.exports = {
   unblockUser,
   getOverview,
   getRevenueStats,
-  getTopServices
+  getTopServices,
+  // Transaction management (UC-39)
+  getSystemTransactions,
+  getTransactionSummary,
+  getTransactionByIdAdmin,
+  getTransactionsForExport
 };

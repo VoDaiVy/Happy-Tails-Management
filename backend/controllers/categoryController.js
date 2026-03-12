@@ -4,6 +4,7 @@
  */
 
 const categoryService = require('../services/category.service');
+const uploadService = require('../services/upload.service');
 const { catchAsync } = require('../utils/catchAsync');
 const ApiResponse = require('../utils/ApiResponse');
 
@@ -44,7 +45,12 @@ exports.getCategoryById = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.createCategory = catchAsync(async (req, res, next) => {
-  const category = await categoryService.createCategory(req.body, req.user.id);
+  const body = { ...req.body };
+  if (req.file) {
+    body.imageUrl = req.file.path;
+  }
+
+  const category = await categoryService.createCategory(body, req.user.id);
 
   res.status(201).json(ApiResponse.success(
     'Category created successfully',
@@ -58,9 +64,19 @@ exports.createCategory = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.updateCategory = catchAsync(async (req, res, next) => {
+  const body = { ...req.body };
+  if (req.file) {
+    // Delete old Cloudinary image before replacing
+    const existing = await categoryService.getCategoryById(req.params.id);
+    if (existing.imageUrl) {
+      await uploadService.deleteImage(existing.imageUrl);
+    }
+    body.imageUrl = req.file.path;
+  }
+
   const category = await categoryService.updateCategory(
     req.params.id,
-    req.body,
+    body,
     req.user.id
   );
 

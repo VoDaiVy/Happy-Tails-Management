@@ -14,6 +14,7 @@ const {
 
 const { protect, restrictTo, optionalAuth } = require('../middleware/auth');
 const { validate, validateQuery } = require('../middleware/validate');
+const { handleUpload, categoryImageUpload } = require('../middleware/upload');
 const {
   createCategorySchema,
   updateCategorySchema,
@@ -30,10 +31,10 @@ router.get('/:id', optionalAuth, getCategoryById);
 router.use(protect);
 router.use(restrictTo('admin'));
 
-router.post('/', validate(createCategorySchema), createCategory);
+router.post('/', handleUpload(categoryImageUpload), validate(createCategorySchema), createCategory);
 
 router.route('/:id')
-  .put(validate(updateCategorySchema), updateCategory)
+  .put(handleUpload(categoryImageUpload), validate(updateCategorySchema), updateCategory)
   .delete(deleteCategory);
 
 module.exports = router;

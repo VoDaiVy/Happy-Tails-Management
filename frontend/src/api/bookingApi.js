@@ -25,6 +25,15 @@ export const getMyBookings = async (params = {}) => {
   };
 };
 
+export const getMyPetsMedicalRecords = async () => {
+  const response = await axiosInstance.get("/medical-records/my-pets");
+  return response.data;
+};
+
+export const getMedicalRecordById = async (id) => {
+  const response = await axiosInstance.get(`/medical-records/${encodeURIComponent(id)}`);
+  return response.data;
+};
 // Get booking details
 export const getBookingById = async (id) => {
   const response = await axiosInstance.get(`/bookings/${id}`);

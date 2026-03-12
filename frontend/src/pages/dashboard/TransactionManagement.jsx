@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   Search,
   DollarSign,
@@ -83,6 +84,7 @@ export default function TransactionManagement() {
   const [showProcessModal, setShowProcessModal] = useState(false);
   const [processData, setProcessData] = useState({ status: "", notes: "" });
   const [processing, setProcessing] = useState(false);
+  useScrollLock(showDetailModal || showProcessModal);
 
   // Statistics
   const [stats, setStats] = useState({

@@ -65,10 +65,29 @@ const medicalRecordSchema = new mongoose.Schema(
       trim: true,
       maxlength: [2000, 'Notes must be less than 2000 characters']
     },
+    images: [{ type: String, trim: true }],
     followUpDate: {
       type: Date,
       default: null
     },
+    // ─── 3-stage workflow ────────────────────────────────────────
+    workflowStage: {
+      type: String,
+      enum: ['received', 'processing', 'completed'],
+      default: 'received'
+    },
+    receivedPhotos:   [{ type: String, trim: true }],
+    processingPhotos: [{ type: String, trim: true }],
+    completedPhotos:  [{ type: String, trim: true }],
+    stageHistory: [
+      {
+        stage:     { type: String, enum: ['received', 'processing', 'completed'] },
+        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        updatedAt: { type: Date, default: Date.now },
+        notes:     { type: String, trim: true }
+      }
+    ],
+    // ─────────────────────────────────────────────────────────────
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

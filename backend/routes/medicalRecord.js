@@ -10,7 +10,8 @@ const {
   getAllMedicalRecords,
   getMyPetsRecords,
   getMedicalRecordById,
-  deleteMedicalRecord
+  deleteMedicalRecord,
+  updateStage
 } = require('../controllers/medicalRecordController');
 
 const { protect, restrictTo } = require('../middleware/auth');
@@ -28,8 +29,9 @@ router.post('/', restrictTo('staff', 'admin'), createMedicalRecord);        // P
 router.get('/', restrictTo('staff', 'admin'), getAllMedicalRecords);         // GET  /api/medical-records
 
 // Single record — customer can view own, staff/admin can view all
-router.get('/:id', getMedicalRecordById);                                    // GET  /api/medical-records/:id
-router.put('/:id', restrictTo('staff', 'admin'), updateMedicalRecord);       // PUT  /api/medical-records/:id
-router.delete('/:id', restrictTo('staff', 'admin'), deleteMedicalRecord);    // DELETE /api/medical-records/:id
+router.get('/:id', getMedicalRecordById);                                        // GET    /api/medical-records/:id
+router.put('/:id', restrictTo('staff', 'admin'), updateMedicalRecord);           // PUT    /api/medical-records/:id
+router.patch('/:id/stage', restrictTo('staff', 'admin'), updateStage);           // PATCH  /api/medical-records/:id/stage
+router.delete('/:id', restrictTo('staff', 'admin'), deleteMedicalRecord);        // DELETE /api/medical-records/:id
 
 module.exports = router;

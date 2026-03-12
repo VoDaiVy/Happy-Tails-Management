@@ -101,6 +101,45 @@ const bookingSchema = new mongoose.Schema({
     ref: 'User'
   },
   completedAt: Date,
+  // Camera access for pet monitoring (for boarding services)
+  cameraAccess: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    accessToken: {
+      type: String,
+      index: true
+    },
+    expiresAt: {
+      type: Date
+    },
+    cameras: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Camera'
+    }],
+    notificationSettings: {
+      photoUpdates: {
+        type: Boolean,
+        default: true
+      },
+      liveAlerts: {
+        type: Boolean,
+        default: true
+      },
+      emailNotifications: {
+        type: Boolean,
+        default: true
+      }
+    },
+    lastAccessedAt: {
+      type: Date
+    },
+    accessCount: {
+      type: Number,
+      default: 0
+    }
+  },
   // For guest bookings (no account)
   guestInfo: {
     name: String,

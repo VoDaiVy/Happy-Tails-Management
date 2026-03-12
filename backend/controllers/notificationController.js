@@ -1,190 +1,87 @@
 /**
  * Notification Controller
- * Handles notification management operations
+ * HTTP handlers for user notification endpoints
+ * Admin notification handlers are in adminController.js
  */
 
-const Notification = require('../models/Notification');
-const User = require('../models/User');
 const { catchAsync } = require('../utils/catchAsync');
-const AppError = require('../utils/AppError');
+const ApiResponse = require('../utils/ApiResponse');
+const notificationService = require('../services/notification.service');
+const { getNotificationsQuerySchema } = require('../validations/notification.validation');
+const { createError } = require('../utils/AppError');
+
+// ── USER ENDPOINTS ────────────────────────────────────────────────────────────
 
 /**
- * Get my notifications
- * @route GET /api/notifications/my
- * @access Private (All)
+ * Get paginated notifications for the current user
+ * @route   GET /api/notifications
+ * @access  Private (User)
  */
-exports.getMyNotifications = catchAsync(async (req, res, next) => {
-  const { isRead, type } = req.query;
-  
-  const filter = { recipient: req.user.id };
-  if (isRead !== undefined) filter.isRead = isRead === 'true';
-  if (type) filter.type = type;
-
-  const notifications = await Notification.find(filter)
-    .populate('createdBy', 'name email')
-    .sort('-createdAt')
-    .limit(50);
-
-  const unreadCount = await Notification.countDocuments({
-    recipient: req.user.id,
-    isRead: false
+exports.getNotifications = catchAsync(async (req, res) => {
+  const { error, value } = getNotificationsQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
   });
 
-  res.status(200).json({
-    status: 'success',
-    results: notifications.length,
-    unreadCount,
-    data: { notifications }
-  });
-});
-
-/**
- * Create notification
- * @route POST /api/notifications
- * @access Private (Staff, Admin)
- */
-exports.createNotification = catchAsync(async (req, res, next) => {
-  const { recipient, title, message, type, priority, link, metadata } = req.body;
-
-  // Validate recipient exists
-  const user = await User.findById(recipient);
-  if (!user) {
-    return next(new AppError('Recipient not found', 404, 'USER_NOT_FOUND'));
+  if (error) {
+    const details = error.details.map((d) => d.message);
+    return res.status(400).json(ApiResponse.error('Validation failed', details));
   }
 
-  const notification = await Notification.create({
-    recipient,
-    title,
-    message,
-    type,
-    priority,
-    link,
-    metadata,
-    createdBy: req.user.id
-  });
-
-  res.status(201).json({
-    status: 'success',
-    message: 'Notification created successfully',
-    data: { notification }
-  });
+  const result = await notificationService.getNotifications(req.user._id, value);
+  res.status(200).json(
+    ApiResponse.success('Notifications fetched successfully', result.data, result.pagination)
+  );
 });
 
 /**
- * Mark notification as read
- * @route PUT /api/notifications/:id/read
- * @access Private (All)
+ * Get unread notification badge count
+ * @route   GET /api/notifications/unread-count
+ * @access  Private (User)
+ */
+exports.getUnreadCount = catchAsync(async (req, res) => {
+  const result = await notificationService.getUnreadCount(req.user._id);
+  res.status(200).json(ApiResponse.success('Unread count fetched', result));
+});
+
+/**
+ * Mark a single notification as read
+ * @route   PUT /api/notifications/:id/read
+ * @access  Private (User)
  */
 exports.markAsRead = catchAsync(async (req, res, next) => {
-  const notification = await Notification.findOne({
-    _id: req.params.id,
-    recipient: req.user.id
-  });
-
-  if (!notification) {
-    return next(new AppError('Notification not found', 404, 'NOTIFICATION_NOT_FOUND'));
-  }
-
-  notification.isRead = true;
-  notification.readAt = Date.now();
-  await notification.save();
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Notification marked as read',
-    data: { notification }
-  });
+  const notification = await notificationService.markAsRead(req.user._id, req.params.id);
+  res.status(200).json(ApiResponse.success('Notification marked as read', { notification }));
 });
 
 /**
  * Mark all notifications as read
- * @route PUT /api/notifications/read-all
- * @access Private (All)
+ * @route   PUT /api/notifications/read-all
+ * @access  Private (User)
  */
-exports.markAllAsRead = catchAsync(async (req, res, next) => {
-  await Notification.updateMany(
-    { recipient: req.user.id, isRead: false },
-    { isRead: true, readAt: Date.now() }
-  );
-
-  res.status(200).json({
-    status: 'success',
-    message: 'All notifications marked as read'
-  });
+exports.markAllAsRead = catchAsync(async (req, res) => {
+  const result = await notificationService.markAllAsRead(req.user._id);
+  res.status(200).json(ApiResponse.success('All notifications marked as read', result));
 });
 
 /**
- * Delete notification
- * @route DELETE /api/notifications/:id
- * @access Private (All - own, Admin - all)
+ * Delete one notification
+ * @route   DELETE /api/notifications/:id
+ * @access  Private (User)
  */
 exports.deleteNotification = catchAsync(async (req, res, next) => {
-  const filter = { _id: req.params.id };
-  
-  // If not admin, can only delete own notifications
-  if (req.user.role !== 'admin') {
-    filter.recipient = req.user.id;
-  }
-
-  const notification = await Notification.findOneAndDelete(filter);
-
-  if (!notification) {
-    return next(new AppError('Notification not found', 404, 'NOTIFICATION_NOT_FOUND'));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Notification deleted successfully',
-    data: null
-  });
+  const result = await notificationService.deleteNotification(req.user._id, req.params.id);
+  res.status(200).json(ApiResponse.success('Notification deleted', result));
 });
 
 /**
- * Get all notifications (Admin/Staff)
- * @route GET /api/notifications
- * @access Private (Staff, Admin)
+ * Delete all read notifications
+ * @route   DELETE /api/notifications/read
+ * @access  Private (User)
  */
-exports.getAllNotifications = catchAsync(async (req, res, next) => {
-  const { recipient, type, isRead } = req.query;
-  
-  const filter = {};
-  if (recipient) filter.recipient = recipient;
-  if (type) filter.type = type;
-  if (isRead !== undefined) filter.isRead = isRead === 'true';
-
-  const notifications = await Notification.find(filter)
-    .populate('recipient createdBy', 'name email')
-    .sort('-createdAt')
-    .limit(100);
-
-  res.status(200).json({
-    status: 'success',
-    results: notifications.length,
-    data: { notifications }
-  });
+exports.deleteAllRead = catchAsync(async (req, res) => {
+  const result = await notificationService.deleteAllRead(req.user._id);
+  res.status(200).json(ApiResponse.success('Read notifications deleted', result));
 });
 
-/**
- * Update notification
- * @route PUT /api/notifications/:id
- * @access Private (Staff, Admin)
- */
-exports.updateNotification = catchAsync(async (req, res, next) => {
-  const { title, message, type, priority, link } = req.body;
-
-  const notification = await Notification.findByIdAndUpdate(
-    req.params.id,
-    { title, message, type, priority, link },
-    { new: true, runValidators: true }
-  );
-
-  if (!notification) {
-    return next(new AppError('Notification not found', 404, 'NOTIFICATION_NOT_FOUND'));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Notification updated successfully',
-    data: { notification }
-  });
-});

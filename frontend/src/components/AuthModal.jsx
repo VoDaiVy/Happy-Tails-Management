@@ -5,9 +5,11 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
-import { loginApi, registerApi, verifyEmailApi, resendVerificationApi } from "../api/authApi";
+import { registerApi, verifyEmailApi, resendVerificationApi } from "../api/authApi";
+import { useAuth } from "../context/AuthContext";
 
 export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSuccess }) {
+  const { login } = useAuth();
   const [mode, setMode] = useState(initialMode); // "login" or "register"
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -104,10 +106,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
 
     setLoginLoading(true);
     try {
-      const result = await loginApi(loginEmail, loginPassword);
-
-      localStorage.setItem("accessToken", result.data.tokens.accessToken);
-      localStorage.setItem("user", JSON.stringify(result.data.user));
+      const result = await login(loginEmail, loginPassword);
 
       setLoginSuccess(`Login successful! Welcome ${result.data.user.name || "back"} 🎉`);
 

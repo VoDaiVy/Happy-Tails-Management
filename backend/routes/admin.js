@@ -10,6 +10,7 @@ const {
   updateUserRole,
   toggleUserBan,
   deleteUser,
+  permanentDeleteUser,
   getSystemStatistics,
   getStaffList,
   // New Admin Dashboard APIs
@@ -19,7 +20,12 @@ const {
   unblockUserAccount,
   getOverview,
   getRevenueStats,
-  getTopServices
+  getTopServices,
+  // Transaction Management (UC-39)
+  getSystemTransactions,
+  getTransactionSummary,
+  getTransactionByIdAdmin,
+  exportTransactions
 } = require('../controllers/adminController');
 
 const { protect, restrictTo } = require('../middleware/auth');
@@ -58,6 +64,20 @@ router.get('/users', getAllUsers);  // GET /api/admin/users - Get all users
 router.get('/users/:id', getUserById);  // GET /api/admin/users/:id - Get user by ID
 router.put('/users/:id/role', updateUserRole);  // PUT /api/admin/users/:id/role - Update user role
 router.put('/users/:id/ban', toggleUserBan);  // PUT /api/admin/users/:id/ban - Ban/Unban user
-router.delete('/users/:id', deleteUser);  // DELETE /api/admin/users/:id - Delete user
+router.delete('/users/:id/permanent', permanentDeleteUser);  // DELETE /api/admin/users/:id/permanent - Hard delete
+router.delete('/users/:id', deleteUser);  // DELETE /api/admin/users/:id - Soft delete user
+
+// ==================== TRANSACTION MANAGEMENT (UC-39) ====================
+
+// IMPORTANT: Specific routes must come BEFORE /:id parameterized routes
+router.get('/transactions/summary', getTransactionSummary);  // GET /api/admin/transactions/summary - Aggregated stats
+router.get('/transactions/export', exportTransactions);  // GET /api/admin/transactions/export - Export CSV
+router.get('/transactions', getSystemTransactions);  // GET /api/admin/transactions - List all transactions
+router.get('/transactions/:id', getTransactionByIdAdmin);  // GET /api/admin/transactions/:id - Get any transaction detail
+
+// ==================== NOTIFICATION MANAGEMENT ====================
+
+router.post('/notifications/send', require('../controllers/adminController').sendNotification);  // POST /api/admin/notifications/send - Send to specific user or all
+router.post('/notifications/broadcast', require('../controllers/adminController').broadcastNotification);  // POST /api/admin/notifications/broadcast - Broadcast to filtered users
 
 module.exports = router;
