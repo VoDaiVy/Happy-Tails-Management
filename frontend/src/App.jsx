@@ -1,5 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
+import { Login } from './pages/Login';
+import BookingHistory from './pages/BookingHistory';
+import ProfilePage from './pages/ProfilePage';
+import MyPetsPage from './pages/MyPetsPage';
+import Unauthorized from './pages/Unauthorized';
 import DashboardLayout from './layout/DashboardLayout';
 import AdminDashboard from './pages/dashboard/AdminDashboard';
 import AdminNewsManagement from './pages/dashboard/admin/AdminNewsManagement';
@@ -11,7 +18,6 @@ import MedicalRecordManagement from './pages/dashboard/MedicalRecordManagement';
 import TransactionManagement from './pages/dashboard/TransactionManagement';
 import VoucherManagement from './pages/dashboard/VoucherManagement';
 import ServiceManagement from './pages/dashboard/ServiceManagement';
-import Login from './pages/Login';
 import Register from './pages/Register';
 import Service from './pages/Service';
 import News from './pages/News';
@@ -22,6 +28,7 @@ import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
+    <AuthProvider>
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -30,6 +37,13 @@ function App() {
         <Route path="/service" element={<Service />} />
         <Route path="/news" element={<News />} />
         <Route path="/ai-health-scan" element={<AIHealthScan />} />
+
+          {/* Protected customer routes */}
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/pets" element={<ProtectedRoute><MyPetsPage /></ProtectedRoute>} />
+          <Route path="/bookings" element={<ProtectedRoute><BookingHistory /></ProtectedRoute>} />
+
+        {/* Wallet */}
         <Route path="/wallet" element={<Wallet />} />
 
         {/* Admin Dashboard — requires admin role */}
@@ -69,6 +83,7 @@ function App() {
       {/* Floating Chat Bubble - Available on all pages */}
       <FloatingChatBubble />
     </Router>
+    </AuthProvider>
   );
 }
 
