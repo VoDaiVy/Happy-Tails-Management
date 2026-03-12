@@ -72,6 +72,11 @@ exports.updateUserRole = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid role', 400, 'INVALID_ROLE'));
   }
 
+  // Prevent admin from changing their own role
+  if (req.user._id.toString() === req.params.id) {
+    return next(new AppError('Cannot change your own role', 400, 'CANNOT_CHANGE_OWN_ROLE'));
+  }
+
   const user = await User.findByIdAndUpdate(
     req.params.id,
     { role },
@@ -150,6 +155,37 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message: 'User deleted successfully',
+    data: null
+  });
+});
+
+/**
+ * Permanently delete user (hard delete — removes from DB)
+ * @route DELETE /api/admin/users/:id/permanent
+ * @access Private (Admin)
+ */
+exports.permanentDeleteUser = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return next(new AppError('User not found', 404, 'USER_NOT_FOUND'));
+  }
+
+  // Cannot delete yourself
+  if (user._id.toString() === req.user._id.toString()) {
+    return next(new AppError('You cannot delete yourself', 400, 'CANNOT_DELETE_SELF'));
+  }
+
+  // Cannot delete other admins
+  if (user.role === 'admin') {
+    return next(new AppError('You cannot delete other administrators', 400, 'CANNOT_DELETE_ADMIN'));
+  }
+
+  await User.deleteOne({ _id: user._id });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User permanently deleted',
     data: null
   });
 });

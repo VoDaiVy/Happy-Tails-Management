@@ -16,10 +16,12 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Filter,
   X,
+  Trash2,
 } from "lucide-react";
-import { getUsersList, blockUser, unblockUser } from "../../api/userApi";
+import { getUsersList, blockUser, unblockUser, updateUserRole, permanentDeleteUser } from "../../api/userApi";
 
 // Role configuration
 const ROLE_CONFIG = {
@@ -66,11 +68,31 @@ const UserManagement = () => {
     totalPages: 0,
   });
 
+  // Get current logged-in user ID to prevent self-role-change
+  const currentUserId = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u._id || u.id || null;
+    } catch {
+      return null;
+    }
+  })();
+
   // Modal states
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [blockReason, setBlockReason] = useState("");
-  useScrollLock(showBlockModal);
+
+  // Role modal states
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedUserForRole, setSelectedUserForRole] = useState(null);
+
+  // Delete modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedUserForDelete, setSelectedUserForDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  useScrollLock(showBlockModal || showRoleModal || showDeleteModal);
 
   // Fetch users
   const fetchUsers = useCallback(async (showRefreshSpinner = false) => {
@@ -171,6 +193,57 @@ const UserManagement = () => {
     setSelectedUser(user);
     setBlockReason("");
     setShowBlockModal(true);
+  };
+
+  // Open role modal
+  const openRoleModal = (user) => {
+    setSelectedUserForRole(user);
+    setShowRoleModal(true);
+  };
+
+  // Open delete modal
+  const openDeleteModal = (user) => {
+    setSelectedUserForDelete(user);
+    setDeleteConfirmText("");
+    setShowDeleteModal(true);
+  };
+
+  // Handle permanent delete
+  const handlePermanentDelete = async () => {
+    if (!selectedUserForDelete) return;
+    setActionLoading(selectedUserForDelete._id);
+    try {
+      await permanentDeleteUser(selectedUserForDelete._id);
+      fetchUsers(true);
+      setShowDeleteModal(false);
+      setSelectedUserForDelete(null);
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      alert(err.response?.data?.message || "Cannot delete account");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Handle role change
+  const handleRoleChange = async (newRole) => {
+    if (!selectedUserForRole) return;
+    if (newRole === selectedUserForRole.role) {
+      setShowRoleModal(false);
+      return;
+    }
+    setActionLoading(selectedUserForRole._id);
+    try {
+      await updateUserRole(selectedUserForRole._id, newRole);
+      fetchUsers(true);
+      setShowRoleModal(false);
+      setSelectedUserForRole(null);
+    } catch (err) {
+      console.error("Error updating role:", err);
+      alert(err.response?.data?.message || "Cannot update role");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   // Format date
@@ -378,7 +451,7 @@ const UserManagement = () => {
                         {/* User Info */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#E8F3D6] flex items-center justify-center flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-[#E8F3D6] flex items-center justify-center shrink-0">
                               <span className="text-[#5B8C51] font-semibold text-sm">
                                 {user.name?.charAt(0)?.toUpperCase() || "U"}
                               </span>
@@ -395,14 +468,27 @@ const UserManagement = () => {
                           </div>
                         </td>
 
-                        {/* Role */}
+                        {/* Role — click to change */}
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleConfig.color}`}
-                          >
-                            <RoleIcon size={12} />
-                            {roleConfig.label}
-                          </span>
+                          {user._id !== currentUserId ? (
+                            <button
+                              onClick={() => openRoleModal(user)}
+                              disabled={actionLoading === user._id}
+                              title="Click to change role"
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 hover:shadow-sm disabled:opacity-50 cursor-pointer ${roleConfig.color}`}
+                            >
+                              <RoleIcon size={12} />
+                              {roleConfig.label}
+                              <ChevronDown size={11} className="opacity-60" />
+                            </button>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${roleConfig.color}`}
+                            >
+                              <RoleIcon size={12} />
+                              {roleConfig.label}
+                            </span>
+                          )}
                         </td>
 
                         {/* Status */}
@@ -430,31 +516,45 @@ const UserManagement = () => {
 
                         {/* Actions */}
                         <td className="px-6 py-4 text-right">
-                          {user.role !== "admin" && (
-                            <>
-                              {isBlocked ? (
-                                <button
-                                  onClick={() => handleUnblockUser(user)}
-                                  disabled={actionLoading === user._id}
-                                  className="px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
-                                >
-                                  {actionLoading === user._id ? (
-                                    <RefreshCw size={14} className="animate-spin" />
-                                  ) : (
-                                    "Unblock"
-                                  )}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => openBlockModal(user)}
-                                  disabled={actionLoading === user._id}
-                                  className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
-                                >
-                                  Block
-                                </button>
-                              )}
-                            </>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Block/Unblock — only for non-admin users */}
+                            {user.role !== "admin" && (
+                              <>
+                                {isBlocked ? (
+                                  <button
+                                    onClick={() => handleUnblockUser(user)}
+                                    disabled={actionLoading === user._id}
+                                    className="px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                                  >
+                                    {actionLoading === user._id ? (
+                                      <RefreshCw size={14} className="animate-spin" />
+                                    ) : (
+                                      "Unblock"
+                                    )}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => openBlockModal(user)}
+                                    disabled={actionLoading === user._id}
+                                    className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                  >
+                                    Block
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            {/* Permanent delete — all users except self */}
+                            {user._id !== currentUserId && user.role !== "admin" && (
+                              <button
+                                onClick={() => openDeleteModal(user)}
+                                disabled={actionLoading === user._id}
+                                title="Permanently delete account"
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -493,6 +593,200 @@ const UserManagement = () => {
           </div>
         </>
       )}
+
+      {/* Change Role Modal */}
+      <AnimatePresence>
+        {showRoleModal && selectedUserForRole && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowRoleModal(false)}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-4 bg-purple-600 text-white flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <Shield size={20} />
+                  Change User Role
+                </h3>
+                <button
+                  onClick={() => setShowRoleModal(false)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* User info */}
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 rounded-full bg-[#E8F3D6] flex items-center justify-center shrink-0">
+                    <span className="text-[#5B8C51] font-semibold">
+                      {selectedUserForRole.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[#2D3436] truncate">{selectedUserForRole.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{selectedUserForRole.email}</p>
+                  </div>
+                  <span
+                    className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      ROLE_CONFIG[selectedUserForRole.role]?.color || ROLE_CONFIG.customer.color
+                    }`}
+                  >
+                    Current: {ROLE_CONFIG[selectedUserForRole.role]?.label || "Customer"}
+                  </span>
+                </div>
+
+                {/* Role options */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-3">Select new role:</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: "customer", label: "Customer", desc: "Standard user — can book services and manage pets", color: "border-green-200 hover:bg-green-50", badge: "bg-green-100 text-green-700" },
+                      { key: "staff",    label: "Staff",    desc: "Staff member — can manage bookings and medical records", color: "border-blue-200 hover:bg-blue-50", badge: "bg-blue-100 text-blue-700" },
+                      { key: "admin",    label: "Admin",    desc: "Administrator — full access to all system features", color: "border-purple-200 hover:bg-purple-50", badge: "bg-purple-100 text-purple-700" },
+                    ].map(({ key, label, desc, color, badge }) => (
+                      <button
+                        key={key}
+                        onClick={() => handleRoleChange(key)}
+                        disabled={actionLoading === selectedUserForRole._id || key === selectedUserForRole.role}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                          key === selectedUserForRole.role
+                            ? "border-gray-200 bg-gray-50 cursor-default"
+                            : color
+                        }`}
+                      >
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
+                          {label}
+                        </span>
+                        <span className="text-sm text-gray-600">{desc}</span>
+                        {key === selectedUserForRole.role && (
+                          <CheckCircle size={16} className="ml-auto shrink-0 text-gray-400" />
+                        )}
+                        {actionLoading === selectedUserForRole._id && key !== selectedUserForRole.role && (
+                          <RefreshCw size={14} className="ml-auto shrink-0 animate-spin text-gray-400" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowRoleModal(false)}
+                  className="w-full py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Permanent Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteModal && selectedUserForDelete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDeleteModal(false)}
+              className="fixed inset-0 bg-black/60 z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="px-6 py-4 bg-red-600 text-white flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <Trash2 size={20} />
+                  Permanently Delete Account
+                </h3>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Warning */}
+                <div className="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
+                  <div className="text-sm text-red-700">
+                    <p className="font-semibold mb-1">This action cannot be undone!</p>
+                    <p>The account and all associated data will be permanently removed from the system.</p>
+                  </div>
+                </div>
+
+                {/* User info */}
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                    <span className="text-red-600 font-semibold">
+                      {selectedUserForDelete.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[#2D3436] truncate">{selectedUserForDelete.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{selectedUserForDelete.email}</p>
+                  </div>
+                  <span className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${ROLE_CONFIG[selectedUserForDelete.role]?.color || ROLE_CONFIG.customer.color}`}>
+                    {ROLE_CONFIG[selectedUserForDelete.role]?.label || "Customer"}
+                  </span>
+                </div>
+
+                {/* Confirmation input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Type <span className="font-bold text-red-600">DELETE</span> to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePermanentDelete}
+                    disabled={deleteConfirmText !== "DELETE" || actionLoading === selectedUserForDelete._id}
+                    className="flex-1 py-2 px-3 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                  >
+                    {actionLoading === selectedUserForDelete._id ? (
+                      <><RefreshCw size={13} className="animate-spin" /> Deleting...</>
+                    ) : (
+                      <><Trash2 size={13} /> Delete Permanently</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Block User Modal */}
       <AnimatePresence>

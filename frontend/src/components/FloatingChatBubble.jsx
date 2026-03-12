@@ -15,6 +15,16 @@ const FloatingChatBubble = () => {
     return stored ? true : false;
   });
   const [hiddenByModal, setHiddenByModal] = useState(false);
+
+  // Check if current user is admin or staff — they cannot use chat
+  const isAdminOrStaff = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.role === 'admin' || u.role === 'staff';
+    } catch {
+      return false;
+    }
+  })();
   
   const messagesEndRef = useRef(null);
 
@@ -27,6 +37,9 @@ const FloatingChatBubble = () => {
     window.addEventListener('app-modal-change', handler);
     return () => window.removeEventListener('app-modal-change', handler);
   }, []);
+
+  // Don't render at all for admin/staff
+  if (isAdminOrStaff || hiddenByModal) return null;
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -112,8 +125,6 @@ const FloatingChatBubble = () => {
       handleSendMessage();
     }
   };
-
-  if (hiddenByModal) return null;
 
   return (
     <>
