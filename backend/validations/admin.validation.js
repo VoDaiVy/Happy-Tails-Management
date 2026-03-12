@@ -21,6 +21,7 @@ const blockUserSchema = Joi.object({
     .min(5)
     .max(500)
     .optional()
+    .allow('')
     .messages({
       'string.min': 'Block reason must be at least 5 characters',
       'string.max': 'Block reason must be less than 500 characters'

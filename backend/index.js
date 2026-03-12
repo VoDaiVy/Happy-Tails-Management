@@ -3,18 +3,17 @@
  * Main entry point with security middleware and authentication
  */
 
+// Load environment variables FIRST — before any other require() that reads process.env
+require('dotenv').config();
+
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const hpp = require("hpp");
 const { initSocket } = require("./config/socket");
-
-// Load environment variables FIRST
-dotenv.config();
 
 // Import configurations and utilities
 const { connectDB } = require("./config/database");
@@ -43,6 +42,7 @@ const aiRoutes = require("./routes/ai");
 const medicalRecordRoutes = require("./routes/medicalRecord");
 const userRoutes = require("./routes/user");
 const voucherRoutes = require("./routes/voucher");
+const cameraRoutes = require("./routes/camera");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -187,6 +187,9 @@ app.use("/api/users", userRoutes);
 
 // Voucher routes
 app.use("/api/vouchers", voucherRoutes);
+
+// Camera monitoring routes
+app.use("/api/camera", cameraRoutes);
 
 
 // ==================== ERROR HANDLING ====================

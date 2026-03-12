@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Upload, Loader2, AlertCircle, CheckCircle, FileImage } from 'lucide-react';
+import { Camera, Upload, Loader2, AlertCircle, CheckCircle, FileImage, Star } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import { diagnoseImage } from '../api/aiApi';
 import AuthModal from '../components/AuthModal';
+
+const GUEST_SCAN_KEY = 'ht_guest_scans_used';
 
 const AIHealthScan = () => {
   const [imageFile, setImageFile] = useState(null);
@@ -12,30 +14,27 @@ const AIHealthScan = () => {
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [guestScansDone, setGuestScansDone] = useState(() => parseInt(localStorage.getItem(GUEST_SCAN_KEY) || '0', 10));
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? true : false;
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('user'));
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
+      reader.onloadend = () => setImagePreview(reader.result);
       reader.readAsDataURL(file);
-      setDiagnosisResult(null); // Reset previous result
+      setDiagnosisResult(null);
     }
   };
 
   const handleDiagnose = async () => {
-    if (!isAuthenticated) {
+    // Guests who already used their free scan must log in
+    if (!isAuthenticated && guestScansDone >= 1) {
       setShowAuthModal(true);
       return;
     }
@@ -49,6 +48,13 @@ const AIHealthScan = () => {
     try {
       const result = await diagnoseImage(imageFile, null, symptoms || '');
       setDiagnosisResult(result.data.diagnosis);
+
+      // Increment guest scan counter
+      if (!isAuthenticated) {
+        const next = guestScansDone + 1;
+        localStorage.setItem(GUEST_SCAN_KEY, String(next));
+        setGuestScansDone(next);
+      }
     } catch (error) {
       console.error('Diagnosis error:', error);
       alert('An error occurred during analysis. Please try again!');
@@ -154,16 +160,33 @@ const AIHealthScan = () => {
               />
             </div>
 
+            {/* Guest scan limit banner */}
+            {!isAuthenticated && (
+              <div className={`mb-3 px-3 py-2 rounded-lg text-xs flex items-start gap-2 ${guestScansDone >= 1 ? 'bg-orange-50 border border-orange-300 text-orange-800' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
+                <Star className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                {guestScansDone >= 1 ? (
+                  <span>You have used your free guest scan. <button className="font-bold underline" onClick={() => setShowAuthModal(true)}>Log in for unlimited scans.</button></span>
+                ) : (
+                  <span>You have <strong>1 free scan</strong> as a guest. Log in for unlimited access.</span>
+                )}
+              </div>
+            )}
+
             {/* Diagnose Button */}
             <button
               onClick={handleDiagnose}
-              disabled={!imagePreview || isLoading}
+              disabled={!imagePreview || isLoading || (!isAuthenticated && guestScansDone >= 1)}
               className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Analyzing...</span>
+                </>
+              ) : (!isAuthenticated && guestScansDone >= 1) ? (
+                <>
+                  <Star className="w-5 h-5" />
+                  <span>Log in for More Scans</span>
                 </>
               ) : (
                 <>

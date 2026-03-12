@@ -115,33 +115,6 @@ exports.createDeposit = catchAsync(async (req, res, next) => {
   });
 });
 
-/**
- * Create withdrawal transaction
- * @route POST /api/transactions/withdraw
- * @access Private (Customer)
- */
-exports.createWithdrawal = catchAsync(async (req, res, next) => {
-  const { amount, paymentMethod, description } = req.body;
-
-  if (!amount || amount <= 0) {
-    return next(new AppError('Invalid amount', 400, 'INVALID_AMOUNT'));
-  }
-
-  const transaction = await Transaction.create({
-    user: req.user.id,
-    type: 'withdrawal',
-    amount,
-    paymentMethod,
-    description,
-    status: 'pending'
-  });
-
-  res.status(201).json({
-    status: 'success',
-    message: 'Withdrawal request created successfully',
-    data: { transaction }
-  });
-});
 
 /**
  * Process transaction (approve/reject)

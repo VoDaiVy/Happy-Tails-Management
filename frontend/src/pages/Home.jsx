@@ -1,20 +1,18 @@
-﻿import React, { useState, useRef } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { PawPrint, Sparkles, Heart, Activity, Music, VolumeX, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
+import { PawPrint, Sparkles, Heart, Activity, ArrowRight, Star, Play, CheckCircle, MapPin, Phone, Clock, Mail } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
 
 const Home = () => {
   const navigate = useNavigate();
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
-  const audioRef = useRef(null);
   const { scrollYProgress } = useScroll();
   
   const y1 = useTransform(scrollYProgress, [0, 1], [0, -50]);
@@ -30,13 +28,6 @@ const Home = () => {
       navigate('/staff');
     }
     // Customer stays on home page (no navigation needed)
-  };
-
-  const toggleMusic = () => {
-    if(!audioRef.current) return;
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
-    setIsPlaying(!isPlaying);
   };
 
   const openLoginModal = () => {
@@ -59,22 +50,6 @@ const Home = () => {
         initialMode={authModalMode}
         onLoginSuccess={handleLoginSuccess}
       />
-      <audio ref={audioRef} loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" />
-
-      <div className="fixed bottom-6 left-6 z-50">
-        <button 
-          onClick={toggleMusic}
-          className="group flex items-center gap-3 bg-[#2D3436] text-[#FDFBF7] px-3 py-2 rounded-full shadow-xl hover:scale-105 transition-all duration-500"
-        >
-          <div className="relative">
-             {isPlaying ? <div className="absolute inset-0 bg-[#D97853] rounded-full animate-ping opacity-50"/> : null}
-             {isPlaying ? <Music size={16} /> : <VolumeX size={16} />}
-          </div>
-          <span className="text-[10px] font-bold tracking-widest uppercase overflow-hidden w-0 group-hover:w-20 transition-all duration-500 whitespace-nowrap">
-            {isPlaying ? 'Relaxing' : 'Play'}
-          </span>
-        </button>
-      </div>
 
       <section className="relative pt-28 pb-16 px-6 flex items-center">
         <div className="container mx-auto grid lg:grid-cols-12 gap-8 items-center">
@@ -269,7 +244,13 @@ const Home = () => {
               <li className="flex items-center gap-3"><CheckCircle size={18} className="text-[#5B8C51]" /> <span>Personalized Nutrition Plans</span></li>
               <li className="flex items-center gap-3"><CheckCircle size={18} className="text-[#5B8C51]" /> <span>Mood Monitoring System</span></li>
             </ul>
-            <button className="bg-white text-[#2D3436] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#D97853] hover:text-white transition-all">
+            <button 
+              onClick={() => {
+                navigate('/ai-health-scan');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="bg-white text-[#2D3436] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#D97853] hover:text-white transition-all"
+            >
               Try AI Scanner Now
             </button>
           </motion.div>

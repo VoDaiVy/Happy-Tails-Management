@@ -265,9 +265,9 @@ const getTransactions = async (userId, query = {}) => {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1
+      total,
+      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) // kept for backwards compat
     }
   };
 };

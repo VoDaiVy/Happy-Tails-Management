@@ -1,12 +1,8 @@
-/**
- * Feedback Routes
- * Customer feedback and review management
- */
-
 const express = require('express');
 const {
   getAllFeedback,
   getMyFeedback,
+  getEligibleBookingsForFeedback,
   getFeedbacksByService,
   createFeedback,
   updateFeedback,
@@ -20,21 +16,22 @@ const { protect, restrictTo, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // Public routes
-router.get('/', optionalAuth, getAllFeedback);  // GET /api/feedback - Get all published feedback
-router.get('/service/:serviceId', getFeedbacksByService);  // GET /api/feedback/service/:serviceId - Get feedback for a service
+router.get('/', optionalAuth, getAllFeedback);
+router.get('/service/:serviceId', getFeedbacksByService);
 
 // Customer routes
 router.use(protect);
 
-router.get('/my', restrictTo('customer'), getMyFeedback);  // GET /api/feedback/my - Get my feedback
-router.post('/', restrictTo('customer'), createFeedback);  // POST /api/feedback - Create feedback
+router.get('/my', restrictTo('customer'), getMyFeedback);
+router.get('/eligible-bookings', restrictTo('customer'), getEligibleBookingsForFeedback);
+router.post('/', restrictTo('customer'), createFeedback);
 
 router.route('/:id')
-  .put(restrictTo('customer'), updateFeedback)  // PUT /api/feedback/:id - Update feedback
-  .delete(deleteFeedback);  // DELETE /api/feedback/:id - Delete feedback (Customer - own, Admin - all)
+  .put(restrictTo('customer'), updateFeedback)
+  .delete(deleteFeedback);
 
 // Staff and Admin routes
-router.put('/:id/respond', restrictTo('staff', 'admin'), respondToFeedback);  // PUT /api/feedback/:id/respond - Respond to feedback
-router.put('/:id/publish', restrictTo('admin'), togglePublishStatus);  // PUT /api/feedback/:id/publish - Toggle publish status
+router.put('/:id/respond', restrictTo('staff', 'admin'), respondToFeedback);
+router.put('/:id/publish', restrictTo('admin'), togglePublishStatus);
 
 module.exports = router;

@@ -62,28 +62,56 @@ exports.getMyFeedback = catchAsync(async (req, res, next) => {
 
 /**
  * Create feedback
+ * Customers can ONLY leave feedback for services in their COMPLETED bookings.
  * @route POST /api/feedback
  * @access Private (Customer)
  */
 exports.createFeedback = catchAsync(async (req, res, next) => {
-  const { booking, service, rating, comment, images } = req.body;
+  const { booking: bookingId, service: serviceId, rating, comment, images } = req.body;
 
-  // Validate booking if provided
-  if (booking) {
-    const bookingExists = await Booking.findOne({
-      _id: booking,
-      customer: req.user.id,
-      status: 'completed'
-    });
-    
-    if (!bookingExists) {
-      return next(new AppError('Booking not found or not completed', 404, 'BOOKING_NOT_FOUND'));
+  // booking is required — no booking, no feedback
+  if (!bookingId) {
+    return next(new AppError('Booking ID là bắt buộc để gửi feedback', 400, 'BOOKING_REQUIRED'));
+  }
+
+  // The booking must belong to this customer AND be completed
+  const booking = await Booking.findOne({
+    _id: bookingId,
+    customer: req.user.id,
+    status: 'completed'
+  }).populate('items.service', 'name');
+
+  if (!booking) {
+    return next(new AppError('Lịch hẹn không tồn tại hoặc chưa hoàn thành', 404, 'BOOKING_NOT_FOUND'));
+  }
+
+  // If a specific service is provided, it must be in the booking's items
+  if (serviceId) {
+    const serviceInBooking = booking.items.some(
+      item => item.service && item.service._id.toString() === serviceId.toString()
+    );
+    if (!serviceInBooking) {
+      return next(new AppError('Dịch vụ này không nằm trong lịch hẹn đã chọn', 400, 'SERVICE_NOT_IN_BOOKING'));
     }
 
-    // Check if feedback already exists for this booking
-    const existingFeedback = await Feedback.findOne({ booking, user: req.user.id });
+    // Prevent duplicate feedback per booking + service combo
+    const existingFeedback = await Feedback.findOne({
+      booking: bookingId,
+      service: serviceId,
+      user: req.user.id
+    });
     if (existingFeedback) {
-      return next(new AppError('You have already submitted feedback for this booking', 400, 'FEEDBACK_EXISTS'));
+      return next(new AppError('Bạn đã gửi feedback cho dịch vụ này trong lịch hẹn này rồi', 400, 'FEEDBACK_EXISTS'));
+    }
+  } else {
+    // No specific service — prevent duplicate overall booking feedback
+    const existingFeedback = await Feedback.findOne({
+      booking: bookingId,
+      service: { $exists: false },
+      user: req.user.id
+    });
+    if (existingFeedback) {
+      return next(new AppError('Bạn đã gửi feedback cho lịch hẹn này rồi', 400, 'FEEDBACK_EXISTS'));
     }
   }
 
@@ -101,8 +129,8 @@ exports.createFeedback = catchAsync(async (req, res, next) => {
 
   const feedback = await Feedback.create({
     user: req.user.id,
-    booking,
-    service,
+    booking: bookingId,
+    service: serviceId || undefined,
     rating,
     comment,
     images
@@ -112,7 +140,7 @@ exports.createFeedback = catchAsync(async (req, res, next) => {
 
   res.status(201).json({
     status: 'success',
-    message: 'Feedback submitted successfully',
+    message: 'Feedback đã được gửi thành công',
     data: { feedback }
   });
 });
@@ -277,5 +305,66 @@ exports.togglePublishStatus = catchAsync(async (req, res, next) => {
     status: 'success',
     message: `Feedback ${feedback.isPublished ? 'published' : 'unpublished'} successfully`,
     data: { feedback }
+  });
+});
+
+/**
+ * Get completed bookings eligible for feedback
+ * Returns completed bookings with per-service feedback status (reviewed/not reviewed)
+ * @route GET /api/feedback/eligible-bookings
+ * @access Private (Customer)
+ */
+exports.getEligibleBookingsForFeedback = catchAsync(async (req, res, next) => {
+  // Get all completed bookings for this customer
+  const completedBookings = await Booking.find({
+    customer: req.user.id,
+    status: 'completed'
+  })
+    .populate('items.service', 'name price images')
+    .populate('items.pet', 'name')
+    .sort('-bookingDate')
+    .lean();
+
+  if (completedBookings.length === 0) {
+    return res.status(200).json({
+      status: 'success',
+      results: 0,
+      data: { bookings: [] }
+    });
+  }
+
+  // Get all feedback this customer already submitted for these bookings
+  const bookingIds = completedBookings.map(b => b._id);
+  const existingFeedbacks = await Feedback.find({
+    user: req.user.id,
+    booking: { $in: bookingIds }
+  }).select('booking service rating').lean();
+
+  // Build a lookup: bookingId -> Set of reviewed serviceIds
+  const reviewedMap = {};
+  for (const fb of existingFeedbacks) {
+    const bId = fb.booking.toString();
+    if (!reviewedMap[bId]) reviewedMap[bId] = new Set();
+    if (fb.service) reviewedMap[bId].add(fb.service.toString());
+    else reviewedMap[bId].add('__overall__');
+  }
+
+  // Annotate each booking's items with hasReviewed flag
+  const bookings = completedBookings.map(booking => {
+    const reviewed = reviewedMap[booking._id.toString()] || new Set();
+    const items = (booking.items || []).map(item => ({
+      ...item,
+      hasReviewed: item.service
+        ? reviewed.has(item.service._id.toString())
+        : false
+    }));
+    const allReviewed = items.length > 0 && items.every(i => i.hasReviewed);
+    return { ...booking, items, allReviewed };
+  });
+
+  res.status(200).json({
+    status: 'success',
+    results: bookings.length,
+    data: { bookings }
   });
 });
