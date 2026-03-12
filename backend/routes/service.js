@@ -14,6 +14,7 @@ const {
 
 const { protect, restrictTo, optionalAuth } = require('../middleware/auth');
 const { validate, validateQuery } = require('../middleware/validate');
+const { handleUpload, serviceImageUpload } = require('../middleware/upload');
 const {
   createServiceSchema,
   updateServiceSchema,
@@ -30,10 +31,10 @@ router.get('/:id', optionalAuth, getServiceById);
 router.use(protect);
 router.use(restrictTo('admin'));
 
-router.post('/', validate(createServiceSchema), createService);
+router.post('/', handleUpload(serviceImageUpload), validate(createServiceSchema), createService);
 
 router.route('/:id')
-  .put(validate(updateServiceSchema), updateService)
+  .put(handleUpload(serviceImageUpload), validate(updateServiceSchema), updateService)
   .delete(deleteService);
 
 module.exports = router;
