@@ -8,6 +8,7 @@ const UserDetail = require('../models/UserDetail');
 const User = require('../models/User');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError } = require('../utils/AppError');
+const uploadService = require('../services/upload.service');
 
 /**
  * @desc    Get logged-in user's profile
@@ -107,29 +108,34 @@ const updateMyProfile = catchAsync(async (req, res, next) => {
  */
 const updateAvatar = catchAsync(async (req, res, next) => {
   const userID = req.user.id;
-  const { avatar } = req.body;
 
-  // Validate avatar URL
-  if (!avatar) {
-    return next(new AppError('Avatar URL is required', 400, 'VALIDATION_ERROR'));
+  // Accept a file upload (via multer) or a URL in the request body as fallback
+  let avatarUrl;
+  if (req.file) {
+    avatarUrl = req.file.path; // Cloudinary secure_url
+  } else if (req.body && req.body.avatar) {
+    try {
+      new URL(req.body.avatar);
+      avatarUrl = req.body.avatar;
+    } catch {
+      return next(new AppError('Invalid avatar URL format', 400, 'VALIDATION_ERROR'));
+    }
+  } else {
+    return next(new AppError('No avatar file or URL provided', 400, 'VALIDATION_ERROR'));
   }
 
-  // URL validation is handled by schema, but we can add additional checks
-  try {
-    new URL(avatar);
-  } catch (error) {
-    return next(new AppError('Invalid avatar URL format', 400, 'VALIDATION_ERROR'));
-  }
-
-  // Find or create profile
   let userDetail = await UserDetail.findByUserID(userID);
-  
+
   if (!userDetail) {
     return next(new AppError('Please complete your basic profile first', 400, 'PROFILE_INCOMPLETE'));
   }
 
-  // Update avatar
-  userDetail.avatar = avatar;
+  // Delete old Cloudinary avatar when replacing with a new upload
+  if (req.file && userDetail.avatar) {
+    await uploadService.deleteImage(userDetail.avatar);
+  }
+
+  userDetail.avatar = avatarUrl;
   await userDetail.save();
 
   res.status(200).json({

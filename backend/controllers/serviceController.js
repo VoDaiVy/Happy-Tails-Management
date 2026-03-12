@@ -4,6 +4,7 @@
  */
 
 const serviceService = require('../services/service.service');
+const uploadService = require('../services/upload.service');
 const { catchAsync } = require('../utils/catchAsync');
 const ApiResponse = require('../utils/ApiResponse');
 
@@ -44,7 +45,12 @@ exports.getServiceById = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.createService = catchAsync(async (req, res, next) => {
-  const service = await serviceService.createService(req.body, req.user.id);
+  const body = { ...req.body };
+  if (req.files && req.files.length > 0) {
+    body.images = req.files.map((f) => f.path);
+  }
+
+  const service = await serviceService.createService(body, req.user.id);
 
   res.status(201).json(ApiResponse.success(
     'Service created successfully',
@@ -58,9 +64,19 @@ exports.createService = catchAsync(async (req, res, next) => {
  * @access Private (Admin, Staff)
  */
 exports.updateService = catchAsync(async (req, res, next) => {
+  const body = { ...req.body };
+  if (req.files && req.files.length > 0) {
+    // Delete old images from Cloudinary before replacing
+    const existing = await serviceService.getServiceById(req.params.id);
+    if (existing.images && existing.images.length > 0) {
+      await uploadService.deleteImages(existing.images);
+    }
+    body.images = req.files.map((f) => f.path);
+  }
+
   const service = await serviceService.updateService(
     req.params.id,
-    req.body,
+    body,
     req.user.id
   );
 
