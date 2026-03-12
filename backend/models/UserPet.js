@@ -341,7 +341,7 @@ userPetSchema.methods.addVaccination = async function(vaccinationData) {
  */
 userPetSchema.methods.updatePetProfile = async function(updateData) {
   const allowedFields = [
-    'petName', 'breed', 'gender', 'weight', 'dateOfBirth',
+    'petName', 'petType', 'breed', 'gender', 'weight', 'dateOfBirth',
     'avatar', 'color', 'temperament', 'specialNeeds',
     'feedingInstructions', 'allergies', 'notes'
   ];
@@ -395,7 +395,6 @@ userPetSchema.statics.findByUserID = async function(userID, activeOnly = true) {
   }
   
   return this.find(query)
-    .populate('petID', 'name species category')
     .populate('userID', 'name email')
     .sort({ createdAt: -1 });
 };
@@ -412,7 +411,6 @@ userPetSchema.statics.findByIdAndUserID = async function(petId, userID) {
     userID,
     isActive: true
   })
-  .populate('petID', 'name species category')
   .populate('userID', 'name email');
 };
 
@@ -425,7 +423,7 @@ userPetSchema.statics.findByBreed = async function(breed) {
   return this.find({
     breed: new RegExp(breed, 'i'),
     isActive: true
-  }).populate('petID userID');
+  }).populate('userID', 'name email');
 };
 
 /**
@@ -451,8 +449,9 @@ userPetSchema.statics.getUserPetStats = async function(userID) {
   const stats = {
     totalPets: pets.length,
     species: {},
+    byGender: { male: 0, female: 0, unknown: 0 },
     weightCategories: { Small: 0, Medium: 0, Large: 0, 'Extra Large': 0 },
-    avgWeight: 0,
+    averageWeight: 0,
     upcomingVaccinations: 0
   };
   
@@ -461,6 +460,16 @@ userPetSchema.statics.getUserPetStats = async function(userID) {
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
   
   pets.forEach(pet => {
+    // Species distribution
+    const type = pet.petType || 'other';
+    stats.species[type] = (stats.species[type] || 0) + 1;
+
+    // Gender distribution
+    const gender = pet.gender || 'unknown';
+    if (stats.byGender[gender] !== undefined) {
+      stats.byGender[gender]++;
+    }
+
     // Weight categories
     const weightCat = pet.weightCategory || 'Unknown';
     if (stats.weightCategories[weightCat] !== undefined) {
@@ -476,7 +485,7 @@ userPetSchema.statics.getUserPetStats = async function(userID) {
     if (hasUpcomingVaccination) stats.upcomingVaccinations++;
   });
   
-  stats.avgWeight = pets.length > 0 ? (totalWeight / pets.length).toFixed(1) : 0;
+  stats.averageWeight = pets.length > 0 ? parseFloat((totalWeight / pets.length).toFixed(1)) : 0;
   
   return stats;
 };
