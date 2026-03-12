@@ -18,6 +18,8 @@ const Service = require('../models/Service');
 const payosService = require('./payos.service');
 const { createError } = require('../utils/AppError');
 const logger = require('../utils/logger');
+const notificationService = require('./notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
 /**
  * Format number to Vietnamese currency string
@@ -153,6 +155,18 @@ const handlePayOSWebhook = async (webhookBody) => {
       });
       
       await session.endSession();
+
+      // Notify: deposit success (fire-and-forget — must run outside transaction)
+      setImmediate(() => {
+        notificationService.send(
+          transaction.userId,
+          NOTIFICATION_TEMPLATES.DEPOSIT_SUCCESS(
+            transaction.amount,
+            wallet.balance,
+            transaction.transactionCode
+          )
+        ).catch(err => console.error('[Notif] deposit_success:', err.message));
+      });
       
       logger.info(`PayOS deposit completed: orderCode=${orderCode}, amount=${transaction.amount}`);
       return { received: true, status: 'completed' };
@@ -173,6 +187,17 @@ const handlePayOSWebhook = async (webhookBody) => {
       webhookData: webhookBody
     };
     await transaction.save();
+
+    // Notify: deposit failed (fire-and-forget)
+    setImmediate(() => {
+      notificationService.send(
+        transaction.userId,
+        NOTIFICATION_TEMPLATES.DEPOSIT_FAILED(
+          transaction.amount,
+          transaction.transactionCode
+        )
+      ).catch(err => console.error('[Notif] deposit_failed:', err.message));
+    });
     
     logger.info(`PayOS deposit cancelled: orderCode=${orderCode}, reason=${status}`);
     return { received: true, status: 'cancelled' };
@@ -240,9 +265,9 @@ const getTransactions = async (userId, query = {}) => {
       total,
       page: parseInt(page),
       limit: parseInt(limit),
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1
+      total,
+      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) // kept for backwards compat
     }
   };
 };

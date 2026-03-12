@@ -11,6 +11,8 @@ const Order = require('../models/Order');
 const Transaction = require('../models/Transaction');
 const Wallet = require('../models/Wallet');
 const { createError } = require('../utils/AppError');
+const notificationService = require('./notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
 // ==================== PRIVATE HELPERS ====================
 
@@ -179,6 +181,14 @@ const blockUser = async (targetUserId, adminId, reason) => {
   
   // Block the user
   await user.block(adminId, reason);
+
+  // Notify: account blocked (fire-and-forget)
+  setImmediate(() => {
+    notificationService.send(
+      targetUserId,
+      NOTIFICATION_TEMPLATES.ACCOUNT_BLOCKED(reason)
+    ).catch(err => console.error('[Notif] account_blocked:', err.message));
+  });
   
   // Fetch updated user with populated blockedBy
   const updatedUser = await User.findById(targetUserId)
@@ -218,6 +228,14 @@ const unblockUser = async (targetUserId, adminId) => {
   
   // Unblock the user
   await user.unblock();
+
+  // Notify: account restored (fire-and-forget)
+  setImmediate(() => {
+    notificationService.send(
+      targetUserId,
+      NOTIFICATION_TEMPLATES.ACCOUNT_UNBLOCKED()
+    ).catch(err => console.error('[Notif] account_unblocked:', err.message));
+  });
   
   // Fetch updated user
   const updatedUser = await User.findById(targetUserId)

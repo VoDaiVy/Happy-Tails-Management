@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   X,
   User,
@@ -69,6 +70,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  useScrollLock(isOpen);
 
   // Fetch services on mount
   useEffect(() => {

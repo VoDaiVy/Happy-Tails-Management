@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   X,
   Calendar,
@@ -82,6 +83,7 @@ const BookingDetailModal = ({
     booking?.assignedStaff?._id || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  useScrollLock(isOpen);
 
   if (!booking) return null;
 

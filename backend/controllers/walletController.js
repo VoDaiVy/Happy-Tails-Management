@@ -137,26 +137,21 @@ const handlePayOSWebhook = catchAsync(async (req, res) => {
  */
 const handlePayOSReturn = catchAsync(async (req, res) => {
   const result = await walletService.handlePayOSReturn(req.query);
-  
-  // In production, you might redirect to frontend instead
-  // return res.redirect(`${process.env.FRONTEND_URL}/payment/result?status=${result.success ? 'success' : 'failed'}`);
-  
+
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
   if (result.success && result.data) {
-    return res.status(200).json({
-      success: true,
-      message: result.message,
-      data: result.data
-    });
+    // Payment completed — redirect to wallet page with success flag
+    return res.redirect(
+      `${frontendUrl}/wallet?payment=success&amount=${result.data.amount || ''}&code=${result.data.transactionCode || ''}`
+    );
   }
-  
-  res.status(200).json({
-    success: result.success,
-    message: result.message,
-    data: {
-      transactionCode: result.transactionCode,
-      status: result.status
-    }
-  });
+
+  // Cancelled or still pending
+  const status = result.status || 'cancelled';
+  return res.redirect(
+    `${frontendUrl}/wallet?payment=${status}&code=${result.transactionCode || ''}`
+  );
 });
 
 module.exports = {

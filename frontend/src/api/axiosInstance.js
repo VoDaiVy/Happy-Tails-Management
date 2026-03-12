@@ -59,11 +59,6 @@ axiosInstance.interceptors.response.use(
         // Retry the original request with new token
         return axiosInstance(originalRequest);
       } catch (refreshError) {
-<<<<<<< HEAD
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-=======
         console.error('❌ Refresh token failed:', {
           status: refreshError.response?.status,
           message: refreshError.response?.data?.message
@@ -76,7 +71,6 @@ axiosInstance.interceptors.response.use(
           localStorage.removeItem("user");
           window.location.href = "/";
         }
->>>>>>> main
         return Promise.reject(refreshError);
       }
     }

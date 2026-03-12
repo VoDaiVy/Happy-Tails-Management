@@ -53,11 +53,11 @@ const Footer = () => {
               <ul className="space-y-4 text-sm">
                 <li className="flex items-start gap-3">
                   <MapPin size={18} className="text-[#D97853] mt-0.5 flex-shrink-0"/>
-                  <span className="text-[#2D3436]/60">123 Pet Wellness Ave, Suite 100<br/>Saigon, Vietnam</span>
+                  <span className="text-[#2D3436]/60">FPT University, Hoa Hai, Ngu Hanh Son<br/>Da Nang, Vietnam</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone size={18} className="text-[#D97853] flex-shrink-0"/>
-                  <span className="text-[#2D3436]/60">+84 (28) 1234 5678</span>
+                  <span className="text-[#2D3436]/60">+84 (43) 1234 5678</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail size={18} className="text-[#D97853] flex-shrink-0"/>
@@ -72,7 +72,7 @@ const Footer = () => {
           </div>
 
           <div className="border-t border-[#2D3436]/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-[#2D3436]/40">2024 HappyTails. All rights reserved.</p>
+            <p className="text-xs text-[#2D3436]/40">HappyTails. All rights reserved 2026.</p>
             <div className="flex gap-6 text-xs">
               <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Privacy Policy</a>
               <a href="#" className="text-[#2D3436]/40 hover:text-[#D97853]">Terms of Service</a>

@@ -72,6 +72,11 @@ exports.updateUserRole = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid role', 400, 'INVALID_ROLE'));
   }
 
+  // Prevent admin from changing their own role
+  if (req.user._id.toString() === req.params.id) {
+    return next(new AppError('Cannot change your own role', 400, 'CANNOT_CHANGE_OWN_ROLE'));
+  }
+
   const user = await User.findByIdAndUpdate(
     req.params.id,
     { role },
@@ -150,6 +155,37 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message: 'User deleted successfully',
+    data: null
+  });
+});
+
+/**
+ * Permanently delete user (hard delete — removes from DB)
+ * @route DELETE /api/admin/users/:id/permanent
+ * @access Private (Admin)
+ */
+exports.permanentDeleteUser = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return next(new AppError('User not found', 404, 'USER_NOT_FOUND'));
+  }
+
+  // Cannot delete yourself
+  if (user._id.toString() === req.user._id.toString()) {
+    return next(new AppError('You cannot delete yourself', 400, 'CANNOT_DELETE_SELF'));
+  }
+
+  // Cannot delete other admins
+  if (user.role === 'admin') {
+    return next(new AppError('You cannot delete other administrators', 400, 'CANNOT_DELETE_ADMIN'));
+  }
+
+  await User.deleteOne({ _id: user._id });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User permanently deleted',
     data: null
   });
 });
@@ -491,4 +527,66 @@ exports.exportTransactions = catchAsync(async (req, res, next) => {
   
   // Send CSV response
   sendCSVResponse(res, csvString, filename);
+});
+
+// ==================== NOTIFICATION MANAGEMENT ====================
+
+const notificationService = require('../services/notification.service');
+const {
+  sendNotificationSchema,
+  broadcastNotificationSchema
+} = require('../validations/notification.validation');
+
+/**
+ * Send a notification to a specific user (or all users if userId === 'all')
+ * @route   POST /api/admin/notifications/send
+ * @access  Private (Admin)
+ */
+exports.sendNotification = catchAsync(async (req, res, next) => {
+  const { error, value } = sendNotificationSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true
+  });
+
+  if (error) {
+    const details = error.details.map((d) => d.message);
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+
+  const { userId, ...payload } = value;
+
+  if (userId === 'all') {
+    const result = await notificationService.broadcast(payload, {});
+    return res.status(200).json(ApiResponse.success('Broadcast sent', result));
+  }
+
+  // Verify target user exists before sending
+  const targetUser = await User.findOne({ _id: userId, isDeleted: false });
+  if (!targetUser) {
+    return next(new AppError('User not found', 404, 'USER_NOT_FOUND'));
+  }
+
+  const notification = await notificationService.send(userId, payload);
+  res.status(200).json(ApiResponse.success('Notification sent', { notification }));
+});
+
+/**
+ * Broadcast a notification to all users (or a filtered subset)
+ * @route   POST /api/admin/notifications/broadcast
+ * @access  Private (Admin)
+ */
+exports.broadcastNotification = catchAsync(async (req, res, next) => {
+  const { error, value } = broadcastNotificationSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true
+  });
+
+  if (error) {
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+
+  const { userFilter, ...payload } = value;
+  const result = await notificationService.broadcast(payload, userFilter || {});
+
+  res.status(200).json(ApiResponse.success('Broadcast sent successfully', result));
 });

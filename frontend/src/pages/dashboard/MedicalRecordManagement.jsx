@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   Search,
   FileText,
@@ -71,6 +72,7 @@ export default function MedicalRecordManagement() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  useScrollLock(showDetailModal);
 
   // Fetch records
   const fetchRecords = useCallback(async () => {
