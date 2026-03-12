@@ -16,6 +16,8 @@ const {
   sendWelcomeEmail
 } = require('../utils/emailService');
 const logger = require('../utils/logger');
+const notificationService = require('../services/notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
 /**
  * Create and send token response
@@ -89,6 +91,14 @@ exports.register = catchAsync(async (req, res, next) => {
 
   // Auto-create wallet for new user
   await Wallet.findOrCreateByUser(user._id);
+
+  // Welcome notification (fire-and-forget — must not block registration response)
+  setImmediate(() => {
+    notificationService.send(
+      user._id,
+      NOTIFICATION_TEMPLATES.WELCOME(user.name || user.fullName || user.email)
+    ).catch(err => console.error('[Notif] welcome:', err.message));
+  });
 
   // Generate email verification OTP
   const otp = user.generateEmailVerificationOTP();

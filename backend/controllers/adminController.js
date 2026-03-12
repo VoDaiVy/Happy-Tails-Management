@@ -232,8 +232,12 @@ const {
   blockUserSchema,
   getUsersQuerySchema,
   getRevenueQuerySchema,
-  getTopServicesQuerySchema
+  getTopServicesQuerySchema,
+  getSystemTransactionsQuerySchema,
+  getTransactionSummaryQuerySchema,
+  transactionIdParamSchema
 } = require('../validations/admin.validation');
+const { sendCSVResponse, convertToCSV, TRANSACTION_CSV_FIELDS } = require('../utils/exportCsv');
 
 /**
  * Get users list with filter, search, and pagination
@@ -361,4 +365,192 @@ exports.getTopServices = catchAsync(async (req, res, next) => {
   const data = await adminService.getTopServices(value);
   
   res.status(200).json(ApiResponse.success('Top services fetched successfully', data));
+});
+
+// ==================== TRANSACTION MANAGEMENT (UC-39) ====================
+
+/**
+ * Get all system transactions with filters
+ * @route GET /api/admin/transactions
+ * @access Private (Admin)
+ */
+exports.getSystemTransactions = catchAsync(async (req, res, next) => {
+  // Validate query
+  const { error, value } = getSystemTransactionsQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    const customError = error.details.find(d => d.type === 'any.custom');
+    if (customError) {
+      return next(new AppError(customError.context.message, 400, 'VALIDATION_ERROR'));
+    }
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const result = await adminService.getSystemTransactions(value);
+  
+  res.status(200).json(ApiResponse.success('Transactions fetched successfully', result.data, result.pagination));
+});
+
+/**
+ * Get transaction summary statistics
+ * @route GET /api/admin/transactions/summary
+ * @access Private (Admin)
+ */
+exports.getTransactionSummary = catchAsync(async (req, res, next) => {
+  // Validate query
+  const { error, value } = getTransactionSummaryQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    const customError = error.details.find(d => d.type === 'any.custom');
+    if (customError) {
+      return next(new AppError(customError.context.message, 400, 'VALIDATION_ERROR'));
+    }
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  const data = await adminService.getTransactionSummary(value);
+  
+  res.status(200).json(ApiResponse.success('Transaction summary fetched successfully', data));
+});
+
+/**
+ * Get any transaction by ID (Admin can see any transaction)
+ * @route GET /api/admin/transactions/:id
+ * @access Private (Admin)
+ */
+exports.getTransactionByIdAdmin = catchAsync(async (req, res, next) => {
+  // Validate params
+  const { error, value } = transactionIdParamSchema.validate(req.params, {
+    abortEarly: false
+  });
+  
+  if (error) {
+    return next(new AppError('Invalid transaction ID format', 400, 'INVALID_TRANSACTION_ID'));
+  }
+  
+  const transaction = await adminService.getTransactionByIdAdmin(value.id);
+  
+  res.status(200).json(ApiResponse.success('Transaction fetched successfully', { transaction }));
+});
+
+/**
+ * Export transactions to CSV
+ * @route GET /api/admin/transactions/export
+ * @access Private (Admin)
+ */
+exports.exportTransactions = catchAsync(async (req, res, next) => {
+  // Validate query (same as getSystemTransactions but without pagination)
+  const { error, value } = getSystemTransactionsQuerySchema.validate(req.query, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true
+  });
+  
+  if (error) {
+    const customError = error.details.find(d => d.type === 'any.custom');
+    if (customError) {
+      return next(new AppError(customError.context.message, 400, 'VALIDATION_ERROR'));
+    }
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+  
+  // Get transactions for export (no pagination, max 10k)
+  const transactions = await adminService.getTransactionsForExport(value);
+  
+  // Flatten data for CSV
+  const flattenedData = transactions.map(tx => ({
+    transactionCode: tx.transactionCode,
+    type: tx.type,
+    method: tx.method,
+    amount: tx.amount,
+    balanceBefore: tx.balanceBefore,
+    balanceAfter: tx.balanceAfter,
+    status: tx.status,
+    userName: tx.userId?.fullName || 'N/A',
+    userEmail: tx.userId?.email || 'N/A',
+    note: tx.note || '',
+    failureReason: tx.failureReason || '',
+    referenceId: tx.referenceId || '',
+    createdAt: tx.createdAt ? new Date(tx.createdAt).toISOString() : ''
+  }));
+  
+  // Convert to CSV
+  const csvString = convertToCSV(flattenedData, TRANSACTION_CSV_FIELDS);
+  
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().split('T')[0];
+  const filename = `transactions_export_${timestamp}.csv`;
+  
+  // Send CSV response
+  sendCSVResponse(res, csvString, filename);
+});
+
+// ==================== NOTIFICATION MANAGEMENT ====================
+
+const notificationService = require('../services/notification.service');
+const {
+  sendNotificationSchema,
+  broadcastNotificationSchema
+} = require('../validations/notification.validation');
+
+/**
+ * Send a notification to a specific user (or all users if userId === 'all')
+ * @route   POST /api/admin/notifications/send
+ * @access  Private (Admin)
+ */
+exports.sendNotification = catchAsync(async (req, res, next) => {
+  const { error, value } = sendNotificationSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true
+  });
+
+  if (error) {
+    const details = error.details.map((d) => d.message);
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+
+  const { userId, ...payload } = value;
+
+  if (userId === 'all') {
+    const result = await notificationService.broadcast(payload, {});
+    return res.status(200).json(ApiResponse.success('Broadcast sent', result));
+  }
+
+  // Verify target user exists before sending
+  const targetUser = await User.findOne({ _id: userId, isDeleted: false });
+  if (!targetUser) {
+    return next(new AppError('User not found', 404, 'USER_NOT_FOUND'));
+  }
+
+  const notification = await notificationService.send(userId, payload);
+  res.status(200).json(ApiResponse.success('Notification sent', { notification }));
+});
+
+/**
+ * Broadcast a notification to all users (or a filtered subset)
+ * @route   POST /api/admin/notifications/broadcast
+ * @access  Private (Admin)
+ */
+exports.broadcastNotification = catchAsync(async (req, res, next) => {
+  const { error, value } = broadcastNotificationSchema.validate(req.body, {
+    abortEarly: false,
+    stripUnknown: true
+  });
+
+  if (error) {
+    return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR'));
+  }
+
+  const { userFilter, ...payload } = value;
+  const result = await notificationService.broadcast(payload, userFilter || {});
+
+  res.status(200).json(ApiResponse.success('Broadcast sent successfully', result));
 });
