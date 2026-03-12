@@ -189,3 +189,68 @@ exports.deleteMedicalRecord = catchAsync(async (req, res, next) => {
 
   res.status(200).json({ status: 'success', message: 'Medical record deleted', data: null });
 });
+
+// ─────────────────────────────────────────────────────────────
+// PATCH /api/medical-records/:id/stage  (Staff | Admin)
+// Update workflow stage and optionally add stage photos
+// ─────────────────────────────────────────────────────────────
+exports.updateStage = catchAsync(async (req, res, next) => {
+  const { stage, notes, photos } = req.body;
+
+  const validStages = ['received', 'processing', 'completed'];
+  if (!stage || !validStages.includes(stage)) {
+    return next(new AppError('Invalid stage. Must be: received, processing, or completed', 400, 'INVALID_STAGE'));
+  }
+
+  const record = await MedicalRecord.findById(req.params.id);
+  if (!record) {
+    return next(new AppError('Medical record not found', 404, 'RECORD_NOT_FOUND'));
+  }
+
+  // Stage transitions must go forward (received → processing → completed)
+  const stageOrder = { received: 0, processing: 1, completed: 2 };
+  if (stageOrder[stage] < stageOrder[record.workflowStage]) {
+    return next(new AppError('Cannot revert to a previous stage', 400, 'INVALID_STAGE_TRANSITION'));
+  }
+
+  // Append photos to the matching stage array
+  if (photos && Array.isArray(photos) && photos.length > 0) {
+    const stagePhotoField = `${stage}Photos`;
+    record[stagePhotoField].push(...photos);
+  }
+
+  // Record stage history
+  record.stageHistory.push({
+    stage,
+    updatedBy: req.user.id,
+    updatedAt: new Date(),
+    notes: notes || ''
+  });
+
+  record.workflowStage = stage;
+  record.updatedBy = req.user.id;
+
+  await record.save();
+  await record.populate([
+    { path: 'userPet',   select: 'petName petType breed' },
+    { path: 'user',      select: 'name email phone' },
+    { path: 'updatedBy', select: 'name email' }
+  ]);
+
+  // Notify the pet owner about the stage change
+  const { sendAutoNotification } = require('../utils/notificationHelper');
+  const stageLabels = { received: 'Received', processing: 'Being Processed', completed: 'Completed' };
+  await sendAutoNotification(
+    record.user._id,
+    'system',
+    'Medical Record Updated',
+    `Your pet's medical record is now: ${stageLabels[stage]}`,
+    { priority: stage === 'completed' ? 'high' : 'medium', metadata: { recordId: record._id } }
+  );
+
+  res.status(200).json({
+    status: 'success',
+    message: `Stage updated to "${stage}"`,
+    data: { record }
+  });
+});

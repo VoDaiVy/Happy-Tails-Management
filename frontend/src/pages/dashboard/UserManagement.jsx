@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   Users,
   Search,
@@ -69,6 +70,7 @@ const UserManagement = () => {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [blockReason, setBlockReason] = useState("");
+  useScrollLock(showBlockModal);
 
   // Fetch users
   const fetchUsers = useCallback(async (showRefreshSpinner = false) => {

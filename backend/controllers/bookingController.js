@@ -9,6 +9,7 @@ const Transaction = require("../models/Transaction");
 const Voucher = require("../models/Voucher");
 const { catchAsync } = require("../utils/catchAsync");
 const { AppError } = require("../utils/AppError");
+const { sendAutoNotification } = require("../utils/notificationHelper");
 
 /**
  * Create booking from cart
@@ -244,6 +245,24 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   await booking.save();
   await booking.populate("customer items.service items.pet assignedStaff room");
 
+  // Notify the customer about the status change
+  const notificationMessages = {
+    confirmed:    { title: 'Booking Confirmed',       message: 'Your booking has been confirmed. We look forward to seeing you!', priority: 'high' },
+    'in-progress': { title: 'Check-In Successful',   message: 'Your pet has been checked in and is now in our care.', priority: 'high' },
+    completed:    { title: 'Booking Completed',       message: 'Your booking is complete. Thank you for choosing Happy Tails!', priority: 'medium' },
+    cancelled:    { title: 'Booking Cancelled',       message: 'Your booking has been cancelled by staff.', priority: 'high' }
+  };
+  const notif = notificationMessages[status];
+  if (notif && booking.customer) {
+    await sendAutoNotification(
+      booking.customer._id,
+      'booking',
+      notif.title,
+      notif.message,
+      { priority: notif.priority, metadata: { bookingId: booking._id } }
+    );
+  }
+
   res.status(200).json({
     status: "success",
     message: "Booking status updated",
@@ -380,9 +399,19 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
     await session.commitTransaction();
 
     // Populate for response
-
     await booking.populate(
       "customer items.service items.pet assignedStaff room cancelledBy",
+    );
+
+    // Notify customer about cancellation
+    await sendAutoNotification(
+      booking.customer._id,
+      'booking',
+      'Booking Cancelled',
+      refundTransaction
+        ? `Your booking has been cancelled. A refund of ${refundPercentage}% will be processed to your wallet.`
+        : 'Your booking has been cancelled.',
+      { priority: 'high', metadata: { bookingId: booking._id } }
     );
 
     res.status(200).json({

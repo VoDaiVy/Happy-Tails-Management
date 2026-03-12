@@ -41,6 +41,7 @@ const aiRoutes = require("./routes/ai");
 const medicalRecordRoutes = require("./routes/medicalRecord");
 const userRoutes = require("./routes/user");
 const voucherRoutes = require("./routes/voucher");
+const cameraRoutes = require("./routes/camera");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -185,6 +186,9 @@ app.use("/api/users", userRoutes);
 
 // Voucher routes
 app.use("/api/vouchers", voucherRoutes);
+
+// Camera monitoring routes
+app.use("/api/camera", cameraRoutes);
 
 
 // ==================== ERROR HANDLING ====================

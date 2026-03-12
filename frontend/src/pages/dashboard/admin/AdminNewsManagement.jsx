@@ -1,5 +1,6 @@
   import React, { useState, useEffect } from 'react';
   import { motion, AnimatePresence } from 'framer-motion';
+  import useScrollLock from '../../../hooks/useScrollLock';
   import { 
     Plus, Search, Filter, FileText, Megaphone, 
     Clock, Eye, Edit, Calendar, Trash2, MoreVertical, X, UploadCloud, CheckCircle2, ChevronDown, Monitor, Activity, AlertTriangle
@@ -86,6 +87,7 @@
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+    useScrollLock(isModalOpen || isDetailOpen || isEditOpen || isDeleteOpen);
     const [editForm, setEditForm] = useState({ title: '', category: '', audience: '', status: '', date: '' });
     const [isEditCatOpen, setIsEditCatOpen] = useState(false);
     const [isEditAudOpen, setIsEditAudOpen] = useState(false);

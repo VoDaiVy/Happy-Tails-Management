@@ -233,7 +233,8 @@ const getTransactions = async (userId, query = {}) => {
       page: parseInt(page),
       limit: parseInt(limit),
       total,
-      totalPages: Math.ceil(total / limit)
+      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) // kept for backwards compat
     }
   };
 };

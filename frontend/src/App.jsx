@@ -16,19 +16,31 @@ import Register from './pages/Register';
 import Service from './pages/Service';
 import News from './pages/News';
 import AIHealthScan from './pages/AIHealthScan';
+import Wallet from './pages/Wallet';
 import FloatingChatBubble from './components/FloatingChatBubble';
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/service" element={<Service />} />
         <Route path="/news" element={<News />} />
         <Route path="/ai-health-scan" element={<AIHealthScan />} />
+        <Route path="/wallet" element={<Wallet />} />
 
-        {/* Admin Dashboard */}
-        <Route path="/admin" element={<DashboardLayout />}>
+        {/* Admin Dashboard — requires admin role */}
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute allowedRoles={['admin']}>
+              <DashboardLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<AdminDashboard />} />
           <Route path="news" element={<AdminNewsManagement />} />
           <Route path="bookings" element={<BookingBoard />} />
@@ -40,8 +52,15 @@ function App() {
           <Route path="vouchers" element={<VoucherManagement />} />
         </Route>
 
-        {/* Staff Dashboard */}
-        <Route path="/staff" element={<DashboardLayout />}>
+        {/* Staff Dashboard — requires staff or admin role */}
+        <Route
+          path="/staff"
+          element={
+            <PrivateRoute allowedRoles={['staff', 'admin']}>
+              <DashboardLayout />
+            </PrivateRoute>
+          }
+        >
           <Route index element={<StaffDashboard />} />
           <Route path="bookings" element={<BookingBoard />} />
         </Route>
