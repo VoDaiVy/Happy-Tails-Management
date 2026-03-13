@@ -20,7 +20,9 @@ import {
   Filter,
   X,
   Trash2,
+  Activity,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getUsersList, blockUser, unblockUser, updateUserRole, permanentDeleteUser } from "../../api/userApi";
 
 // Role configuration
@@ -272,181 +274,131 @@ const UserManagement = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
     >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D3436] flex items-center gap-2">
-            <Users className="text-[#5B8C51]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             User Management
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-              View and manage user accounts in the system
+          <p className="text-sm text-[#2D3436]/60">
+            View and manage user accounts in the system
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => fetchUsers(true)}
-            disabled={isRefreshing}
-            className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw
-              size={20}
-              className={`text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-          </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-            />
-          </div>
+      <AdminFilterBar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by name, email..."
+        filters={[
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All", "Active", "Blocked"],
+            value:
+              activeFilter === "all"
+                ? "All"
+                : activeFilter === "active"
+                  ? "Active"
+                  : "Blocked",
+            onChange: (opt) =>
+              setActiveFilter(
+                opt === "All"
+                  ? "all"
+                  : opt === "Active"
+                    ? "active"
+                    : "blocked",
+              ),
+          },
+          {
+            label: "ROLE",
+            icon: Shield,
+            options: ["All Roles", "Customer", "Staff", "Admin"],
+            value:
+              roleFilter === ""
+                ? "All Roles"
+                : roleFilter === "customer"
+                  ? "Customer"
+                  : roleFilter === "staff"
+                    ? "Staff"
+                    : "Admin",
+            onChange: (opt) =>
+              setRoleFilter(
+                opt === "All Roles"
+                  ? ""
+                  : opt === "Customer"
+                    ? "customer"
+                    : opt === "Staff"
+                      ? "staff"
+                      : "admin",
+              ),
+          },
+        ]}
+      />
 
-          {/* Role filter */}
-          <div className="flex items-center gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-            >
-              <option value="">All Roles</option>
-              <option value="customer">Customer</option>
-              <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
-            </select>
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+          {error}
+        </div>
+      )}
 
-            {/* Clear filters */}
-            {(searchQuery || activeFilter !== "all" || roleFilter) && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2.5 text-sm text-gray-600 hover:text-[#5B8C51] transition-colors flex items-center gap-1"
-              >
-                <X size={16} />
-                Clear Filters
-              </button>
-            )}
+      {/* Table */}
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
-        </div>
-
-        {/* Status Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {FILTER_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeFilter === tab.key;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveFilter(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-[#5B8C51] text-white shadow-lg shadow-[#5B8C51]/25"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-[#5B8C51] border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-500">Loading users...</p>
+        ) : users.length === 0 ? (
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <Users className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No users found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
-        </div>
-      ) : error ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertCircle size={32} className="text-red-500" />
-            </div>
-            <div>
-              <p className="font-medium text-[#2D3436]">{error}</p>
-              <button
-                onClick={() => fetchUsers()}
-                className="mt-2 text-sm text-[#5B8C51] hover:underline"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <Users size={32} className="text-gray-400" />
-            </div>
-            <div>
-              <p className="font-medium text-[#2D3436]">
-                No users found
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                Try changing filters or search keywords
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Users Table */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        ) : (
+          <>
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
                       User
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Email
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Role
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Status
                     </th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Created
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Joined
                     </th>
-                    <th className="text-right px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {users.map((user) => {
+                <tbody className="text-sm">
+                  {users.map((user, index) => {
                     const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.customer;
                     const RoleIcon = roleConfig.icon;
                     const isBlocked = user.isBlocked;
 
                     return (
-                      <tr
+                      <motion.tr
                         key={user._id}
-                        className="hover:bg-gray-50 transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
                       >
                         {/* User Info */}
                         <td className="px-6 py-4">
@@ -460,26 +412,29 @@ const UserManagement = () => {
                               <p className="font-medium text-[#2D3436] truncate">
                                 {user.name}
                               </p>
-                              <p className="text-sm text-gray-500 flex items-center gap-1 truncate">
-                                <Mail size={12} />
+                              <p className="text-xs text-[#2D3436]/50 truncate">
                                 {user.email}
                               </p>
                             </div>
                           </div>
                         </td>
 
-                        {/* Role — click to change */}
+                        {/* Email */}
                         <td className="px-6 py-4">
+                          <p className="text-sm text-[#2D3436]/60 truncate">{user.email}</p>
+                        </td>
+
+                        {/* Role */}
+                        <td className="px-6 py-4 text-center">
                           {user._id !== currentUserId ? (
                             <button
                               onClick={() => openRoleModal(user)}
                               disabled={actionLoading === user._id}
                               title="Click to change role"
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 hover:shadow-sm disabled:opacity-50 cursor-pointer ${roleConfig.color}`}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:opacity-80 disabled:opacity-50 cursor-pointer ${roleConfig.color}`}
                             >
                               <RoleIcon size={12} />
                               {roleConfig.label}
-                              <ChevronDown size={11} className="opacity-60" />
                             </button>
                           ) : (
                             <span
@@ -492,31 +447,30 @@ const UserManagement = () => {
                         </td>
 
                         {/* Status */}
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-center">
                           {isBlocked ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
                               <Ban size={12} />
                               Blocked
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#7FB069]/15 text-[#5B8C51]">
                               <CheckCircle size={12} />
                               Active
                             </span>
                           )}
                         </td>
 
-                        {/* Created At */}
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-500 flex items-center gap-1">
-                            <Calendar size={14} />
+                        {/* Joined Date */}
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-xs text-[#2D3436]/60">
                             {formatDate(user.createdAt)}
                           </span>
                         </td>
 
                         {/* Actions */}
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             {/* Block/Unblock — only for non-admin users */}
                             {user.role !== "admin" && (
                               <>
@@ -524,39 +478,41 @@ const UserManagement = () => {
                                   <button
                                     onClick={() => handleUnblockUser(user)}
                                     disabled={actionLoading === user._id}
-                                    className="px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                                    className="p-2 text-[#7FB069] hover:bg-[#7FB069]/10 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Unblock account"
                                   >
                                     {actionLoading === user._id ? (
                                       <RefreshCw size={14} className="animate-spin" />
                                     ) : (
-                                      "Unblock"
+                                      <CheckCircle size={14} />
                                     )}
                                   </button>
                                 ) : (
                                   <button
                                     onClick={() => openBlockModal(user)}
                                     disabled={actionLoading === user._id}
-                                    className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                    className="p-2 text-[#2D3436]/45 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Block account"
                                   >
-                                    Block
+                                    <Ban size={14} />
                                   </button>
                                 )}
                               </>
                             )}
-                            {/* Permanent delete — all users except self */}
+                            {/* Permanent delete — all users except self and admins */}
                             {user._id !== currentUserId && user.role !== "admin" && (
                               <button
                                 onClick={() => openDeleteModal(user)}
                                 disabled={actionLoading === user._id}
-                                title="Permanently delete account"
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                                className="p-2 text-[#2D3436]/45 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Delete permanently"
                               >
-                                <Trash2 size={15} />
+                                <Trash2 size={14} />
                               </button>
                             )}
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     );
                   })}
                 </tbody>
@@ -565,34 +521,34 @@ const UserManagement = () => {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-sm text-gray-500">
+              <div className="px-6 py-4 border-t border-[#2D3436]/5 flex items-center justify-between bg-[#FDFBF7]">
+                <p className="text-xs text-[#2D3436]/60">
                   Showing {users.length} / {pagination.total} users
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page === 1}
-                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 rounded-lg border border-[#2D3436]/10 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <ChevronLeft size={18} />
+                    <ChevronLeft size={16} className="text-[#2D3436]/60" />
                   </button>
-                  <span className="px-4 py-2 text-sm font-medium">
+                  <span className="px-3 py-1 text-xs font-medium text-[#2D3436]/70">
                     {pagination.page} / {pagination.totalPages}
                   </span>
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.totalPages}
-                    className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 rounded-lg border border-[#2D3436]/10 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <ChevronRight size={18} />
+                    <ChevronRight size={16} className="text-[#2D3436]/60" />
                   </button>
                 </div>
               </div>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
 
       {/* Change Role Modal */}
       <AnimatePresence>

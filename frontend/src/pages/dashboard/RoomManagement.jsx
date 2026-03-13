@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Plus,
   Edit,
+  Edit2,
   Trash2,
   X,
   Check,
@@ -17,7 +18,12 @@ import {
   Bed,
   Users,
   PawPrint,
+  Activity,
+  MoreVertical,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getRoomsList, createRoom, updateRoom, deleteRoom } from "../../api/roomApi";
 
 // Room types
@@ -76,6 +82,9 @@ const RoomManagement = () => {
     isAvailable: true,
     isActive: true,
   });
+  
+  // Dropdown state
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -89,10 +98,10 @@ const RoomManagement = () => {
       if (activeTab === "available") params.isAvailable = "true";
       if (activeTab === "unavailable") params.isAvailable = "false";
       if (typeFilter) params.type = typeFilter;
-      params.isActive = "all";
+      params.isActive = "true";
       
       const response = await getRoomsList(params);
-      setRooms(response.data?.rooms || []);
+      setRooms(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       setError(err.response?.data?.message || "Không thể tải danh sách phòng");
     } finally {
@@ -212,392 +221,376 @@ const RoomManagement = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-[#D97853] to-[#C26843] rounded-xl shadow-lg">
-            <DoorOpen className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-[#2D3436]">Room Management</h1>
-            <p className="text-sm text-[#2D3436]/60">
-              Manage accommodation rooms for pets
-            </p>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Room Management
+          </h1>
+          <p className="text-sm text-[#2D3436]/60">
+            Manage accommodation rooms for pets
+          </p>
         </div>
-        <button
+        <motion.button
           onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#D97853] text-white rounded-xl hover:bg-[#C26843] transition-colors font-medium"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
         >
-          <Plus size={20} />
-          Add Room
-        </button>
+          <Plus size={18} /> Add Room
+        </motion.button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#2D3436]/5 p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Filter tabs */}
-          <div className="flex bg-[#F8F9FA] rounded-xl p-1">
-            {FILTER_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? "bg-white text-[#D97853] shadow-sm"
-                    : "text-[#2D3436]/60 hover:text-[#2D3436]"
-                }`}
-              >
-                <tab.icon size={16} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Type filter */}
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-[#2D3436]/40" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 bg-[#F8F9FA] border-0 rounded-lg text-sm focus:ring-2 focus:ring-[#D97853]/20"
-            >
-              <option value="">Tất cả loại</option>
-              {ROOM_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Search */}
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/40"
-              />
-              <input
-                type="text"
-                placeholder="Search by room number, name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#F8F9FA] border-0 rounded-lg text-sm focus:ring-2 focus:ring-[#D97853]/20"
-              />
-            </div>
-          </div>
-
-          {/* Refresh */}
-          <button
-            onClick={fetchRooms}
-            disabled={loading}
-            className="p-2 text-[#2D3436]/60 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-lg transition-colors"
-          >
-            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+      <AdminFilterBar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by room number or name..."
+        filters={[
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All", "Available", "In Use"],
+            value:
+              activeTab === "all"
+                ? "All"
+                : activeTab === "available"
+                  ? "Available"
+                  : "In Use",
+            onChange: (opt) =>
+              setActiveTab(
+                opt === "All"
+                  ? "all"
+                  : opt === "Available"
+                    ? "available"
+                    : "unavailable",
+              ),
+          },
+          {
+            label: "TYPE",
+            icon: Filter,
+            options: ["All Types", ...ROOM_TYPES.map((t) => t.label)],
+            value: typeFilter ? ROOM_TYPES.find((t) => t.value === typeFilter)?.label || "All Types" : "All Types",
+            onChange: (opt) =>
+              setTypeFilter(
+                opt === "All Types"
+                  ? ""
+                  : ROOM_TYPES.find((t) => t.label === opt)?.value || "",
+              ),
+          },
+        ]}
+      />
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500" />
-          <p className="text-red-700">{error}</p>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl">
+          {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#2D3436]/5 overflow-hidden">
+      <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-[#2D3436]/5 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-8 h-8 text-[#D97853] animate-spin" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97853]"></div>
           </div>
         ) : filteredRooms.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-[#2D3436]/40">
-            <DoorOpen size={48} className="mb-3" />
-            <p>No rooms found</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <DoorOpen className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No rooms found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead className="bg-[#F8F9FA] border-b border-[#2D3436]/5">
-              <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Phòng
-                </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Loại
-                </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Sức chứa
-                </th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Pet Type
-                </th>
-                <th className="text-center px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-[#2D3436]/60 uppercase tracking-wider">
-                  Hành động
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2D3436]/5">
-              {filteredRooms.map((room) => {
-                const typeBadge = getRoomTypeBadge(room.type);
-                return (
-                  <tr
-                    key={room._id}
-                    className="hover:bg-[#F8F9FA]/50 transition-colors"
-                  >
-                    {/* Room info */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#D97853]/10 rounded-lg flex items-center justify-center">
-                          <DoorOpen className="w-5 h-5 text-[#D97853]" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#2D3436]">
-                            {room.roomNumber}
-                          </p>
-                          <p className="text-sm text-[#2D3436]/60">{room.name}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Type */}
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${typeBadge.color}`}
-                      >
-                        {typeBadge.label}
-                      </span>
-                    </td>
-
-                    {/* Capacity */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-[#2D3436]">
-                        <Users size={16} className="text-[#2D3436]/40" />
-                        <span>{room.capacity}</span>
-                      </div>
-                    </td>
-
-                    {/* Pet types */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {room.petTypes?.slice(0, 3).map((pet) => (
-                          <span
-                            key={pet}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#F8F9FA] rounded text-xs text-[#2D3436]/70"
-                          >
-                            <PawPrint size={10} />
-                            {PET_TYPES.find((p) => p.value === pet)?.label || pet}
-                          </span>
-                        ))}
-                        {room.petTypes?.length > 3 && (
-                          <span className="text-xs text-[#2D3436]/40">
-                            +{room.petTypes.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => handleToggleAvailability(room)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          room.isAvailable
-                            ? "bg-green-100 text-green-700 hover:bg-green-200"
-                            : "bg-red-100 text-red-700 hover:bg-red-200"
-                        }`}
-                      >
-                        {room.isAvailable ? (
-                          <>
-                            <ToggleRight size={14} />
-                            Sẵn sàng
-                          </>
-                        ) : (
-                          <>
-                            <ToggleLeft size={14} />
-                            In Use
-                          </>
-                        )}
-                      </button>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(room)}
-                          className="p-2 text-[#2D3436]/60 hover:text-[#D97853] hover:bg-[#D97853]/10 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setRoomToDelete(room);
-                            setShowDeleteModal(true);
-                          }}
-                          className="p-2 text-[#2D3436]/60 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Room
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Type
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Capacity
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Pet Types
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Actions
+                    </th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                </thead>
+                <tbody className="text-sm">
+                  {filteredRooms.map((room, index) => {
+                    const typeBadge = getRoomTypeBadge(room.type);
+                    return (
+                      <motion.tr
+                        key={room._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="border-b border-[#2D3436]/5 hover:bg-[#FDFBF7] transition-colors"
+                      >
+                        {/* Room info */}
+                        <td className="px-6 py-4">
+                          <p className="font-semibold text-[#2D3436]">{room.roomNumber}</p>
+                          <p className="text-sm text-[#2D3436]/60">{room.name}</p>
+                        </td>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Tổng phòng</p>
-          <p className="text-2xl font-bold text-[#2D3436]">{rooms.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Sẵn sàng</p>
-          <p className="text-2xl font-bold text-green-600">
-            {rooms.filter((r) => r.isAvailable).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">In Use</p>
-          <p className="text-2xl font-bold text-red-600">
-            {rooms.filter((r) => !r.isAvailable).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-4 border border-[#2D3436]/5">
-          <p className="text-sm text-[#2D3436]/60">Phòng VIP</p>
-          <p className="text-2xl font-bold text-amber-600">
-            {rooms.filter((r) => r.type === "vip").length}
-          </p>
-        </div>
+                        {/* Type */}
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${typeBadge.color}`}
+                          >
+                            {typeBadge.label}
+                          </span>
+                        </td>
+
+                        {/* Capacity */}
+                        <td className="px-6 py-4 text-center">
+                          <span className="font-medium text-[#2D3436]">{room.capacity}</span>
+                        </td>
+
+                        {/* Pet types */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {room.petTypes?.slice(0, 2).map((pet) => (
+                              <span
+                                key={pet}
+                                className="inline-flex items-center px-2 py-0.5 bg-[#F8F9FA] rounded text-xs text-[#2D3436]/70"
+                              >
+                                {PET_TYPES.find((p) => p.value === pet)?.label || pet}
+                              </span>
+                            ))}
+                            {room.petTypes?.length > 2 && (
+                              <span className="text-xs text-[#2D3436]/40">
+                                +{room.petTypes.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4 text-center">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+                              room.isAvailable
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {room.isAvailable ? "Available" : "In Use"}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-3 text-[#2D3436]/45">
+                            <button
+                              onClick={() => handleEdit(room)}
+                              className="transition hover:text-[#D97853]"
+                              title="Edit"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRoomToDelete(room);
+                                setShowDeleteModal(true);
+                              }}
+                              className="transition hover:text-red-500"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
         {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowModal(false)}
-          >
+          <>
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              {/* Modal header */}
-              <div className="flex items-center justify-between p-6 border-b border-[#2D3436]/5">
-                <h2 className="text-xl font-bold text-[#2D3436]">
-                  {modalMode === "create" ? "Add New Room" : "Edit Room"}
-                </h2>
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <DoorOpen className="w-5 h-5 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      {modalMode === "create" ? "Add New Room" : "Edit Room"}
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      {modalMode === "create" ? "Create a new room for your facility" : "Update room information"}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-[#F8F9FA] rounded-lg transition-colors"
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50 hover:text-[#2D3436]"
                 >
-                  <X size={20} className="text-[#2D3436]/60" />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* Modal Body */}
+              <form onSubmit={handleSubmit} className="p-6 md:p-8 flex-1 space-y-6">
+                {/* Error Message */}
                 {formError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
-                    <AlertCircle size={16} className="text-red-500" />
-                    <p className="text-sm text-red-700">{formError}</p>
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    {formError}
                   </div>
                 )}
 
-                {/* Room number & Name */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Form Grid */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Room Number */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Số phòng *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Room Number <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={formData.roomNumber}
                       onChange={(e) =>
                         setFormData({ ...formData, roomNumber: e.target.value })
                       }
+                      required
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                       placeholder="P001"
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
                     />
                   </div>
+
+                  {/* Room Name */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Room Name *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Room Name <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="text"
-                      required
                       value={formData.name}
                       onChange={(e) =>
                         setFormData({ ...formData, name: e.target.value })
                       }
-                      placeholder="Phòng Sunny"
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                      required
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                      placeholder="Sunny Room"
                     />
                   </div>
-                </div>
 
-                {/* Type & Capacity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Loại phòng
+                  {/* Room Type */}
+                  <div className={`relative ${isTypeOpen ? "z-[60]" : "z-10"}`}>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Room Type <span className="text-[#D97853]">*</span>
                     </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                    <div
+                      className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isTypeOpen ? "border-[#D97853] ring-1 ring-[#D97853]/20" : "border-[#D97853]"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsTypeOpen(!isTypeOpen);
+                      }}
                     >
-                      {ROOM_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
+                      <span className="text-sm font-medium text-[#2D3436]">
+                        {ROOM_TYPES.find((t) => t.value === formData.type)?.label || "Select type"}
+                      </span>
+                      <MoreVertical size={14} className="text-[#D97853]" />
+                    </div>
+                    <AnimatePresence>
+                      {isTypeOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsTypeOpen(false);
+                            }}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5"
+                          >
+                            {ROOM_TYPES.map((type) => {
+                              const isSelected = formData.type === type.value;
+                              return (
+                                <div
+                                  key={type.value}
+                                  className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setFormData({ ...formData, type: type.value });
+                                    setIsTypeOpen(false);
+                                  }}
+                                >
+                                  {type.label}
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
                   </div>
+
+                  {/* Capacity */}
                   <div>
-                    <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                      Sức chứa *
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Capacity <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
-                      required
-                      min="1"
                       value={formData.capacity}
                       onChange={(e) =>
                         setFormData({ ...formData, capacity: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                      required
+                      min="1"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                      placeholder="1"
                     />
                   </div>
                 </div>
 
-                {/* Pet types */}
+                {/* Pet Types */}
                 <div>
-                  <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
-                    Pet Type
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Pet Types
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PET_TYPES.map((pet) => (
@@ -610,13 +603,12 @@ const RoomManagement = () => {
                             : [...formData.petTypes, pet.value];
                           setFormData({ ...formData, petTypes: newPets });
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                           formData.petTypes.includes(pet.value)
-                            ? "bg-[#D97853] text-white"
-                            : "bg-[#F8F9FA] text-[#2D3436]/70 hover:bg-[#2D3436]/10"
+                            ? "bg-[#D97853] text-white shadow-[0_3px_10px_rgba(217,120,83,0.3)]"
+                            : "bg-white border border-[#2D3436]/10 text-[#2D3436]/70 hover:border-[#D97853] hover:text-[#D97853]"
                         }`}
                       >
-                        <PawPrint size={14} />
                         {pet.label}
                       </button>
                     ))}
@@ -625,73 +617,84 @@ const RoomManagement = () => {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Description
                   </label>
                   <textarea
-                    rows={3}
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="Detailed description of the room..."
-                    className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853] resize-none"
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
+                    placeholder="Detailed room description..."
                   />
                 </div>
 
-                {/* Status toggles */}
+                {/* Status - Only for edit mode */}
                 {modalMode === "edit" && (
-                  <div className="flex items-center gap-6">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
                       <input
                         type="checkbox"
+                        id="isAvailable"
                         checked={formData.isAvailable}
                         onChange={(e) =>
                           setFormData({ ...formData, isAvailable: e.target.checked })
                         }
-                        className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
+                        className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
                       />
-                      <span className="text-sm text-[#2D3436]">Sẵn sàng</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
+                      <label htmlFor="isAvailable" className="text-sm font-medium text-[#2D3436]">
+                        Available for booking
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
                       <input
                         type="checkbox"
+                        id="isActive"
                         checked={formData.isActive}
                         onChange={(e) =>
                           setFormData({ ...formData, isActive: e.target.checked })
                         }
-                        className="w-4 h-4 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
+                        className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]/20"
                       />
-                      <span className="text-sm text-[#2D3436]">Active</span>
-                    </label>
+                      <label htmlFor="isActive" className="text-sm font-medium text-[#2D3436]">
+                        Active room
+                      </label>
+                    </div>
                   </div>
                 )}
-
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 text-[#2D3436]/70 hover:bg-[#F8F9FA] rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#D97853] text-white rounded-lg hover:bg-[#C26843] transition-colors disabled:opacity-50"
-                  >
-                    {formLoading ? (
-                      <RefreshCw size={18} className="animate-spin" />
-                    ) : (
-                      <Check size={18} />
-                    )}
-                    {modalMode === "create" ? "Create" : "Update"}
-                  </button>
-                </div>
               </form>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 md:px-8 border-t border-[#2D3436]/10 bg-white flex items-center justify-end gap-3 sticky bottom-0 z-30">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmit}
+                  disabled={formLoading}
+                  className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {formLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
+                  {formLoading
+                    ? "Saving..."
+                    : modalMode === "create"
+                      ? "Create Room"
+                      : "Update Room"}
+                </button>
+              </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -751,7 +754,7 @@ const RoomManagement = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 };
 

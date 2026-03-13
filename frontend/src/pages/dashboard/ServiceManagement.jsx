@@ -25,6 +25,8 @@ import {
   CheckCircle2,
   ChevronDown,
   MoreVertical,
+  UploadCloud,
+  AlertCircle,
 } from "lucide-react";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
@@ -35,6 +37,7 @@ import {
   deleteService,
 } from "../../api/serviceApi";
 import { getAllCategories } from "../../api/categoryApi";
+import { uploadMultipleImages } from "../../api/uploadApi";
 
 // Pet type labels
 const PET_TYPE_LABELS = {
@@ -63,6 +66,14 @@ export default function ServiceManagement() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timeoutId = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   // Filters
   const [activeTab, setActiveTab] = useState("all");
@@ -103,6 +114,7 @@ export default function ServiceManagement() {
   });
   const [featureInput, setFeatureInput] = useState("");
   const [imageInput, setImageInput] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
 
@@ -293,6 +305,46 @@ export default function ServiceManagement() {
     }));
   };
 
+  const handleUploadImages = async (filesInput) => {
+    const files = Array.from(filesInput || []).filter((file) =>
+      file.type?.startsWith("image/"),
+    );
+
+    if (!files.length) return;
+
+    try {
+      setImageUploading(true);
+      console.log("Starting upload for files:", files);
+      const uploadedUrls = await uploadMultipleImages(files);
+      console.log("Uploaded URLs received:", uploadedUrls);
+
+      setFormData((prev) => ({
+        ...prev,
+        images: Array.from(new Set([...(prev.images || []), ...uploadedUrls])),
+      }));
+      
+      console.log("FormData images updated");
+      setToast({ type: 'success', message: `${uploadedUrls.length} ảnh đã upload thành công` });
+    } catch (err) {
+      console.error("Upload error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Không thể upload ảnh";
+      setError(errorMsg);
+      setToast({ type: 'error', message: errorMsg });
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleImageDrop = async (event) => {
+    event.preventDefault();
+    await handleUploadImages(event.dataTransfer.files);
+  };
+
+  const handleImageInputChange = async (event) => {
+    await handleUploadImages(event.target.files);
+    event.target.value = "";
+  };
+
   // Submit form
   const handleSubmitForm = async (e) => {
     e.preventDefault();
@@ -446,6 +498,19 @@ export default function ServiceManagement() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl mb-6">
           {error}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-3 rounded-2xl text-white font-bold flex items-center gap-2 shadow-lg z-50 ${
+          toast.type === 'success' ? 'bg-[#7FB069]' : 'bg-red-500'
+        }`}>
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <span className="text-sm font-bold">{toast.message}</span>
+          <button type="button" onClick={() => setToast(null)} className="opacity-80 transition hover:opacity-100 ml-2">
+            <X size={16} />
+          </button>
         </div>
       )}
 
@@ -643,7 +708,7 @@ export default function ServiceManagement() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
@@ -825,7 +890,7 @@ export default function ServiceManagement() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
@@ -1063,6 +1128,29 @@ export default function ServiceManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Images (URL)
                   </label>
+                  <label
+                    onDrop={handleImageDrop}
+                    onDragOver={(event) => event.preventDefault()}
+                    className="mb-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#D97853]/40 bg-white px-4 py-6 text-center"
+                  >
+                    <UploadCloud className="h-6 w-6 text-[#D97853]" />
+                    <p className="text-sm font-semibold text-[#2D3436]">
+                      Kéo thả ảnh vào đây hoặc bấm để chọn file
+                    </p>
+                    <p className="text-xs text-[#2D3436]/50">PNG, JPG, WEBP, GIF (tối đa 5MB mỗi ảnh)</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageInputChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {imageUploading ? (
+                    <div className="mb-3 inline-flex items-center gap-2 rounded-xl bg-[#D97853]/10 px-3 py-2 text-xs font-semibold text-[#D97853]">
+                      <Loader2 size={14} className="animate-spin" /> Uploading images...
+                    </div>
+                  ) : null}
                   <div className="flex gap-2 mb-2">
                     <input
                       type="url"
