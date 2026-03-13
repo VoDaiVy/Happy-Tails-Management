@@ -9,6 +9,59 @@ const { createError } = require('../utils/AppError');
 const logger = require('../utils/logger');
 
 /**
+ * SDK compatibility helpers.
+ * @payos/node v2 exposes paymentRequests/webhooks namespaces.
+ * We keep fallback support for legacy method names to avoid regressions.
+ */
+const callCreatePaymentLink = async (paymentData) => {
+  if (payosClient?.paymentRequests?.create) {
+    return payosClient.paymentRequests.create(paymentData);
+  }
+
+  if (typeof payosClient?.createPaymentLink === 'function') {
+    return payosClient.createPaymentLink(paymentData);
+  }
+
+  throw createError.internal('PayOS client does not support create payment link', 'PAYOS_CLIENT_INVALID');
+};
+
+const callVerifyWebhookData = async (webhookBody) => {
+  if (payosClient?.webhooks?.verify) {
+    return payosClient.webhooks.verify(webhookBody);
+  }
+
+  if (typeof payosClient?.verifyPaymentWebhookData === 'function') {
+    return payosClient.verifyPaymentWebhookData(webhookBody);
+  }
+
+  throw createError.internal('PayOS client does not support webhook verification', 'PAYOS_CLIENT_INVALID');
+};
+
+const callGetPaymentLinkInformation = async (orderCode) => {
+  if (payosClient?.paymentRequests?.get) {
+    return payosClient.paymentRequests.get(orderCode);
+  }
+
+  if (typeof payosClient?.getPaymentLinkInformation === 'function') {
+    return payosClient.getPaymentLinkInformation(orderCode);
+  }
+
+  throw createError.internal('PayOS client does not support get payment link information', 'PAYOS_CLIENT_INVALID');
+};
+
+const callCancelPaymentLink = async (paymentLinkId, cancellationReason = undefined) => {
+  if (payosClient?.paymentRequests?.cancel) {
+    return payosClient.paymentRequests.cancel(paymentLinkId, cancellationReason);
+  }
+
+  if (typeof payosClient?.cancelPaymentLink === 'function') {
+    return payosClient.cancelPaymentLink(paymentLinkId, cancellationReason);
+  }
+
+  throw createError.internal('PayOS client does not support cancel payment link', 'PAYOS_CLIENT_INVALID');
+};
+
+/**
  * Create a PayOS payment link for wallet deposit
  * @param {Object} params - Payment parameters
  * @param {ObjectId} params.userId - User ID
@@ -69,7 +122,7 @@ const createPaymentLink = async ({ userId, walletId, amount, note, user, wallet 
     logger.info(`Creating PayOS payment link: orderCode=${orderCode}, amount=${amount}`);
     
     // Step 5: Call PayOS SDK
-    const response = await payosClient.createPaymentLink(paymentData);
+    const response = await callCreatePaymentLink(paymentData);
     
     // Step 6: Update Transaction with PayOS response
     transaction.payosPaymentLinkId = response.paymentLinkId;
@@ -110,13 +163,13 @@ const createPaymentLink = async ({ userId, walletId, amount, note, user, wallet 
 /**
  * Verify PayOS webhook data using SDK
  * @param {Object} webhookBody - Raw webhook request body
- * @returns {Object} Verified webhook data
+ * @returns {Promise<Object>} Verified webhook data
  * @throws {Error} If checksum verification fails
  */
-const verifyWebhookData = (webhookBody) => {
+const verifyWebhookData = async (webhookBody) => {
   try {
-    // PayOS SDK handles HMAC-SHA256 checksum verification
-    const verifiedData = payosClient.verifyPaymentWebhookData(webhookBody);
+    // PayOS SDK handles HMAC-SHA256 checksum verification.
+    const verifiedData = await callVerifyWebhookData(webhookBody);
     return verifiedData;
   } catch (error) {
     logger.error(`PayOS webhook verification failed: ${error.message}`);
@@ -131,7 +184,7 @@ const verifyWebhookData = (webhookBody) => {
  */
 const getPaymentLinkInfo = async (orderCode) => {
   try {
-    const response = await payosClient.getPaymentLinkInformation(orderCode);
+    const response = await callGetPaymentLinkInformation(orderCode);
     return response;
   } catch (error) {
     logger.error(`PayOS getPaymentLinkInfo error: ${error.message}`);
@@ -146,7 +199,7 @@ const getPaymentLinkInfo = async (orderCode) => {
  */
 const cancelPaymentLink = async (paymentLinkId) => {
   try {
-    const response = await payosClient.cancelPaymentLink(paymentLinkId);
+    const response = await callCancelPaymentLink(paymentLinkId);
     logger.info(`PayOS payment link cancelled: ${paymentLinkId}`);
     return response;
   } catch (error) {
@@ -199,7 +252,7 @@ const createOrderPaymentLink = async ({ order, user }) => {
     logger.info(`Creating PayOS order payment link: payosOrderCode=${payosOrderCode}, orderCode=${order.orderCode}, amount=${order.totalPrice}`);
     
     // Step 4: Call PayOS SDK
-    const response = await payosClient.createPaymentLink(paymentData);
+    const response = await callCreatePaymentLink(paymentData);
     
     logger.info(`PayOS order payment link created: ${response.checkoutUrl}`);
     

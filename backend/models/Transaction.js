@@ -99,6 +99,12 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // Legacy field kept for compatibility with existing unique DB index `orderId_1`.
+  orderId: {
+    type: String,
+    default: null,
+    trim: true
+  },
   booking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
@@ -161,6 +167,13 @@ transactionSchema.pre('save', function() {
   if (!this.transactionCode) {
     this.transactionCode = `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
+
+  // Ensure `orderId` is never null for new documents because some deployments
+  // still have a legacy unique index on this field.
+  if (!this.orderId) {
+    this.orderId = this.referenceId || this.transactionCode;
+  }
+
   // Sync legacy fields
   if (!this.transactionNumber) {
     this.transactionNumber = this.transactionCode;
