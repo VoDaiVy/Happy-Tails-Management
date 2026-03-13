@@ -26,11 +26,12 @@ let payosClient = null;
 
 if (hasPayOSCredentials) {
   try {
-    payosClient = new PayOS(
-      process.env.PAYOS_CLIENT_ID,
-      process.env.PAYOS_API_KEY,
-      process.env.PAYOS_CHECKSUM_KEY
-    );
+    // @payos/node v2 expects an options object instead of positional params.
+    payosClient = new PayOS({
+      clientId: process.env.PAYOS_CLIENT_ID,
+      apiKey: process.env.PAYOS_API_KEY,
+      checksumKey: process.env.PAYOS_CHECKSUM_KEY
+    });
     logger.info('PayOS client initialized successfully');
   } catch (error) {
     logger.error(`PayOS client initialization failed: ${error.message}`);
@@ -41,27 +42,52 @@ if (hasPayOSCredentials) {
 } else {
   // Mock client for development without credentials
   logger.warn('PayOS credentials not found. Using mock client for development.');
+
+  const mockCreatePaymentLink = async (data) => {
+    logger.warn('MOCK PayOS: create payment link called');
+    return {
+      checkoutUrl: `http://localhost:3001/mock-payos/checkout?orderCode=${data.orderCode}`,
+      paymentLinkId: `mock-link-${Date.now()}`,
+      orderCode: data.orderCode,
+      status: 'PENDING',
+      qrCode: `MOCK-QR-${data.orderCode}`
+    };
+  };
+
+  const mockVerifyWebhookData = async (data) => {
+    logger.warn('MOCK PayOS: verify webhook called');
+    return data?.data || data;
+  };
+
+  const mockGetPaymentLinkInformation = async (orderCode) => {
+    logger.warn('MOCK PayOS: get payment link called');
+    return { orderCode, status: 'PENDING' };
+  };
+
+  const mockCancelPaymentLink = async (paymentLinkIdOrOrderCode) => {
+    logger.warn('MOCK PayOS: cancel payment link called');
+    return {
+      paymentLinkId: String(paymentLinkIdOrOrderCode),
+      orderCode: Number(paymentLinkIdOrOrderCode) || null,
+      status: 'CANCELLED'
+    };
+  };
+
   payosClient = {
-    createPaymentLink: async (data) => {
-      logger.warn('MOCK PayOS: createPaymentLink called');
-      return {
-        checkoutUrl: `http://localhost:3001/mock-payos/checkout?orderCode=${data.orderCode}`,
-        paymentLinkId: `mock-link-${Date.now()}`,
-        orderCode: data.orderCode
-      };
+    paymentRequests: {
+      create: mockCreatePaymentLink,
+      get: mockGetPaymentLinkInformation,
+      cancel: mockCancelPaymentLink
     },
-    verifyPaymentWebhookData: (data) => {
-      logger.warn('MOCK PayOS: verifyPaymentWebhookData called');
-      return data;
+    webhooks: {
+      verify: mockVerifyWebhookData
     },
-    getPaymentLinkInformation: async (orderCode) => {
-      logger.warn('MOCK PayOS: getPaymentLinkInformation called');
-      return { orderCode, status: 'PENDING' };
-    },
-    cancelPaymentLink: async (paymentLinkId) => {
-      logger.warn('MOCK PayOS: cancelPaymentLink called');
-      return { paymentLinkId, status: 'CANCELLED' };
-    }
+
+    // Legacy aliases for backward compatibility
+    createPaymentLink: mockCreatePaymentLink,
+    verifyPaymentWebhookData: mockVerifyWebhookData,
+    getPaymentLinkInformation: mockGetPaymentLinkInformation,
+    cancelPaymentLink: mockCancelPaymentLink
   };
 }
 

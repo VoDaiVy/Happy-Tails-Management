@@ -125,8 +125,25 @@ const transactionIdParamSchema = Joi.object({
     })
 });
 
+/**
+ * PayOS order code param schema
+ */
+const payosOrderCodeParamSchema = Joi.object({
+  orderCode: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      'number.base': 'PayOS order code must be a number',
+      'number.integer': 'PayOS order code must be an integer',
+      'number.positive': 'PayOS order code must be positive',
+      'any.required': 'PayOS order code is required'
+    })
+});
+
 module.exports = {
   depositSchema,
   getTransactionsQuerySchema,
-  transactionIdParamSchema
+  transactionIdParamSchema,
+  payosOrderCodeParamSchema
 };
