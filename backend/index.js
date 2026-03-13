@@ -21,6 +21,7 @@ const { errorHandler, notFound, handleUncaughtException, handleUnhandledRejectio
 const { globalLimiter } = require("./middleware/rateLimiter");
 const { sanitizeInput } = require("./middleware/validation");
 const logger = require("./utils/logger");
+const { startCronJobs } = require("./services/cronJob");
 
 // Import routes
 const authRoutes = require("./routes/auth");
@@ -208,6 +209,10 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
+
+
+    // Start booking status automation (runs every 60s)
+    startCronJobs();
 
     // Wrap Express app in a native HTTP server so Socket.IO can attach to it
     const httpServer = http.createServer(app);

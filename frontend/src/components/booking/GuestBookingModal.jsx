@@ -199,15 +199,15 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
       const bookingData = {
         guestInfo,
+        appointmentDate: `${bookingDate}T${bookingTime}:00`,
+        petInfo: {
+          petName,
+          petType,
+        },
         items: selectedServices.map((s) => ({
           service: s.service._id,
           quantity: s.quantity,
-          price: s.price,
-          // Thêm thông tin pet tạm (guest booking không có pet trong DB)
-          petInfo: {
-            petName,
-            petType,
-          },
+          note: s.note || "",
         })),
         bookingDate,
         bookingTime,
