@@ -226,16 +226,46 @@ export default function WalletPage() {
     };
   }, [showDepositModal, isAuthModalOpen]);
 
-  // ── Read PayOS return params (?payment=success|cancelled|pending)
+  // ── Read PayOS return params
+  // Supports both:
+  //   1. Old backend-redirect style: ?payment=success&amount=...&code=...
+  //   2. PayOS native direct-to-frontend: ?status=PAID&cancel=false&orderCode=...
   useEffect(() => {
-    const payment = searchParams.get('payment');
-    if (!payment) return;
-    const amount  = searchParams.get('amount');
-    const code    = searchParams.get('code');
-    setPaymentBanner({ type: payment, amount: amount ? parseInt(amount) : null, code });
-    // Clean URL without reloading
+    const payment     = searchParams.get('payment');    // old style
+    const payosStatus = searchParams.get('status');     // PayOS: PAID | CANCELLED
+    const payosCancel = searchParams.get('cancel');     // PayOS: "true" | "false"
+    const payosCode   = searchParams.get('code');       // PayOS: "00" = ok
+    const orderCode   = searchParams.get('orderCode'); // PayOS: order number
+
+    const hasPayOSNative = payosStatus || payosCancel !== null || payosCode;
+    if (!payment && !hasPayOSNative) return;
+
+    let type, amount = null, code = null;
+    if (payment) {
+      // Old backend-redirect style
+      type   = payment;
+      amount = searchParams.get('amount') ? parseInt(searchParams.get('amount')) : null;
+      code   = searchParams.get('code') || null;
+    } else {
+      // PayOS native params
+      if (payosCancel === 'true' || payosStatus === 'CANCELLED') {
+        type = 'cancelled';
+      } else if (payosCode === '00' || payosStatus === 'PAID') {
+        type = 'success';
+      } else {
+        type = 'pending';
+      }
+      code = orderCode;
+    }
+
+    setPaymentBanner({ type, amount, code });
+    // Clean URL without adding to browser history
     setSearchParams({}, { replace: true });
-    // Auto-dismiss after 8 s
+    // Refresh wallet data after a short delay to allow webhook to process
+    if (type === 'success' || type === 'pending') {
+      setTimeout(() => { fetchWallet(); fetchTransactions(1); }, 2000);
+    }
+    // Auto-dismiss banner after 8 s
     const t = setTimeout(() => setPaymentBanner(null), 8000);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
