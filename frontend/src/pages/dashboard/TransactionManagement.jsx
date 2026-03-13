@@ -23,7 +23,6 @@ import {
 import {
   getAllTransactions,
   getTransactionById,
-  processTransaction,
 } from "../../api/transactionApi";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 
@@ -80,11 +79,7 @@ export default function TransactionManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Process modal
-  const [showProcessModal, setShowProcessModal] = useState(false);
-  const [processData, setProcessData] = useState({ status: "", notes: "" });
-  const [processing, setProcessing] = useState(false);
-  useScrollLock(showDetailModal || showProcessModal);
+  useScrollLock(showDetailModal);
 
   // Statistics
   const [stats, setStats] = useState({
@@ -163,29 +158,6 @@ export default function TransactionManagement() {
       setShowDetailModal(false);
     } finally {
       setDetailLoading(false);
-    }
-  };
-
-  // Open process modal
-  const handleOpenProcess = (transaction) => {
-    setSelectedTransaction(transaction);
-    setProcessData({ status: "", notes: "" });
-    setShowProcessModal(true);
-  };
-
-  // Process transaction
-  const handleProcess = async () => {
-    if (!processData.status) return;
-
-    try {
-      setProcessing(true);
-      await processTransaction(selectedTransaction._id, processData);
-      setShowProcessModal(false);
-      fetchTransactions();
-    } catch (err) {
-      setError(err.response?.data?.message || "Không thể xử lý giao dịch");
-    } finally {
-      setProcessing(false);
     }
   };
 
@@ -496,15 +468,6 @@ export default function TransactionManagement() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          {transaction.status === "pending" && (
-                            <button
-                              onClick={() => handleOpenProcess(transaction)}
-                              className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                              title="Process"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </motion.tr>
@@ -661,130 +624,6 @@ export default function TransactionManagement() {
                 ) : (
                   <p className="text-gray-500 text-center py-8">Not found</p>
                 )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Process Modal */}
-      <AnimatePresence>
-        {showProcessModal && selectedTransaction && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowProcessModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">
-                  Process Transaction
-                </h2>
-                <button
-                  onClick={() => setShowProcessModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 space-y-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Transaction Code</p>
-                  <p className="font-mono font-bold">
-                    {selectedTransaction.transactionCode}
-                  </p>
-                  <p className="text-amber-600 font-semibold mt-2">
-                    {formatCurrency(selectedTransaction.amount)}
-                  </p>
-                </div>
-
-                {/* Status Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select status
-                  </label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() =>
-                        setProcessData((prev) => ({
-                          ...prev,
-                          status: "completed",
-                        }))
-                      }
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
-                        processData.status === "completed"
-                          ? "border-green-500 bg-green-50 text-green-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      Completed
-                    </button>
-                    <button
-                      onClick={() =>
-                        setProcessData((prev) => ({
-                          ...prev,
-                          status: "failed",
-                        }))
-                      }
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
-                        processData.status === "failed"
-                          ? "border-red-500 bg-red-50 text-red-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <XCircle className="w-5 h-5" />
-                      Failed
-                    </button>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes
-                  </label>
-                  <textarea
-                    value={processData.notes}
-                    onChange={(e) =>
-                      setProcessData((prev) => ({
-                        ...prev,
-                        notes: e.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Add notes (optional)..."
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setShowProcessModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleProcess}
-                    disabled={!processData.status || processing}
-                    className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processing ? "Processing..." : "Confirm"}
-                  </button>
-                </div>
               </div>
             </motion.div>
           </motion.div>
