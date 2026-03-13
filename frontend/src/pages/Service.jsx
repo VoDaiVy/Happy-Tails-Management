@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getAllServices } from "../api/serviceApi";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -43,6 +43,20 @@ import {
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import AuthModal from "../components/AuthModal";
+import { slugifyServiceName } from "../data/servicesData";
+import ServicePreviewModal from "../components/service/ServicePreviewModal";
+
+const resolveServiceIcon = (name = "") => {
+  const n = name.toLowerCase();
+  if (n.includes("bath") || n.includes("spa")) return <Droplet size={20} />;
+  if (n.includes("ear") || n.includes("eye")) return <Eye size={20} />;
+  if (n.includes("dye") || n.includes("color")) return <Brush size={20} />;
+  if (n.includes("dental") || n.includes("teeth")) return <Smile size={20} />;
+  if (n.includes("nail") || n.includes("style") || n.includes("groom")) {
+    return <Scissors size={20} />;
+  }
+  return <Sparkles size={20} />;
+};
 
 // Reuse Home's SocialButton style but adapted to new colors
 const SocialButton = ({ icon }) => (
@@ -80,7 +94,7 @@ const ExpandableService = ({ title, duration, price, description }) => {
       </div>
       <AnimatePresence>
         {expanded && (
-          <motion.div
+          <Motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -99,7 +113,7 @@ const ExpandableService = ({ title, duration, price, description }) => {
                 Book Now
               </button>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -130,7 +144,7 @@ const AIExpandableService = ({ title, price, customDesc }) => {
       </div>
       <AnimatePresence>
         {expanded && (
-          <motion.div
+          <Motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -141,7 +155,7 @@ const AIExpandableService = ({ title, price, customDesc }) => {
                 {customDesc}
               </p>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -237,7 +251,7 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <Motion.div
             initial={{ height: 0, opacity: 0, y: -5 }}
             animate={{ height: "auto", opacity: 1, y: 0 }}
             exit={{ height: 0, opacity: 0, y: -5 }}
@@ -262,63 +276,49 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 };
 
-const spaServices = [
-  {
-    id: "bath",
-    title: "Bath & Dry",
-    description: "Deep cleaning bath with skin-appropriate shampoo.",
-    price: "$45+",
-    icon: <Droplet size={20} />,
-    image: "/bath&dry.jpg",
-  },
-  {
-    id: "eareye",
-    title: "Ear & Eye Cleaning",
-    description: "Prevents irritation and infection.",
-    price: "$20",
-    icon: <Eye size={20} />,
-    image: "/eyecleaning.jpg",
-  },
-  {
-    id: "nail",
-    title: "Nail Trimming",
-    description: "Comfortable movement and safer paws.",
-    price: "$25",
-    icon: <Scissors size={20} />,
-    image: "/nail.jpg",
-  },
-  {
-    id: "dental",
-    title: "Dental Cleaning",
-    description: "Professional plaque removal and breath freshening.",
-    price: "$85",
-    icon: <Smile size={20} />,
-    image: "/dentalcleanning.jpg",
-  },
-  {
-    id: "styling",
-    title: "Styling & Cutting",
-    description: "Professional grooming and styling.",
-    price: "$65+",
-    icon: <Scissors size={20} />,
-    image: "/styling.jpg",
-  },
-  {
-    id: "dye",
-    title: "Creative Dye",
-    description: "Pet-safe fashionable coloring.",
-    price: "$120+",
-    icon: <Brush size={20} />,
-    image: "/dying.png",
-  },
-];
+const toSpaCard = (service) => {
+  const fallbackHighlights = [
+    "Professional pet-safe process",
+    "Experienced staff on-site",
+    "Post-service check and support",
+  ];
+
+  return {
+    id: service._id,
+    slug: slugifyServiceName(service.name || ""),
+    title: service.name || "Service",
+    shortDesc: service.description || "Professional care for your pet.",
+    fullDesc: service.description || "",
+    price:
+      typeof service.price === "number"
+        ? `$${service.price}`
+        : service.price || "",
+    priceValue: typeof service.price === "number" ? service.price : 0,
+    duration:
+      typeof service.duration === "number" ? `${service.duration} minutes` : "",
+    rating:
+      typeof service.rating === "number" ? service.rating.toFixed(1) : "0.0",
+    reviewCount: service.totalReviews ?? 0,
+    icon: resolveServiceIcon(service.name || ""),
+    image: service.images?.[0] || "/placeholder-service.jpg",
+    gallery:
+      Array.isArray(service.images) && service.images.length > 0
+        ? service.images
+        : ["/placeholder-service.jpg"],
+    highlights:
+      Array.isArray(service.features) && service.features.length > 0
+        ? service.features
+        : fallbackHighlights,
+    apiService: service,
+  };
+};
 
 const ServicePage = () => {
   const navigate = useNavigate();
@@ -326,6 +326,7 @@ const ServicePage = () => {
   const [sortBy, setSortBy] = useState("Default");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSpa, setActiveSpa] = useState(0);
+  const [previewService, setPreviewService] = useState(null);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
@@ -369,6 +370,59 @@ const ServicePage = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchedKeyword, setSearchedKeyword] = useState("");
   const [searchError, setSearchError] = useState("");
+  const [spaServices, setSpaServices] = useState([]);
+  const [spaLoading, setSpaLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadSpaServices = async () => {
+      setSpaLoading(true);
+      try {
+        const result = await getAllServices({
+          isActive: "true",
+          limit: 200,
+          sortBy: "name",
+          sortOrder: "asc",
+        });
+
+        const list = Array.isArray(result?.data) ? result.data : [];
+        const spaList = list.filter((service) => {
+          const cat = (service.category?.name || "").toLowerCase();
+          const name = (service.name || "").toLowerCase();
+          if (cat.includes("spa") || cat.includes("groom")) return true;
+          return [
+            "bath",
+            "ear",
+            "eye",
+            "nail",
+            "dental",
+            "style",
+            "dye",
+            "groom",
+          ].some((kw) => name.includes(kw));
+        });
+
+        const mapped = spaList.map(toSpaCard);
+        if (alive) {
+          setSpaServices(mapped);
+          setActiveSpa(0);
+        }
+      } catch {
+        if (alive) {
+          setSpaServices([]);
+        }
+      } finally {
+        if (alive) setSpaLoading(false);
+      }
+    };
+
+    loadSpaServices();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleSearch = async () => {
     setIsSearching(true);
@@ -438,6 +492,8 @@ const ServicePage = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const activeSpaService = spaServices[activeSpa] || null;
+
   return (
     <div className="bg-[#F5F1EB] min-h-screen font-sans text-[#1F2A37] selection:bg-[#E07A5F] selection:text-white overflow-x-hidden">
       <Navbar
@@ -471,7 +527,7 @@ const ServicePage = () => {
           </div>
 
           <div className="relative z-10 pt-16 pb-36 px-8 md:px-16 flex flex-col justify-center min-h-[420px]">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
@@ -482,12 +538,12 @@ const ServicePage = () => {
               </h1>
               <p className="text-sm md:text-base text-white font-medium mb-2 max-w-md mt-3 tracking-wide drop-shadow-md">
                 Professional spa, styling, veterinary clinics, and luxury
-                boarding—all tailored perfectly for your furry family members.
+                boarding - all tailored perfectly for your furry family members.
               </p>
-            </motion.div>
+            </Motion.div>
 
             {/* Floating Glass Card Search Bar */}
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
@@ -551,7 +607,7 @@ const ServicePage = () => {
                   {isSearching ? "Searching..." : "Search"}
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         </section>
 
@@ -595,11 +651,18 @@ const ServicePage = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {searchResults.map((service) => (
-                  <motion.div
+                  <Motion.div
                     key={service._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    onClick={() => navigate(`/service-detail/${service._id}`)}
+                    onClick={() => {
+                      const slug = slugifyServiceName(service.name || "");
+                      if (slug) {
+                        navigate(`/service/${slug}`, {
+                          state: { apiService: service },
+                        });
+                      }
+                    }}
                     className="bg-white rounded-[20px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-[#1F2A37]/5 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
                   >
                     {/* Image */}
@@ -636,7 +699,12 @@ const ServicePage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/service-detail/${service._id}`);
+                            const slug = slugifyServiceName(service.name || "");
+                            if (slug) {
+                              navigate(`/service/${slug}`, {
+                                state: { apiService: service },
+                              });
+                            }
                           }}
                           className="bg-[#E07A5F] text-white text-[12px] font-bold px-5 py-2 rounded-full hover:bg-[#c56a52] transition-colors shadow-md"
                         >
@@ -644,7 +712,7 @@ const ServicePage = () => {
                         </button>
                       </div>
                     </div>
-                  </motion.div>
+                  </Motion.div>
                 ))}
               </div>
             )}
@@ -757,7 +825,7 @@ const ServicePage = () => {
                         className="w-full h-full object-cover"
                       />
                       {/* Scanner Line */}
-                      <motion.div
+                      <Motion.div
                         animate={{ y: ["-10%", "300%", "-10%"] }}
                         transition={{
                           repeat: Infinity,
@@ -821,7 +889,7 @@ const ServicePage = () => {
                   </div>
 
                   {/* Floating Side Icon */}
-                  <motion.div
+                  <Motion.div
                     animate={{ y: [0, -8, 0] }}
                     transition={{
                       duration: 4,
@@ -831,7 +899,7 @@ const ServicePage = () => {
                     className="absolute top-1/3 -right-4 lg:-right-8 w-12 h-12 bg-white rounded-2xl shadow-md border border-[#1F2A37]/5 flex items-center justify-center text-[#7FB069] z-20"
                   >
                     <Monitor size={18} className="opacity-80" />
-                  </motion.div>
+                  </Motion.div>
                 </div>
               </div>
             </section>
@@ -855,15 +923,17 @@ const ServicePage = () => {
                 {/* Visual Showcase (Left) */}
                 <div className="relative rounded-[24px] overflow-hidden bg-[#F5F2EB] aspect-[4/3] lg:aspect-auto w-full shadow-inner border border-[#1F2A37]/5 h-full min-h-[400px]">
                   <AnimatePresence mode="wait">
-                    <motion.img
-                      key={spaServices[activeSpa]?.id || activeSpa}
-                      src={spaServices[activeSpa]?.image}
+                    <Motion.img
+                      key={activeSpaService?.id || "spa-placeholder"}
+                      src={
+                        activeSpaService?.image || "/placeholder-service.jpg"
+                      }
                       initial={{ opacity: 0, scale: 1.05 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.6, ease: "easeInOut" }}
                       className="absolute inset-0 w-full h-full object-cover"
-                      alt={spaServices[activeSpa]?.title}
+                      alt={activeSpaService?.title || "Spa service"}
                     />
                   </AnimatePresence>
 
@@ -871,7 +941,7 @@ const ServicePage = () => {
                   <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHBhdGggZD0iTTUgNWgxdjFINXoiIGZpbGw9InJnYmEoMCwwLDAsMC4wMikiLz48L3N2Zz4=')] mix-blend-multiply opacity-50 z-10 pointer-events-none"></div>
 
                   {/* Premium Glass Badge */}
-                  <motion.div
+                  <Motion.div
                     animate={{ y: [0, -5, 0] }}
                     transition={{
                       duration: 4,
@@ -891,98 +961,102 @@ const ServicePage = () => {
                         Hypoallergenic Products
                       </p>
                     </div>
-                  </motion.div>
+                  </Motion.div>
                 </div>
 
                 {/* Service Menu (Right) */}
                 <div className="flex flex-col justify-center space-y-3 lg:pl-2">
-                  {spaServices.map((service, idx) => {
-                    const isActive = activeSpa === idx;
-                    return (
-                      <motion.div
-                        key={service.id}
-                        onClick={() => setActiveSpa(idx)}
-                        whileHover={{ scale: isActive ? 1 : 1.02 }}
-                        className={`cursor-pointer rounded-[16px] p-3 flex items-center gap-3 transition-all duration-300 border ${
-                          isActive
-                            ? "bg-[#1F2A37] text-white shadow-xl border-[#1F2A37]"
-                            : "bg-white/40 hover:bg-white shadow-sm border-white/60 text-[#1F2A37]"
-                        }`}
-                      >
-                        <motion.div
-                          animate={isActive ? { rotate: [0, 10, -10, 0] } : {}}
-                          transition={{ duration: 0.5 }}
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                  {spaLoading ? (
+                    <div className="rounded-[16px] border border-white/60 bg-white/40 p-4 text-[13px] text-[#1F2A37]/55">
+                      Loading services...
+                    </div>
+                  ) : spaServices.length === 0 ? (
+                    <div className="rounded-[16px] border border-white/60 bg-white/40 p-4 text-[13px] text-[#1F2A37]/55">
+                      Khong co du lieu dich vu tu backend.
+                    </div>
+                  ) : (
+                    spaServices.map((service, idx) => {
+                      const isActive = activeSpa === idx;
+                      return (
+                        <Motion.div
+                          key={service.id}
+                          onClick={() => setActiveSpa(idx)}
+                          onDoubleClick={() => setPreviewService(service)}
+                          whileHover={{ scale: isActive ? 1 : 1.02 }}
+                          className={`cursor-pointer rounded-[16px] p-3 flex items-center gap-3 transition-all duration-300 border ${
                             isActive
-                              ? "bg-[#E07A5F] text-white shadow-lg"
-                              : "bg-white text-[#7FB069] shadow-sm border border-[#1F2A37]/5"
+                              ? "bg-[#1F2A37] text-white shadow-xl border-[#1F2A37]"
+                              : "bg-white/40 hover:bg-white shadow-sm border-white/60 text-[#1F2A37]"
                           }`}
                         >
-                          {service.icon}
-                        </motion.div>
+                          <Motion.div
+                            animate={
+                              isActive ? { rotate: [0, 10, -10, 0] } : {}
+                            }
+                            transition={{ duration: 0.5 }}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                              isActive
+                                ? "bg-[#E07A5F] text-white shadow-lg"
+                                : "bg-white text-[#7FB069] shadow-sm border border-[#1F2A37]/5"
+                            }`}
+                          >
+                            {service.icon}
+                          </Motion.div>
 
-                        <div className="flex-grow flex flex-col justify-center">
-                          <div className="flex justify-between items-start mb-0.5">
-                            <h4
-                              className={`font-bold text-[14px] transition-colors pr-2 break-words ${isActive ? "text-white" : "text-[#1F2A37]"}`}
+                          <div className="flex-grow flex flex-col justify-center">
+                            <div className="flex justify-between items-start mb-0.5">
+                              <h4
+                                className={`font-bold text-[14px] transition-colors pr-2 break-words ${isActive ? "text-white" : "text-[#1F2A37]"}`}
+                              >
+                                {service.title}
+                              </h4>
+                              {!isActive && (
+                                <span className="font-black text-[13px] text-[#7FB069] shrink-0">
+                                  {service.price}
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              className={`text-[12px] leading-snug transition-colors pr-1 ${isActive ? "text-white/70" : "text-[#1F2A37]/50 font-medium"}`}
                             >
-                              {service.title}
-                            </h4>
-                            {!isActive && (
-                              <span className="font-black text-[13px] text-[#7FB069] shrink-0">
-                                {service.price}
-                              </span>
+                              {service.shortDesc}
+                            </p>
+                            {isActive && (
+                              <p className="text-[10px] text-white/40 mt-0.5">
+                                Double-click to preview
+                              </p>
                             )}
                           </div>
-                          <p
-                            className={`text-[12px] leading-snug transition-colors pr-1 ${isActive ? "text-white/70" : "text-[#1F2A37]/50 font-medium"}`}
-                          >
-                            {service.description}
-                          </p>
-                        </div>
 
-                        <AnimatePresence>
-                          {isActive && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.8 }}
-                              className="ml-auto hidden sm:flex flex-col items-end gap-1.5 shrink-0"
-                            >
-                              <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
-                                {service.price}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate("/service-detail", {
-                                    state: {
-                                      service: {
-                                        name: service.title,
-                                        description: service.description,
-                                        price: service.price,
-                                        category: "Spa & Grooming",
-                                        image: service.image,
-                                        benefits: [
-                                          "Hypoallergenic products",
-                                          "Professional certified groomer",
-                                          "Pet-safe equipment",
-                                          "Post-service report",
-                                        ],
-                                      },
-                                    },
-                                  });
-                                }}
-                                className="px-3 py-1.5 bg-white text-[#1F2A37] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#F5F2EB] shadow-sm transition-colors"
+                          <AnimatePresence>
+                            {isActive && (
+                              <Motion.div
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                className="ml-auto hidden sm:flex flex-col items-end gap-1.5 shrink-0"
                               >
-                                Book Service
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
+                                <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
+                                  {service.price}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/service/${service.slug}`, {
+                                      state: { apiService: service.apiService },
+                                    });
+                                  }}
+                                  className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
+                                >
+                                  Book Now {"->"}
+                                </button>
+                              </Motion.div>
+                            )}
+                          </AnimatePresence>
+                        </Motion.div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </section>
@@ -1174,8 +1248,8 @@ const ServicePage = () => {
                           </span>
                         </div>
                         <p className="text-white/50 text-[12px] tracking-wide">
-                          Premium kibble or wet food • Customized feeding
-                          schedule • Healthy snack treats
+                          Premium kibble or wet food - Customized feeding
+                          schedule - Healthy snack treats
                         </p>
                       </div>
                     </div>
@@ -1188,19 +1262,19 @@ const ServicePage = () => {
                     <div className="group cursor-pointer bg-white/5 border border-white/5 hover:border-[#7FB069]/40 hover:bg-[#7FB069]/10 px-3 py-1.5 rounded-full text-white/70 hover:text-white text-[12px] transition-all flex items-center gap-2">
                       Extra Playtime{" "}
                       <span className="font-bold text-[#7FB069] group-hover:text-[#7FB069] opacity-80 group-hover:opacity-100 transition-opacity">
-                        — $3
+                        - $3
                       </span>
                     </div>
                     <div className="group cursor-pointer bg-white/5 border border-white/5 hover:border-[#7FB069]/40 hover:bg-[#7FB069]/10 px-3 py-1.5 rounded-full text-white/70 hover:text-white text-[12px] transition-all flex items-center gap-2">
                       Medication Care{" "}
                       <span className="font-bold text-[#E07A5F] group-hover:text-[#E07A5F] opacity-80 group-hover:opacity-100 transition-opacity">
-                        — $2
+                        - $2
                       </span>
                     </div>
                     <div className="group cursor-pointer bg-white/5 border border-white/5 hover:border-[#7FB069]/40 hover:bg-[#7FB069]/10 px-3 py-1.5 rounded-full text-white/70 hover:text-white text-[12px] transition-all flex items-center gap-2">
                       Grooming Before Checkout{" "}
                       <span className="font-bold text-[#7FB069] group-hover:text-[#7FB069] opacity-80 group-hover:opacity-100 transition-opacity">
-                        — $15
+                        - $15
                       </span>
                     </div>
                   </div>
@@ -1293,6 +1367,14 @@ const ServicePage = () => {
           </div>
         )}
       </main>
+
+      {/* PREVIEW MODAL */}
+      {previewService && (
+        <ServicePreviewModal
+          service={previewService}
+          onClose={() => setPreviewService(null)}
+        />
+      )}
 
       {/* FOOTER */}
       <Footer />
