@@ -73,6 +73,10 @@ const createServiceSchema = Joi.object({
     .min(1)
     .optional()
     .default(1),
+  group: Joi.string()
+    .valid('wet', 'dry')
+    .optional()
+    .default('dry'),
   isActive: Joi.boolean()
     .optional()
     .default(true)
@@ -134,6 +138,9 @@ const updateServiceSchema = Joi.object({
   maxCapacity: Joi.number()
     .integer()
     .min(1)
+    .optional(),
+  group: Joi.string()
+    .valid('wet', 'dry')
     .optional(),
   isActive: Joi.boolean()
     .optional()

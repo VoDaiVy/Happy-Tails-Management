@@ -33,7 +33,7 @@ export const getBookingById = async (id) => {
 
 // Create booking from cart (Customer)
 export const createBooking = async (bookingData) => {
-  const response = await axiosInstance.post("/bookings", bookingData);
+  const response = await axiosInstance.post("/bookings/checkout", bookingData);
   return response.data;
 };
 

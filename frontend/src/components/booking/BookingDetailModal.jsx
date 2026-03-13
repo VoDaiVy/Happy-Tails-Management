@@ -406,9 +406,9 @@ const BookingDetailModal = ({
                           <p className="font-medium text-[#2D3436]">
                             {item.service?.name || "Service"}
                           </p>
-                          {item.pet && (
+                          {(item.pet || item.guestPet) && (
                             <p className="text-xs text-gray-500">
-                              Pet: {item.pet.name}
+                              Pet: {item.pet?.petName || item.pet?.name || item.guestPet?.petName}
                             </p>
                           )}
                           {item.notes && (

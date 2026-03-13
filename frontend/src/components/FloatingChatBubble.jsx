@@ -2,25 +2,19 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, User, Bot, Sparkles } from 'lucide-react';
 import { chatWithAI } from '../api/aiApi';
-import AuthModal from './AuthModal';
 
 const FloatingChatBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? true : false;
-  });
   const [hiddenByModal, setHiddenByModal] = useState(false);
 
-  // Check if current user is admin or staff — they cannot use chat
-  const isAdminOrStaff = (() => {
+  // Only show for logged-in customers
+  const isCustomer = (() => {
     try {
       const u = JSON.parse(localStorage.getItem('user') || '{}');
-      return u.role === 'admin' || u.role === 'staff';
+      return u.role === 'customer';
     } catch {
       return false;
     }
@@ -38,16 +32,9 @@ const FloatingChatBubble = () => {
     return () => window.removeEventListener('app-modal-change', handler);
   }, []);
 
-  // Don't render at all for admin/staff
-  if (isAdminOrStaff || hiddenByModal) return null;
-
   // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Initialize with welcome message
@@ -63,19 +50,10 @@ const FloatingChatBubble = () => {
     }
   }, [isOpen, messages.length]);
 
-  const handleToggleChat = () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-    setIsOpen(!isOpen);
-  };
+  // Only render for logged-in customers
+  if (!isCustomer || hiddenByModal) return null;
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-    setShowAuthModal(false);
-    setIsOpen(true);
-  };
+  const handleToggleChat = () => setIsOpen(!isOpen);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -385,13 +363,6 @@ const FloatingChatBubble = () => {
         )}
       </AnimatePresence>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialMode="login"
-        onLoginSuccess={handleLoginSuccess}
-      />
     </>
   );
 };

@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
+const { randomUUID } = require("crypto");
 const Booking = require("../models/Booking");
+const BookingSlotLock = require("../models/BookingSlotLock");
 const Cart = require("../models/Cart");
 const Service = require("../models/Service");
 const UserPet = require("../models/UserPet");
@@ -11,45 +13,259 @@ const { catchAsync } = require("../utils/catchAsync");
 const { AppError } = require("../utils/AppError");
 const { sendAutoNotification } = require("../utils/notificationHelper");
 
+const ACTIVE_STATUSES = ["pending", "confirmed", "in-progress"];
+const ROOM_CONFIG = { dry: ["101", "102"], wet: ["201", "202"] };
+const SLOTS_PER_ROOM = 3;
+const GROUP_CAP = 6;
+const SLOT_MS = 15 * 60 * 1000;
+const LOCK_TTL_MS = 45 * 1000;
+const WET_KEYWORDS = [
+  "tam",
+  "say",
+  "massage",
+  "tri lieu",
+  "bath",
+  "shower",
+  "spa",
+  "wet",
+  "uot",
+  "tắm",
+  "sấy",
+  "trị liệu",
+  "ướt",
+];
+
+const normalizeText = (value = "") =>
+  value
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const parseAppointmentDate = ({ appointmentDate, bookingDate, bookingTime }) => {
+  if (appointmentDate) {
+    return new Date(appointmentDate);
+  }
+  if (!bookingDate || !bookingTime) {
+    return null;
+  }
+  return new Date(`${bookingDate}T${bookingTime}:00`);
+};
+
+const isAlignedTo15Minutes = (date) =>
+  date.getMinutes() % 15 === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
+
+const formatBookingTime = (date) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+const inferServiceGroup = (service) => {
+  if (service.group === "wet" || service.group === "dry") {
+    return service.group;
+  }
+  const source = normalizeText(service.category?.name || service.name || "");
+  return WET_KEYWORDS.some((keyword) => source.includes(normalizeText(keyword))) ? "wet" : "dry";
+};
+
+const buildServiceMap = (services) =>
+  new Map(
+    services.map((svc) => [
+      String(svc._id),
+      {
+        svc,
+        group: inferServiceGroup(svc),
+      },
+    ]),
+  );
+
+const expandRequestedItems = (rawItems, serviceMap) => {
+  const expanded = [];
+  for (const item of rawItems) {
+    const serviceId = String(item.serviceId);
+    const found = serviceMap.get(serviceId);
+    if (!found) continue;
+
+    const quantity = Math.max(1, Number(item.quantity) || 1);
+    for (let i = 0; i < quantity; i += 1) {
+      expanded.push({
+        serviceId,
+        svc: found.svc,
+        group: found.group,
+        note: item.note,
+      });
+    }
+  }
+  return expanded;
+};
+
+const sortWetBeforeDry = (items) =>
+  [...items].sort((a, b) => {
+    if (a.group === b.group) return 0;
+    return a.group === "wet" ? -1 : 1;
+  });
+
+const buildScheduledItems = (items, appointmentDate) => {
+  let cursor = new Date(appointmentDate);
+  return items.map((item) => {
+    const startTime = new Date(cursor);
+    const endTime = new Date(cursor.getTime() + item.svc.duration * 60 * 1000);
+    cursor = endTime;
+    return {
+      ...item,
+      startTime,
+      endTime,
+      assignedRoom: null,
+    };
+  });
+};
+
+const floorToSlot = (date) => new Date(Math.floor(date.getTime() / SLOT_MS) * SLOT_MS);
+
+const buildSlotStarts = (startTime, endTime) => {
+  const slots = [];
+  let cursor = floorToSlot(startTime);
+  while (cursor < endTime) {
+    slots.push(new Date(cursor));
+    cursor = new Date(cursor.getTime() + SLOT_MS);
+  }
+  return slots;
+};
+
+const buildSlotKey = (group, slotStart) => `${group}:${slotStart.toISOString()}`;
+
+const buildLockTargets = (scheduledItems) => {
+  const map = new Map();
+  for (const item of scheduledItems) {
+    const slots = buildSlotStarts(item.startTime, item.endTime);
+    for (const slotStart of slots) {
+      const key = buildSlotKey(item.group, slotStart);
+      if (!map.has(key)) {
+        map.set(key, { key, group: item.group, slotStart });
+      }
+    }
+  }
+  return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+};
+
+const acquireSlotLocks = async (lockTargets, lockHolder) => {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + LOCK_TTL_MS);
+
+  for (const target of lockTargets) {
+    await BookingSlotLock.deleteMany({ key: target.key, expiresAt: { $lte: now } });
+
+    try {
+      await BookingSlotLock.create({
+        key: target.key,
+        group: target.group,
+        slotStart: target.slotStart,
+        holder: lockHolder,
+        expiresAt,
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        throw new AppError(
+          "This time slot is being booked by another request. Please retry.",
+          409,
+          "SLOT_LOCKED",
+        );
+      }
+      throw error;
+    }
+  }
+};
+
+const releaseSlotLocks = async (lockHolder) => {
+  if (!lockHolder) return;
+  await BookingSlotLock.deleteMany({ holder: lockHolder });
+};
+
+const countGroupOccupancyAtSlot = async (group, slotStart) => {
+  const slotEnd = new Date(slotStart.getTime() + SLOT_MS);
+
+  const result = await Booking.aggregate([
+    { $match: { status: { $in: ACTIVE_STATUSES } } },
+    { $unwind: "$items" },
+    {
+      $match: {
+        "items.group": group,
+        "items.startTime": { $lt: slotEnd },
+        "items.endTime": { $gt: slotStart },
+      },
+    },
+    { $count: "total" },
+  ]);
+
+  return result[0]?.total || 0;
+};
+
+const validateCapacityAndAssignRooms = async (scheduledItems) => {
+  const occupancyCache = new Map();
+  const requestAdds = new Map();
+
+  const getBaseOccupancy = async (group, slotStart) => {
+    const key = buildSlotKey(group, slotStart);
+    if (!occupancyCache.has(key)) {
+      occupancyCache.set(key, await countGroupOccupancyAtSlot(group, slotStart));
+    }
+    return occupancyCache.get(key);
+  };
+
+  for (const item of scheduledItems) {
+    const slots = buildSlotStarts(item.startTime, item.endTime);
+    const startSlot = slots[0];
+
+    for (const slotStart of slots) {
+      const key = buildSlotKey(item.group, slotStart);
+      const base = await getBaseOccupancy(item.group, slotStart);
+      const inRequest = requestAdds.get(key) || 0;
+
+      if (base + inRequest >= GROUP_CAP) {
+        throw new AppError(
+          `Service group \"${item.group}\" is full (${GROUP_CAP}/${GROUP_CAP}) at ${slotStart.toISOString()}`,
+          409,
+          "GROUP_CAPACITY_FULL",
+        );
+      }
+    }
+
+    const startKey = buildSlotKey(item.group, startSlot);
+    const startBase = await getBaseOccupancy(item.group, startSlot);
+    const startRequestAdds = requestAdds.get(startKey) || 0;
+    const position = startBase + startRequestAdds;
+    const roomIndex = Math.min(
+      ROOM_CONFIG[item.group].length - 1,
+      Math.floor(position / SLOTS_PER_ROOM),
+    );
+
+    item.assignedRoom = ROOM_CONFIG[item.group][roomIndex];
+
+    for (const slotStart of slots) {
+      const key = buildSlotKey(item.group, slotStart);
+      requestAdds.set(key, (requestAdds.get(key) || 0) + 1);
+    }
+  }
+};
+
+const buildGuestPetKey = ({ phone, petName, petType }) => {
+  const normalizedPhone = String(phone || "").replace(/\D/g, "");
+  const normalizedPetName = normalizeText(petName || "").replace(/\s+/g, "-");
+  const normalizedPetType = normalizeText(petType || "").replace(/\s+/g, "-");
+  return `${normalizedPhone}:${normalizedPetName}:${normalizedPetType}`;
+};
+
 /**
- * Create booking from cart
+ * Create booking from cart (legacy route disabled)
  * @route POST /api/bookings
  * @access Private (Customer)
  */
 exports.createBooking = catchAsync(async (req, res, next) => {
-  const { bookingDate, bookingTime, notes, paymentMethod = "cash" } = req.body;
-
-  // Get user's cart
-  const cart = await Cart.findOne({ userID: req.user.id }).populate(
-    "items.service items.pet",
+  return next(
+    new AppError(
+      "Legacy booking route is disabled. Use POST /api/bookings/checkout for enforced scheduling rules.",
+      410,
+      "LEGACY_ROUTE_DISABLED",
+    ),
   );
-
-  if (!cart || cart.items.length === 0) {
-    return next(new AppError("Cart is empty", 400, "CART_EMPTY"));
-  }
-
-  // Create booking
-  const booking = await Booking.create({
-    customer: req.user.id,
-    items: cart.items,
-    bookingDate,
-    bookingTime,
-    totalAmount: cart.totalAmount,
-    paymentMethod,
-    notes,
-  });
-
-  // Clear cart after booking
-  cart.items = [];
-  await cart.save();
-
-  await booking.populate("customer items.service items.pet");
-
-  res.status(201).json({
-    status: "success",
-    message: "Booking created successfully",
-    data: { booking },
-  });
 });
 
 /**
@@ -61,8 +277,11 @@ exports.createGuestBooking = catchAsync(async (req, res, next) => {
   const {
     guestInfo,
     items,
+    appointmentDate,
     bookingDate,
     bookingTime,
+    petInfo,
+    guestPet,
     notes,
     paymentMethod = "cash",
   } = req.body;
@@ -73,28 +292,147 @@ exports.createGuestBooking = catchAsync(async (req, res, next) => {
     );
   }
 
-  // Calculate total
-  const totalAmount = items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0,
-  );
+  if (!Array.isArray(items) || items.length === 0) {
+    return next(new AppError("At least one service is required", 400, "NO_ITEMS"));
+  }
 
-  const booking = await Booking.create({
-    guestInfo,
-    items,
-    bookingDate,
-    bookingTime,
-    totalAmount,
-    paymentMethod,
-    notes,
-    assignedStaff: req.user.id,
-  });
+  const appointment = parseAppointmentDate({ appointmentDate, bookingDate, bookingTime });
+  if (!appointment || Number.isNaN(appointment.getTime())) {
+    return next(new AppError("Invalid appointment date/time", 400, "INVALID_DATE"));
+  }
+  if (!isAlignedTo15Minutes(appointment)) {
+    return next(
+      new AppError(
+        "Booking time must align to 15-minute slots (09:00, 09:15, 09:30, 09:45...)",
+        400,
+        "INVALID_TIME_SLOT",
+      ),
+    );
+  }
 
-  res.status(201).json({
-    status: "success",
-    message: "Guest booking created successfully",
-    data: { booking },
-  });
+  const guestPetInfo =
+    petInfo ||
+    guestPet ||
+    items.find((item) => item.petInfo || item.guestPet)?.petInfo ||
+    items.find((item) => item.petInfo || item.guestPet)?.guestPet;
+
+  if (!guestPetInfo?.petName || !guestPetInfo?.petType) {
+    return next(
+      new AppError("Guest pet info (petName, petType) is required", 400, "GUEST_PET_REQUIRED"),
+    );
+  }
+
+  const rawItems = items.map((item) => ({
+    serviceId: item.service || item.serviceId,
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    note: item.note,
+  }));
+
+  const serviceIds = [...new Set(rawItems.map((item) => String(item.serviceId)))];
+  const services = await Service.find({ _id: { $in: serviceIds } }).populate("category");
+  if (services.length !== serviceIds.length) {
+    return next(new AppError("One or more services are no longer available", 404, "SERVICE_NOT_FOUND"));
+  }
+
+  const serviceMap = buildServiceMap(services);
+  const expandedItems = expandRequestedItems(rawItems, serviceMap);
+  if (expandedItems.length === 0) {
+    return next(new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"));
+  }
+
+  const sortedItems = sortWetBeforeDry(expandedItems);
+  const scheduledItems = buildScheduledItems(sortedItems, appointment);
+
+  const lockHolder = `guest:${req.user.id}:${randomUUID()}`;
+  const lockTargets = buildLockTargets(scheduledItems);
+
+  try {
+    await acquireSlotLocks(lockTargets, lockHolder);
+    await validateCapacityAndAssignRooms(scheduledItems);
+
+    const petKey = buildGuestPetKey({
+      phone: guestInfo.phone,
+      petName: guestPetInfo.petName,
+      petType: guestPetInfo.petType,
+    });
+
+    const overallStart = scheduledItems[0].startTime;
+    const overallEnd = scheduledItems[scheduledItems.length - 1].endTime;
+    const guestPetConflict = await Booking.findOne({
+      status: { $nin: ["cancelled", "completed"] },
+      items: {
+        $elemMatch: {
+          "guestPet.petKey": petKey,
+          startTime: { $lt: overallEnd },
+          endTime: { $gt: overallStart },
+        },
+      },
+    }).lean();
+
+    if (guestPetConflict) {
+      return next(
+        new AppError(
+          "This guest pet already has an overlapping appointment.",
+          409,
+          "PET_SCHEDULE_CONFLICT",
+        ),
+      );
+    }
+
+    const totalAmount = scheduledItems.reduce((sum, item) => sum + item.svc.price, 0);
+
+    const bookingItems = scheduledItems.map((item) => ({
+      service: item.svc._id,
+      quantity: 1,
+      price: item.svc.price,
+      notes: item.note,
+      group: item.group,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      assignedRoom: item.assignedRoom,
+      guestPet: {
+        petName: guestPetInfo.petName,
+        petType: guestPetInfo.petType,
+        petKey,
+      },
+    }));
+
+    const booking = await Booking.create({
+      guestInfo,
+      items: bookingItems,
+      bookingDate: appointment,
+      bookingTime: formatBookingTime(appointment),
+      totalAmount,
+      paymentMethod,
+      notes,
+      assignedStaff: req.user.id,
+      status: "pending",
+    });
+
+    await booking.populate("items.service assignedStaff");
+
+    res.status(201).json({
+      status: "success",
+      message: "Guest booking created successfully",
+      data: {
+        booking,
+        schedule: scheduledItems.map((item) => ({
+          service: item.svc.name,
+          group: item.group,
+          room: item.assignedRoom,
+          startTime: item.startTime.toISOString(),
+          endTime: item.endTime.toISOString(),
+          durationMins: item.svc.duration,
+        })),
+      },
+    });
+  } finally {
+    try {
+      await releaseSlotLocks(lockHolder);
+    } catch (_) {
+      // Intentionally ignore lock-release failures to preserve primary error flow.
+    }
+  }
 });
 
 /**
@@ -208,8 +546,10 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   const oldStatus = booking.status;
   booking.status = status;
 
+  const usesItemLevelSpaRooms = booking.items?.some((item) => item.assignedRoom);
+
   // Auto-assign room when staff confirms booking
-  if (status === "confirmed" && oldStatus === "pending" && !booking.room) {
+  if (!usesItemLevelSpaRooms && status === "confirmed" && oldStatus === "pending" && !booking.room) {
     // Get pet types from booking items
     const petTypes = [...new Set(booking.items.map(item => item.pet?.petType).filter(Boolean))];
     
@@ -234,7 +574,7 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   // Release room when booking is completed or cancelled
-  if ((status === "completed" || status === "cancelled") && booking.room) {
+  if (!usesItemLevelSpaRooms && (status === "completed" || status === "cancelled") && booking.room) {
     await Room.findByIdAndUpdate(booking.room, { isAvailable: true });
   }
 
@@ -378,8 +718,9 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
       );
     }
 
-    // Restore room availability if room was assigned
-    if (booking.room) {
+    // Restore room availability for legacy room-based bookings.
+    const usesItemLevelSpaRooms = booking.items?.some((item) => item.assignedRoom);
+    if (!usesItemLevelSpaRooms && booking.room) {
       await Room.findByIdAndUpdate(
         booking.room,
         { isAvailable: true },
@@ -477,314 +818,257 @@ exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
 });
 
 /**
-
- * Checkout Booking with Availability Check & Voucher Validation
-
+ * Checkout Booking — Full business logic
+ *
+ * Rules implemented:
+ *  1. 15-minute slot alignment validation
+ *  2. Pet ownership security check
+ *  3. Wet-before-Dry service ordering
+ *  4. Zero-latency time chaining
+ *  5. Group capacity check  (max 6 concurrent per wet/dry group)
+ *  6. Room auto-assignment  (101/201 primary, 102/202 overflow at 4th pet)
+ *  7. Per-pet schedule conflict check (no overlapping bookings for same pet)
+ *  8. Voucher validation
+ *  9. Atomic DB transaction (booking + transaction record + clear cart)
+ *
  * @route POST /api/bookings/checkout
-
  * @access Private (Customer)
-
  */
-
 exports.checkoutBooking = catchAsync(async (req, res, next) => {
-  const {
-    serviceId,
-    petId,
-    appointmentDate,
-    voucherCode,
-    paymentMethod = "cash",
-    notes,
-  } = req.body;
+  const { appointmentDate, petId, voucherCode, paymentMethod = "cash", notes } = req.body;
 
-  // === STEP 1: Validate Input ===
-
-  if (!serviceId || !petId || !appointmentDate) {
-    return next(
-      new AppError(
-        "Service, Pet, and Appointment Date are required",
-        400,
-        "MISSING_REQUIRED_FIELDS",
-      ),
-    );
+  if (!appointmentDate || !petId) {
+    return next(new AppError("appointmentDate and petId are required", 400, "MISSING_REQUIRED_FIELDS"));
   }
 
-  // === STEP 2: Check Service & Pet Exist ===
+  const apptDate = new Date(appointmentDate);
+  if (Number.isNaN(apptDate.getTime())) {
+    return next(new AppError("Invalid appointmentDate", 400, "INVALID_DATE"));
+  }
 
-  const service = await Service.findById(serviceId);
-
-  if (!service || !service.isActive) {
+  if (!isAlignedTo15Minutes(apptDate)) {
     return next(
-      new AppError("Service not found or inactive", 404, "SERVICE_NOT_FOUND"),
+      new AppError(
+        "Booking time must align to 15-minute slots (09:00, 09:15, 09:30, 09:45...)",
+        400,
+        "INVALID_TIME_SLOT",
+      ),
     );
   }
 
   const pet = await UserPet.findOne({ _id: petId, userID: req.user.id });
-
   if (!pet) {
-    return next(
-      new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"),
-    );
+    return next(new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"));
   }
 
-  // === STEP 3: Calculate Time Range ===
+  const cart = await Cart.findOne({ userId: req.user.id });
+  if (!cart || cart.items.length === 0) {
+    return next(new AppError("Cart is empty", 400, "CART_EMPTY"));
+  }
 
-  const startTime = new Date(appointmentDate);
+  const rawItems = cart.items.map((item) => ({
+    serviceId: item.serviceId,
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    note: item.note,
+  }));
 
-  const endTime = new Date(startTime.getTime() + service.duration * 60000); // duration in minutes
-
-  // === STEP 4: Check Availability (Overlap Detection) ===
-
-  const overlappingBookings = await Booking.find({
-    "items.service": serviceId,
-
-    status: { $in: ["confirmed", "pending"] },
-
-    $expr: {
-      $and: [
-        // start1 < end2
-
-        { $lt: [{ $dateFromString: { dateString: "$bookingDate" } }, endTime] },
-
-        // end1 > start2
-
-        {
-          $gt: [{ $dateFromString: { dateString: "$bookingDate" } }, startTime],
-        },
-      ],
-    },
-  });
-
-  // Limit: Maximum 5 concurrent bookings for the same service
-
-  const MAX_CONCURRENT_SLOTS = 5;
-
-  if (overlappingBookings.length >= MAX_CONCURRENT_SLOTS) {
+  const serviceIds = [...new Set(rawItems.map((item) => String(item.serviceId)))];
+  const services = await Service.find({ _id: { $in: serviceIds } }).populate("category");
+  if (services.length !== serviceIds.length) {
     return next(
       new AppError(
-        `Service slot is fully booked. Found ${overlappingBookings.length} existing bookings.`,
-
-        400,
-
-        "SLOT_UNAVAILABLE",
+        "One or more services in your cart are no longer available",
+        404,
+        "SERVICE_NOT_FOUND",
       ),
     );
   }
 
-  // === STEP 5: Calculate Price ===
-
-  let totalAmount = service.price;
-
-  let discount = 0;
-
-  let voucherApplied = null;
-
-  // === STEP 6: Voucher Validation ===
-
-  if (voucherCode) {
-    const voucher = await Voucher.findOne({ code: voucherCode.toUpperCase() });
-
-    if (!voucher) {
-      return next(new AppError("Voucher not found", 404, "VOUCHER_NOT_FOUND"));
-    }
-
-    // Check validity
-
-    if (!voucher.isValid()) {
-      return next(
-        new AppError(
-          "Voucher is expired or reached usage limit",
-          400,
-          "VOUCHER_INVALID",
-        ),
-      );
-    }
-
-    // Check minSpend requirement
-
-    if (totalAmount < voucher.minSpend) {
-      return next(
-        new AppError(
-          `Minimum spend of ${voucher.minSpend.toLocaleString()}đ required to use this voucher`,
-
-          400,
-
-          "MIN_SPEND_NOT_MET",
-        ),
-      );
-    }
-
-    // Check if voucher applies to this service
-
-    if (
-      voucher.applicableServices?.length > 0 &&
-      !voucher.applicableServices.includes(serviceId)
-    ) {
-      return next(
-        new AppError(
-          "Voucher is not applicable to this service",
-          400,
-          "VOUCHER_NOT_APPLICABLE",
-        ),
-      );
-    }
-
-    // Calculate discount
-
-    if (voucher.discountType === "percentage") {
-      discount = (totalAmount * voucher.discountValue) / 100;
-
-      if (voucher.maxDiscount && discount > voucher.maxDiscount) {
-        discount = voucher.maxDiscount;
-      }
-    } else {
-      discount = voucher.discountValue;
-    }
-
-    totalAmount -= discount;
-
-    voucherApplied = voucher;
+  const serviceMap = buildServiceMap(services);
+  const expandedItems = expandRequestedItems(rawItems, serviceMap);
+  if (expandedItems.length === 0) {
+    return next(new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"));
   }
 
-  // === STEP 7: Atomic Transaction ===
+  const sortedItems = sortWetBeforeDry(expandedItems);
+  const scheduledItems = buildScheduledItems(sortedItems, apptDate);
 
-  const session = await mongoose.startSession();
-
-  session.startTransaction();
+  const lockHolder = `customer:${req.user.id}:${randomUUID()}`;
+  const lockTargets = buildLockTargets(scheduledItems);
 
   try {
-    // Create Booking
+    await acquireSlotLocks(lockTargets, lockHolder);
+    await validateCapacityAndAssignRooms(scheduledItems);
 
-    const [booking] = await Booking.create(
-      [
-        {
-          customer: req.user.id,
-
-          items: [
-            {
-              service: serviceId,
-
-              pet: petId,
-
-              quantity: 1,
-
-              price: service.price,
-
-              notes,
-            },
-          ],
-
-          bookingDate: appointmentDate,
-
-          bookingTime: startTime.toTimeString().slice(0, 5), // HH:MM format
-
-          totalAmount,
-
-          paymentMethod,
-
-          status: "pending",
-
-          notes,
+    const overallStart = scheduledItems[0].startTime;
+    const overallEnd = scheduledItems[scheduledItems.length - 1].endTime;
+    const petConflict = await Booking.findOne({
+      status: { $nin: ["cancelled", "completed"] },
+      items: {
+        $elemMatch: {
+          pet: petId,
+          startTime: { $lt: overallEnd },
+          endTime: { $gt: overallStart },
         },
-      ],
-      { session },
-    );
+      },
+    }).lean();
 
-    // Create Transaction record
-
-    const [transaction] = await Transaction.create(
-      [
-        {
-          user: req.user.id,
-
-          type: "payment",
-
-          amount: totalAmount,
-
-          status: "pending",
-
-          paymentMethod,
-
-          booking: booking._id,
-
-          description: `Payment for ${service.name} - Booking ${booking.bookingNumber}`,
-
-          notes: voucherApplied
-            ? `Voucher ${voucherApplied.code} applied (${discount.toLocaleString()}đ discount)`
-            : undefined,
-        },
-      ],
-      { session },
-    );
-
-    // Update Voucher usage count
-
-    if (voucherApplied) {
-      await Voucher.findByIdAndUpdate(
-        voucherApplied._id,
-
-        { $inc: { usedCount: 1 } },
-
-        { session },
+    if (petConflict) {
+      return next(
+        new AppError(
+          "Thú cưng này đã có lịch hẹn trùng với khung giờ trên. Vui lòng chọn thời gian khác.",
+          409,
+          "PET_SCHEDULE_CONFLICT",
+        ),
       );
     }
 
-    // Commit transaction
+    let totalAmount = cart.totalPrice;
+    let discount = 0;
+    let voucherApplied = null;
 
-    await session.commitTransaction();
+    if (voucherCode) {
+      const voucher = await Voucher.findOne({ code: voucherCode.toUpperCase() });
+      if (!voucher) return next(new AppError("Voucher not found", 404, "VOUCHER_NOT_FOUND"));
+      if (!voucher.isValid()) {
+        return next(new AppError("Voucher expired or reached usage limit", 400, "VOUCHER_INVALID"));
+      }
+      if (totalAmount < voucher.minSpend) {
+        return next(
+          new AppError(
+            `Minimum spend of ${voucher.minSpend.toLocaleString()}đ required`,
+            400,
+            "MIN_SPEND_NOT_MET",
+          ),
+        );
+      }
 
-    // Populate response data
+      if (voucher.applicableServices?.length > 0) {
+        const cartServiceIds = scheduledItems.map((item) => item.svc._id.toString());
+        const hasApplicable = voucher.applicableServices.some((svc) =>
+          cartServiceIds.includes(svc.toString()),
+        );
+        if (!hasApplicable) {
+          return next(
+            new AppError(
+              "Voucher is not applicable to any service in your cart",
+              400,
+              "VOUCHER_NOT_APPLICABLE",
+            ),
+          );
+        }
+      }
 
-    await booking.populate([
-      { path: "customer", select: "name email phone" },
+      discount =
+        voucher.discountType === "percentage"
+          ? Math.min((totalAmount * voucher.discountValue) / 100, voucher.maxDiscount || Infinity)
+          : voucher.discountValue;
+      totalAmount = Math.max(0, totalAmount - discount);
+      voucherApplied = voucher;
+    }
 
-      { path: "items.service", select: "name price duration category" },
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-      { path: "items.pet", select: "name species breed age" },
-    ]);
+    try {
+      const bookingItems = scheduledItems.map((item) => ({
+        service: item.svc._id,
+        pet: petId,
+        quantity: 1,
+        price: item.svc.price,
+        notes: item.note,
+        group: item.group,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        assignedRoom: item.assignedRoom,
+      }));
 
-    res.status(201).json({
-      status: "success",
-
-      message: "Booking created successfully",
-
-      data: {
-        booking,
-
-        transaction,
-
-        discount:
-          discount > 0
-            ? {
-                amount: discount,
-
-                voucherCode: voucherApplied.code,
-
-                description: voucherApplied.description,
-              }
-            : null,
-
-        summary: {
-          originalPrice: service.price,
-
-          discount,
-
-          finalPrice: totalAmount,
-
-          appointmentTime: {
-            start: startTime.toISOString(),
-
-            end: endTime.toISOString(),
+      const [booking] = await Booking.create(
+        [
+          {
+            customer: req.user.id,
+            items: bookingItems,
+            bookingDate: apptDate,
+            bookingTime: formatBookingTime(apptDate),
+            totalAmount,
+            paymentMethod,
+            notes,
+            status: "pending",
           },
+        ],
+        { session },
+      );
+
+      await Transaction.create(
+        [
+          {
+            user: req.user.id,
+            type: "payment",
+            amount: totalAmount,
+            status: "pending",
+            paymentMethod,
+            booking: booking._id,
+            description: `Payment for booking ${booking.bookingNumber}`,
+            notes: voucherApplied
+              ? `Voucher ${voucherApplied.code} (-${discount.toLocaleString()}đ)`
+              : undefined,
+          },
+        ],
+        { session },
+      );
+
+      if (voucherApplied) {
+        await Voucher.findByIdAndUpdate(
+          voucherApplied._id,
+          { $inc: { usedCount: 1 } },
+          { session },
+        );
+      }
+
+      cart.items = [];
+      cart.totalPrice = 0;
+      cart.totalItems = 0;
+      await cart.save({ session });
+
+      await session.commitTransaction();
+
+      await booking.populate([
+        { path: "customer", select: "name email phone" },
+        { path: "items.service", select: "name price duration" },
+        { path: "items.pet", select: "petName petType breed" },
+      ]);
+
+      res.status(201).json({
+        status: "success",
+        message: "Booking created successfully",
+        data: {
+          booking,
+          schedule: scheduledItems.map((item) => ({
+            service: item.svc.name,
+            group: item.group,
+            room: item.assignedRoom,
+            startTime: item.startTime.toISOString(),
+            endTime: item.endTime.toISOString(),
+            durationMins: item.svc.duration,
+          })),
+          ...(voucherApplied
+            ? { voucher: { code: voucherApplied.code, discountAmount: discount } }
+            : {}),
+          totalAmount,
         },
-      },
-    });
-  } catch (error) {
-    // Rollback on error
-
-    await session.abortTransaction();
-
-    throw error;
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   } finally {
-    session.endSession();
+    try {
+      await releaseSlotLocks(lockHolder);
+    } catch (_) {
+      // Intentionally ignore lock-release failures to preserve primary error flow.
+    }
   }
 });
+
