@@ -17,6 +17,7 @@ const { initSocket } = require("./config/socket");
 
 // Import configurations and utilities
 const { connectDB } = require("./config/database");
+const { testCloudinaryConnection } = require("./config/cloudinary");
 const { errorHandler, notFound, handleUncaughtException, handleUnhandledRejection } = require("./middleware/errorHandler");
 const { globalLimiter } = require("./middleware/rateLimiter");
 const { sanitizeInput } = require("./middleware/validation");
@@ -44,6 +45,7 @@ const medicalRecordRoutes = require("./routes/medicalRecord");
 const userRoutes = require("./routes/user");
 const voucherRoutes = require("./routes/voucher");
 const cameraRoutes = require("./routes/camera");
+const uploadRoutes = require("./routes/upload");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -194,6 +196,9 @@ app.use("/api/vouchers", voucherRoutes);
 // Camera monitoring routes
 app.use("/api/camera", cameraRoutes);
 
+// Upload routes (Cloudinary)
+app.use("/api/uploads", uploadRoutes);
+
 
 // ==================== ERROR HANDLING ====================
 
@@ -210,9 +215,11 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
 
+    // Test Cloudinary connection
+    await testCloudinaryConnection();
 
-    // Start booking status automation (runs every 60s)
-    startCronJobs();
+  // Start booking status automation (runs every 60s)
+  startCronJobs();
 
     // Wrap Express app in a native HTTP server so Socket.IO can attach to it
     const httpServer = http.createServer(app);
