@@ -321,6 +321,14 @@ const toSpaCard = (service) => {
   };
 };
 
+const extractServicesFromApiResponse = (result) => {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.data?.services)) return result.data.services;
+  if (Array.isArray(result?.services)) return result.services;
+  return [];
+};
+
 const ServicePage = () => {
   const navigate = useNavigate();
   const [category, setCategory] = useState("All Categories");
@@ -383,12 +391,12 @@ const ServicePage = () => {
       try {
         const result = await getAllServices({
           isActive: "true",
-          limit: 200,
+          limit: 100,
           sortBy: "name",
           sortOrder: "asc",
         });
 
-        const list = Array.isArray(result?.data) ? result.data : [];
+        const list = extractServicesFromApiResponse(result);
         const spaList = list.filter((service) => {
           const cat = (service.category?.name || "").toLowerCase();
           const name = (service.name || "").toLowerCase();
@@ -453,7 +461,7 @@ const ServicePage = () => {
       }
 
       const result = await getAllServices(params);
-      let services = result?.data || [];
+      let services = extractServicesFromApiResponse(result);
 
       // Client-side category filter for reliability
       if (category !== "All Categories") {
@@ -983,7 +991,6 @@ const ServicePage = () => {
                         <Motion.div
                           key={service.id}
                           onClick={() => setActiveSpa(idx)}
-                          onDoubleClick={() => setPreviewService(service)}
                           whileHover={{ scale: isActive ? 1 : 1.02 }}
                           className={`cursor-pointer rounded-[16px] p-3 flex items-center gap-3 transition-all duration-300 border ${
                             isActive
@@ -1025,7 +1032,6 @@ const ServicePage = () => {
                             </p>
                             {isActive && (
                               <p className="text-[10px] text-white/40 mt-0.5">
-                                Double-click to preview
                               </p>
                             )}
                           </div>
@@ -1050,7 +1056,7 @@ const ServicePage = () => {
                                   }}
                                   className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
                                 >
-                                  Book Now {"->"}
+                                  Book Now 
                                 </button>
                               </Motion.div>
                             )}
@@ -1388,9 +1394,9 @@ const ServicePage = () => {
 
       {/* FOOTER */}
       <Footer />
-      
+
       {/* Camera Feature Modal */}
-      <CameraFeatureModal 
+      <CameraFeatureModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
       />
