@@ -69,8 +69,8 @@ if (hasPayOSCredentials) {
  * PayOS Configuration Constants
  */
 const payosConfig = {
-  returnUrl: process.env.PAYOS_RETURN_URL || 'http://localhost:3001/api/wallet/payos/return',
-  cancelUrl: process.env.PAYOS_CANCEL_URL || 'http://localhost:3001/api/wallet/payos/cancel',
+  returnUrl: process.env.PAYOS_RETURN_URL || 'http://localhost:5173/wallet',
+  cancelUrl: process.env.PAYOS_CANCEL_URL || 'http://localhost:5173/wallet',
   orderReturnUrl: process.env.PAYOS_ORDER_RETURN_URL || 'http://localhost:3001/api/cart/payos-return',
   orderCancelUrl: process.env.PAYOS_ORDER_CANCEL_URL || 'http://localhost:3001/api/cart/payos-cancel',
   webhookUrl: process.env.PAYOS_WEBHOOK_URL || 'http://localhost:5000/api/wallet/payos/webhook',

@@ -13,8 +13,24 @@ const bookingItemSchema = new mongoose.Schema({
   },
   pet: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'UserPet',
-    required: true
+    ref: 'UserPet'
+  },
+  guestPet: {
+    petName: {
+      type: String,
+      trim: true,
+      maxlength: [120, 'Guest pet name must be less than 120 characters']
+    },
+    petType: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Guest pet type must be less than 50 characters']
+    },
+    // Stable key used to detect overlap for the same guest pet.
+    petKey: {
+      type: String,
+      trim: true
+    }
   },
   quantity: {
     type: Number,
@@ -30,7 +46,16 @@ const bookingItemSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [500, 'Notes must be less than 500 characters']
-  }
+  },
+  // ── Scheduling fields ─────────────────────────────────────────
+  /** Actual computed start datetime for this item (chained, zero-latency) */
+  startTime: { type: Date },
+  /** Actual computed end datetime  (startTime + service.duration) */
+  endTime:   { type: Date },
+  /** wet = Tắm/Sấy/Massage/Trị liệu  |  dry = Cắt tỉa/Cắt móng/Nhuộm */
+  group: { type: String, enum: ['wet', 'dry'] },
+  /** Room number assigned to this specific item (101/102 dry, 201/202 wet) */
+  assignedRoom: { type: String }
 });
 
 const bookingSchema = new mongoose.Schema({
@@ -163,6 +188,8 @@ bookingSchema.pre('save', async function(next) {
 bookingSchema.index({ customer: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ bookingDate: 1 });
+bookingSchema.index({ 'items.group': 1, 'items.startTime': 1, 'items.endTime': 1 });
+bookingSchema.index({ 'items.guestPet.petKey': 1, status: 1 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
 module.exports = Booking;
