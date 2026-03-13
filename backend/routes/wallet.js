@@ -5,6 +5,7 @@
  * ❌ REMOVED: POST /withdraw, GET /payos/cancel, POST /checkout
  * ✅ KEPT: GET /, POST /deposit, GET /transactions
  * ✅ KEPT: POST /payos/webhook (public), GET /payos/return (public)
+ * ✅ ADDED: GET /transactions/:id (UC-26)
  * ⚠️ NOTE: Checkout moved to /api/cart/checkout (wallet-only)
  */
 
@@ -13,6 +14,8 @@ const {
   getWallet,
   deposit,
   getTransactions,
+  getTransactionById,
+  getPayOSDepositStatus,
   handlePayOSWebhook,
   handlePayOSReturn
 } = require('../controllers/walletController');
@@ -39,10 +42,25 @@ router.post('/payos/webhook', handlePayOSWebhook);
  */
 router.get('/payos/return', handlePayOSReturn);
 
+/**
+ * @route   GET /api/wallet/payos/cancel
+ * @desc    Handle PayOS cancel URL
+ * @access  Public
+ * @note    Uses the same handler so Wallet can redirect back cleanly after cancellation
+ */
+router.get('/payos/cancel', handlePayOSReturn);
+
 // ==================== PROTECTED ROUTES (Require authentication) ====================
 
 // All routes below require authentication
 router.use(protect);
+
+/**
+ * @route   GET /api/wallet/payos/status/:orderCode
+ * @desc    Sync and get PayOS deposit status for current user
+ * @access  Private
+ */
+router.get('/payos/status/:orderCode', getPayOSDepositStatus);
 
 /**
  * @route   GET /api/wallet
@@ -68,5 +86,12 @@ router.post('/deposit', deposit);
  * @query   type, status, method, from, to, page, limit, sortBy, sortOrder
  */
 router.get('/transactions', getTransactions);
+
+/**
+ * @route   GET /api/wallet/transactions/:id
+ * @desc    Get transaction detail by ID
+ * @access  Private (user can only see their own transactions)
+ */
+router.get('/transactions/:id', getTransactionById);
 
 module.exports = router;

@@ -3,23 +3,26 @@
  * Main entry point with security middleware and authentication
  */
 
+// Load environment variables FIRST — before any other require() that reads process.env
+require('dotenv').config();
+
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const hpp = require("hpp");
-
-// Load environment variables FIRST
-dotenv.config();
+const { initSocket } = require("./config/socket");
 
 // Import configurations and utilities
 const { connectDB } = require("./config/database");
+const { testCloudinaryConnection } = require("./config/cloudinary");
 const { errorHandler, notFound, handleUncaughtException, handleUnhandledRejection } = require("./middleware/errorHandler");
 const { globalLimiter } = require("./middleware/rateLimiter");
 const { sanitizeInput } = require("./middleware/validation");
 const logger = require("./utils/logger");
+const { startCronJobs } = require("./services/cronJob");
 
 // Import routes
 const authRoutes = require("./routes/auth");
@@ -41,6 +44,8 @@ const aiRoutes = require("./routes/ai");
 const medicalRecordRoutes = require("./routes/medicalRecord");
 const userRoutes = require("./routes/user");
 const voucherRoutes = require("./routes/voucher");
+const cameraRoutes = require("./routes/camera");
+const uploadRoutes = require("./routes/upload");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -61,6 +66,8 @@ app.use(cors({
     "http://localhost:3001", 
     "http://localhost:5000",
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5000",
     process.env.FRONTEND_URL || "http://localhost:5173"
@@ -186,6 +193,12 @@ app.use("/api/users", userRoutes);
 // Voucher routes
 app.use("/api/vouchers", voucherRoutes);
 
+// Camera monitoring routes
+app.use("/api/camera", cameraRoutes);
+
+// Upload routes (Cloudinary)
+app.use("/api/uploads", uploadRoutes);
+
 
 // ==================== ERROR HANDLING ====================
 
@@ -202,14 +215,27 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
 
-    // Start server
-    const server = app.listen(port, () => {
+    // Test Cloudinary connection
+    await testCloudinaryConnection();
+
+  // Start booking status automation (runs every 60s)
+  startCronJobs();
+
+    // Wrap Express app in a native HTTP server so Socket.IO can attach to it
+    const httpServer = http.createServer(app);
+
+    // Initialize Socket.IO AFTER creating httpServer
+    initSocket(httpServer);
+
+    // Start listening
+    httpServer.listen(port, () => {
       logger.info(`🚀 Server running on http://localhost:${port}`);
       logger.info(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
+      logger.info(`🔌 Socket.IO ready`);
     });
 
     // Handle unhandled promise rejections
-    handleUnhandledRejection(server);
+    handleUnhandledRejection(httpServer);
 
   } catch (error) {
     logger.error("Failed to start server", { error: error.message });

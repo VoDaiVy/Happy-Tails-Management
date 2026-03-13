@@ -2,28 +2,39 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, User, Bot, Sparkles } from 'lucide-react';
 import { chatWithAI } from '../api/aiApi';
-import AuthModal from './AuthModal';
 
 const FloatingChatBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? true : false;
-  });
+  const [hiddenByModal, setHiddenByModal] = useState(false);
+
+  // Only show for logged-in customers
+  const isCustomer = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.role === 'customer';
+    } catch {
+      return false;
+    }
+  })();
   
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Hide when another modal is open anywhere in the app
   useEffect(() => {
-    scrollToBottom();
+    const handler = (e) => {
+      setHiddenByModal(e.detail.open);
+      if (e.detail.open) setIsOpen(false);
+    };
+    window.addEventListener('app-modal-change', handler);
+    return () => window.removeEventListener('app-modal-change', handler);
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Initialize with welcome message
@@ -39,19 +50,10 @@ const FloatingChatBubble = () => {
     }
   }, [isOpen, messages.length]);
 
-  const handleToggleChat = () => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-    setIsOpen(!isOpen);
-  };
+  // Only render for logged-in customers
+  if (!isCustomer || hiddenByModal) return null;
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-    setShowAuthModal(false);
-    setIsOpen(true);
-  };
+  const handleToggleChat = () => setIsOpen(!isOpen);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -119,11 +121,11 @@ const FloatingChatBubble = () => {
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleToggleChat}
-              className="relative w-16 h-16 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 text-white rounded-full shadow-xl flex items-center justify-center hover:shadow-2xl hover:shadow-cyan-500/40 transition-all duration-300 z-10"
+              className="relative w-16 h-16 bg-linear-to-br from-cyan-500 via-blue-500 to-blue-600 text-white rounded-full shadow-xl flex items-center justify-center hover:shadow-2xl hover:shadow-cyan-500/40 transition-all duration-300 z-10"
             >
               {/* Subtle Shine Effect */}
               <motion.div
-                className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/0 via-white/20 to-white/0"
+                className="absolute inset-0 rounded-full bg-linear-to-tr from-white/0 via-white/20 to-white/0"
                 animate={{
                   rotate: [0, 360],
                 }}
@@ -146,7 +148,7 @@ const FloatingChatBubble = () => {
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
-                className="absolute -top-1 -right-1 w-7 h-7 bg-gradient-to-br from-emerald-400 to-green-500 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white z-20"
+                className="absolute -top-1 -right-1 w-7 h-7 bg-linear-to-br from-emerald-400 to-green-500 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white z-20"
               >
                 <Sparkles className="w-3.5 h-3.5 drop-shadow" />
               </motion.div>
@@ -175,14 +177,14 @@ const FloatingChatBubble = () => {
               damping: 25, 
               stiffness: 300,
             }}
-            className="fixed bottom-6 right-6 z-50 w-[360px] h-[520px] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-6 right-6 z-50 w-90 h-130 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
             style={{
               background: 'linear-gradient(to bottom, #ffffff, #fafbfc)',
               border: '2px solid rgba(6, 182, 212, 0.2)',
             }}
           >
             {/* Header */}
-            <div className="relative bg-gradient-to-r from-cyan-500 via-blue-500 to-blue-600 text-white p-4">
+            <div className="relative bg-linear-to-r from-cyan-500 via-blue-500 to-blue-600 text-white p-4">
               {/* Subtle Animated Background */}
               <div className="absolute inset-0 opacity-10">
                 <motion.div
@@ -266,10 +268,10 @@ const FloatingChatBubble = () => {
                   >
                     {/* Avatar */}
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md ${
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
                         msg.role === 'user'
-                          ? 'bg-gradient-to-br from-cyan-500 to-blue-600'
-                          : 'bg-gradient-to-br from-blue-400 via-cyan-400 to-teal-400'
+                          ? 'bg-linear-to-br from-cyan-500 to-blue-600'
+                          : 'bg-linear-to-br from-blue-400 via-cyan-400 to-teal-400'
                       }`}
                     >
                       {msg.role === 'user' ? (
@@ -283,7 +285,7 @@ const FloatingChatBubble = () => {
                     <div
                       className={`px-4 py-2.5 rounded-2xl shadow-sm ${
                         msg.role === 'user'
-                          ? 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white'
+                          ? 'bg-linear-to-br from-cyan-500 to-blue-600 text-white'
                           : 'bg-white text-gray-800 border border-cyan-100/80'
                       }`}
                       style={{
@@ -337,7 +339,7 @@ const FloatingChatBubble = () => {
                   placeholder="Nhập câu hỏi của bạn..."
                   rows="1"
                   disabled={isLoading}
-                  className="flex-1 px-4 py-3 border-2 border-cyan-200 rounded-2xl focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 resize-none text-sm disabled:bg-gray-50 disabled:text-gray-400 transition-all duration-200 placeholder:text-gray-400 bg-white max-h-[80px] overflow-y-auto"
+                  className="flex-1 px-4 py-3 border-2 border-cyan-200 rounded-2xl focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 resize-none text-sm disabled:bg-gray-50 disabled:text-gray-400 transition-all duration-200 placeholder:text-gray-400 bg-white max-h-20 overflow-y-auto"
                   style={{
                     boxShadow: '0 2px 8px rgba(6, 182, 212, 0.08)',
                     minHeight: '44px',
@@ -348,7 +350,7 @@ const FloatingChatBubble = () => {
                   disabled={!inputMessage.trim() || isLoading}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className="px-4 py-3 bg-gradient-to-br from-cyan-500 via-blue-500 to-blue-600 text-white rounded-2xl hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-[44px] w-[44px] flex items-center justify-center flex-shrink-0 group"
+                  className="px-4 py-3 bg-linear-to-br from-cyan-500 via-blue-500 to-blue-600 text-white rounded-2xl hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-11 w-11 flex items-center justify-center shrink-0 group"
                   style={{
                     boxShadow: '0 4px 16px rgba(6, 182, 212, 0.3)',
                   }}
@@ -361,13 +363,6 @@ const FloatingChatBubble = () => {
         )}
       </AnimatePresence>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        initialMode="login"
-        onLoginSuccess={handleLoginSuccess}
-      />
     </>
   );
 };

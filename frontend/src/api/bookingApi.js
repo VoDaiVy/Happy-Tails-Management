@@ -16,6 +16,15 @@ export const getMyBookings = async (params = {}) => {
   return response.data;
 };
 
+export const getMyPetsMedicalRecords = async () => {
+  const response = await axiosInstance.get("/medical-records/my-pets");
+  return response.data;
+};
+
+export const getMedicalRecordById = async (id) => {
+  const response = await axiosInstance.get(`/medical-records/${encodeURIComponent(id)}`);
+  return response.data;
+};
 // Get booking details
 export const getBookingById = async (id) => {
   const response = await axiosInstance.get(`/bookings/${id}`);
@@ -24,7 +33,7 @@ export const getBookingById = async (id) => {
 
 // Create booking from cart (Customer)
 export const createBooking = async (bookingData) => {
-  const response = await axiosInstance.post("/bookings", bookingData);
+  const response = await axiosInstance.post("/bookings/checkout", bookingData);
   return response.data;
 };
 

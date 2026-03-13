@@ -6,6 +6,7 @@
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const { AppError, createError, AUTH_ERROR_CODES } = require('../utils/AppError');
+const ApiResponse = require('../utils/ApiResponse');
 const { catchAsync } = require('../utils/catchAsync');
 const { getCookieOptions, hashToken, verifyRefreshToken } = require('../config/jwt');
 const { 
@@ -16,6 +17,23 @@ const {
   sendWelcomeEmail
 } = require('../utils/emailService');
 const logger = require('../utils/logger');
+const googleAuthService = require('../services/googleAuth.service');
+const notificationService = require('../services/notification.service');
+const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
+
+const buildDeviceInfo = (clientInfo, device = {}) => {
+  const parts = [device.platform, device.name, clientInfo?.userAgent].filter(Boolean);
+  return parts.join(' | ') || 'Unknown';
+};
+
+const buildSafeUser = (user) => ({
+  id: user._id,
+  email: user.email,
+  name: user.name,
+  avatar: user.avatar || null,
+  role: user.role,
+  authProvider: user.authProvider
+});
 
 /**
  * Create and send token response
@@ -42,7 +60,9 @@ const createSendToken = async (user, statusCode, res, options = {}) => {
     id: user._id,
     email: user.email,
     name: user.name,
+    avatar: user.avatar || null,
     role: user.role,
+    authProvider: user.authProvider,
     isEmailVerified: user.isEmailVerified,
     twoFactorEnabled: user.twoFactorEnabled,
     lastLogin: user.lastLogin,
@@ -89,6 +109,14 @@ exports.register = catchAsync(async (req, res, next) => {
 
   // Auto-create wallet for new user
   await Wallet.findOrCreateByUser(user._id);
+
+  // Welcome notification (fire-and-forget — must not block registration response)
+  setImmediate(() => {
+    notificationService.send(
+      user._id,
+      NOTIFICATION_TEMPLATES.WELCOME(user.name || user.fullName || user.email)
+    ).catch(err => console.error('[Notif] welcome:', err.message));
+  });
 
   // Generate email verification OTP
   const otp = user.generateEmailVerificationOTP();
@@ -185,6 +213,114 @@ exports.login = catchAsync(async (req, res, next) => {
     rememberMe,
     deviceInfo: req.clientInfo?.userAgent
   });
+});
+
+/**
+ * @desc    Login or register user with Google ID token
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+exports.googleLogin = catchAsync(async (req, res, next) => {
+  const { idToken, device } = req.body;
+  const profile = await googleAuthService.verifyGoogleIdToken(idToken);
+
+  if (!profile.emailVerified) {
+    return next(createError.badRequest('Google email is not verified', 'GOOGLE_EMAIL_NOT_VERIFIED'));
+  }
+
+  let user = await User.findOne({ googleId: profile.googleId, isDeleted: false });
+  let isNewUser = false;
+
+  if (!user) {
+    user = await User.findOne({ email: profile.email, isDeleted: false });
+  }
+
+  if (user && user.isBlocked) {
+    const error = createError.forbidden('Your account has been blocked', 'ACCOUNT_BLOCKED');
+    error.details = {
+      reason: user.blockReason,
+      blockAt: user.blockAt
+    };
+    return next(error);
+  }
+
+  if (user && !user.isActive) {
+    return next(new AppError('Account has been deactivated', 401, AUTH_ERROR_CODES.ACCOUNT_DISABLED));
+  }
+
+  if (!user) {
+    user = await User.create({
+      email: profile.email,
+      name: profile.fullName || profile.givenName || profile.email.split('@')[0],
+      avatar: profile.avatar,
+      authProvider: 'google',
+      googleId: profile.googleId,
+      role: 'customer',
+      isBlocked: false,
+      isEmailVerified: true
+    });
+
+    await Wallet.findOrCreateByUser(user._id);
+    isNewUser = true;
+  } else {
+    let hasChanges = false;
+
+    if (!user.googleId) {
+      user.googleId = profile.googleId;
+      hasChanges = true;
+    }
+
+    if (user.authProvider !== 'google') {
+      user.authProvider = 'google';
+      hasChanges = true;
+    }
+
+    if (!user.avatar && profile.avatar) {
+      user.avatar = profile.avatar;
+      hasChanges = true;
+    }
+
+    if ((!user.name || user.name.trim().length < 2) && profile.fullName) {
+      user.name = profile.fullName;
+      hasChanges = true;
+    }
+
+    if (!user.isEmailVerified) {
+      user.isEmailVerified = true;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      await user.save({ validateBeforeSave: false });
+    }
+  }
+
+  await user.recordLoginAttempt(req.clientInfo || {}, true);
+
+  const accessToken = user.generateAuthToken();
+  const refreshToken = await user.generateRefreshTokenAndSave(buildDeviceInfo(req.clientInfo, device));
+
+  res.cookie('refreshToken', refreshToken, getCookieOptions(false));
+
+  logger.auth('google_login', { userId: user._id, email: user.email, ip: req.clientInfo?.ip });
+
+  if (isNewUser) {
+    setImmediate(() => {
+      notificationService.send(
+        user._id,
+        NOTIFICATION_TEMPLATES.WELCOME(user.name || user.email)
+      ).catch(err => console.error('[Notif] google-welcome:', err.message));
+    });
+  }
+
+  res.status(200).json(
+    ApiResponse.success('Google login successful', {
+      user: buildSafeUser(user),
+      accessToken,
+      refreshToken,
+      expiresIn: process.env.JWT_EXPIRE || '7d'
+    })
+  );
 });
 
 // ==================== LOGOUT ====================

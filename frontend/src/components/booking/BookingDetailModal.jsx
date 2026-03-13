@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   X,
   Calendar,
@@ -82,6 +83,7 @@ const BookingDetailModal = ({
     booking?.assignedStaff?._id || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  useScrollLock(isOpen);
 
   if (!booking) return null;
 
@@ -404,9 +406,9 @@ const BookingDetailModal = ({
                           <p className="font-medium text-[#2D3436]">
                             {item.service?.name || "Service"}
                           </p>
-                          {item.pet && (
+                          {(item.pet || item.guestPet) && (
                             <p className="text-xs text-gray-500">
-                              Pet: {item.pet.name}
+                              Pet: {item.pet?.petName || item.pet?.name || item.guestPet?.petName}
                             </p>
                           )}
                           {item.notes && (

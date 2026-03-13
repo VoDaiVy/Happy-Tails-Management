@@ -43,6 +43,7 @@ import {
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import AuthModal from "../components/AuthModal";
+import CameraFeatureModal from "../components/CameraFeatureModal";
 import { slugifyServiceName } from "../data/servicesData";
 import ServicePreviewModal from "../components/service/ServicePreviewModal";
 
@@ -330,6 +331,7 @@ const ServicePage = () => {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : null;
@@ -1328,13 +1330,21 @@ const ServicePage = () => {
                     Safety & Monitoring
                   </h3>
                   <div className="bg-gradient-to-r from-white/5 to-transparent border border-white/5 rounded-[20px] p-6 md:p-8 flex flex-col md:flex-row gap-8 justify-between items-start md:items-center shadow-inner hover:border-white/10 transition-colors">
-                    <div className="flex items-center gap-4 group">
+                    <div
+                      className="flex items-center gap-4 group cursor-pointer"
+                      onClick={() => setIsCameraModalOpen(true)}
+                    >
                       <div className="w-12 h-12 rounded-xl bg-[#1F2A37] shadow-lg border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-[#E07A5F]/20 group-hover:border-[#E07A5F]/50 transition-all">
                         <Video size={18} />
                       </div>
-                      <span className="text-white/80 text-[14px] font-medium tracking-wide">
-                        24/7 Camera Monitoring
-                      </span>
+                      <div>
+                        <span className="text-white/80 text-[14px] font-medium tracking-wide block">
+                          24/7 Camera Monitoring
+                        </span>
+                        <span className="text-[#E07A5F] text-[11px] font-medium">
+                          Click to learn more -&gt;
+                        </span>
+                      </div>
                     </div>
 
                     <div className="hidden md:block w-px h-10 bg-white/10"></div>
@@ -1378,6 +1388,12 @@ const ServicePage = () => {
 
       {/* FOOTER */}
       <Footer />
+      
+      {/* Camera Feature Modal */}
+      <CameraFeatureModal 
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+      />
     </div>
   );
 };

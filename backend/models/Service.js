@@ -64,6 +64,16 @@ const serviceSchema = new mongoose.Schema({
     type: Number,
     default: 1 // For booking limits
   },
+  /**
+   * Service group determines which room cluster this service uses.
+   * wet  → Room 201 / 202 (Tắm, Sấy, Massage, Trị liệu…)
+   * dry  → Room 101 / 102 (Cắt tỉa, Cắt móng, Nhuộm…)
+   */
+  group: {
+    type: String,
+    enum: ['wet', 'dry'],
+    default: 'dry'
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

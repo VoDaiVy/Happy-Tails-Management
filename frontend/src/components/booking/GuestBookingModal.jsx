@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import useScrollLock from '../../hooks/useScrollLock';
 import {
   X,
   User,
@@ -80,6 +81,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  useScrollLock(isOpen);
 
   // Fetch services on mount
   useEffect(() => {
@@ -212,15 +214,15 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
       const bookingData = {
         guestInfo,
+        appointmentDate: `${bookingDate}T${bookingTime}:00`,
+        petInfo: {
+          petName,
+          petType,
+        },
         items: selectedServices.map((s) => ({
           service: s.service._id,
           quantity: s.quantity,
-          price: s.price,
-          // Thêm thông tin pet tạm (guest booking không có pet trong DB)
-          petInfo: {
-            petName,
-            petType,
-          },
+          note: s.note || "",
         })),
         bookingDate,
         bookingTime,

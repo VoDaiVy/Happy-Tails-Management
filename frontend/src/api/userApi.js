@@ -20,7 +20,8 @@ export const getUserDetail = async (id) => {
 
 // Block user
 export const blockUser = async (id, reason = "") => {
-  const response = await axiosInstance.put(`/admin/users/${id}/block`, { reason });
+  const body = reason && reason.trim() ? { reason: reason.trim() } : {};
+  const response = await axiosInstance.put(`/admin/users/${id}/block`, body);
   return response.data;
 };
 
@@ -33,6 +34,12 @@ export const unblockUser = async (id) => {
 // Update user role
 export const updateUserRole = async (id, role) => {
   const response = await axiosInstance.put(`/admin/users/${id}/role`, { role });
+  return response.data;
+};
+
+// Permanently delete user (hard delete)
+export const permanentDeleteUser = async (id) => {
+  const response = await axiosInstance.delete(`/admin/users/${id}/permanent`);
   return response.data;
 };
 
@@ -70,6 +77,7 @@ export default {
   blockUser,
   unblockUser,
   updateUserRole,
+  permanentDeleteUser,
   getOverview,
   getRevenueStats,
   getTopServices,

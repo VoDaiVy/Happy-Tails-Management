@@ -274,9 +274,9 @@ exports.diagnoseImage = catchAsync(async (req, res, next) => {
   // Detect language from symptoms (Vietnamese has diacritics)
   const isVietnamese = symptoms && /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(symptoms);
   
-  // Get pet info if provided
+  // Get pet info if provided (only when authenticated)
   let petInfo = '';
-  if (petId) {
+  if (petId && req.user?.id) {
     const pet = await UserPet.findOne({ _id: petId, userID: req.user.id });
     if (pet) {
       if (isVietnamese) {
