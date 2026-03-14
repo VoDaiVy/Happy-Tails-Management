@@ -1,77 +1,78 @@
 import axiosInstance from "./axiosInstance";
 import { normalizeResponse } from "../utils/apiResponseHandler";
 
-/**
- * Cart API — mirrors backend routes:
- *  GET    /api/cart
- *  POST   /api/cart/add
- *  PUT    /api/cart/items/:itemId
- *  DELETE /api/cart/items/:itemId
- *  DELETE /api/cart
- *  POST   /api/cart/checkout
- */
+const normalizeCartPayload = (response) => {
+  const normalized = normalizeResponse(response);
+  const data = normalized.data || {};
+  const summary = {
+    serviceSubtotal: Number(data.serviceSubtotal || 0),
+    staySubtotal: Number(data.staySubtotal || 0),
+    serviceDurationTotal: Number(data.serviceDurationTotal || 0),
+    stayDurationTotal: Number(data.stayDurationTotal || 0),
+    grandTotal: Number(data.grandTotal || data.totalPrice || 0),
+    totalItems: Number(data.totalItems || 0),
+  };
 
-export const fetchCartApi = async () => {
-  const res = await axiosInstance.get("/cart");
-  const normalized = normalizeResponse(res);
-  return normalized.data?.items || normalized.data;
+  return {
+    success: normalized.success,
+    message: normalized.message,
+    data: {
+      ...data,
+      items: Array.isArray(data.items) ? data.items : [],
+      summary,
+    },
+  };
 };
 
-export const addToCartApi = async ({ serviceId, quantity = 1, note = "" }) => {
-  const res = await axiosInstance.post("/cart/add", {
+export const getCart = async () => {
+  const response = await axiosInstance.get("/cart");
+  return normalizeCartPayload(response);
+};
+
+export const addServiceToCart = async ({ serviceId, quantity = 1, note = "", metadata = {} }) => {
+  const response = await axiosInstance.post("/cart/add", {
+    type: "service",
     serviceId,
     quantity,
     note,
+    metadata,
   });
-  const normalized = normalizeResponse(res);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to add to cart');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return normalized.data?.item || normalized.data;
+  return normalizeCartPayload(response);
 };
 
-export const updateCartItemApi = async (itemId, quantity) => {
-  const res = await axiosInstance.put(`/cart/items/${itemId}`, { quantity });
-  const normalized = normalizeResponse(res);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to update cart item');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return normalized.data?.item || normalized.data;
+export const addStayToCart = async ({ roomId, checkInDate, checkOutDate, nights, note = "", metadata = {} }) => {
+  const response = await axiosInstance.post("/cart/add", {
+    type: "stay",
+    roomId,
+    checkInDate,
+    checkOutDate,
+    nights,
+    note,
+    metadata,
+  });
+  return normalizeCartPayload(response);
 };
 
-export const removeCartItemApi = async (itemId) => {
-  const res = await axiosInstance.delete(`/cart/items/${itemId}`);
-  const normalized = normalizeResponse(res);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to remove cart item');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return normalized.data?.item || normalized.data;
+export const updateCartItem = async (itemId, quantity) => {
+  const response = await axiosInstance.put(`/cart/items/${itemId}`, { quantity });
+  return normalizeCartPayload(response);
 };
 
-export const clearCartApi = async () => {
-  const res = await axiosInstance.delete("/cart");
-  const normalized = normalizeResponse(res);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to clear cart');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return normalized.data;
+export const removeCartItem = async (itemId) => {
+  const response = await axiosInstance.delete(`/cart/items/${itemId}`);
+  return normalizeCartPayload(response);
 };
 
-export const checkoutCartApi = async (data = {}) => {
-  const res = await axiosInstance.post("/cart/checkout", data);
-  const normalized = normalizeResponse(res);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to checkout');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return normalized.data;
+export const clearCart = async () => {
+  const response = await axiosInstance.delete("/cart");
+  return normalizeCartPayload(response);
+};
+
+export default {
+  getCart,
+  addServiceToCart,
+  addStayToCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
 };
