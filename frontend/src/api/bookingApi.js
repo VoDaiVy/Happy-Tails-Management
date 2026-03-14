@@ -16,6 +16,12 @@ export const getMyBookings = async (params = {}) => {
   return response.data;
 };
 
+// Get available slots
+export const getAvailableSlots = async (date, serviceId) => {
+  const response = await axiosInstance.get("/bookings/available-slots", { params: { date, serviceId } });
+  return response.data;
+};
+
 export const getMyPetsMedicalRecords = async () => {
   const response = await axiosInstance.get("/medical-records/my-pets");
   return response.data;
@@ -77,4 +83,5 @@ export default {
   updateBookingStatus,
   cancelBooking,
   assignStaffToBooking,
+  getAvailableSlots,
 };

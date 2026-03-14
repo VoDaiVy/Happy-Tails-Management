@@ -11,6 +11,7 @@ const authController = require('../controllers/authController');
 
 // Middleware
 const { protect, attachClientInfo } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { 
   validateRegisterInput, 
   validateLoginInput, 
@@ -19,6 +20,7 @@ const {
   validateEmailInput,
   validateUpdateProfileInput 
 } = require('../middleware/validation');
+const { googleLoginSchema } = require('../validations/auth.validation');
 const { 
   loginLimiter, 
   registerLimiter, 
@@ -55,6 +57,18 @@ router.post(
   loginLimiter,
   validateLoginInput,
   authController.login
+);
+
+/**
+ * @route   POST /api/auth/google
+ * @desc    Login or register using a Google ID token
+ * @access  Public
+ */
+router.post(
+  '/google',
+  loginLimiter,
+  validate(googleLoginSchema),
+  authController.googleLogin
 );
 
 /**
