@@ -20,6 +20,8 @@ const SLOTS_PER_ROOM = 3;
 const GROUP_CAP = 6;
 const SLOT_MS = 15 * 60 * 1000;
 const LOCK_TTL_MS = 45 * 1000;
+const OPEN_HOUR = 8;
+const CLOSE_HOUR = 23;
 const WET_KEYWORDS = [
   "tam",
   "say",
@@ -52,6 +54,20 @@ const parseAppointmentDate = ({ appointmentDate, bookingDate, bookingTime }) => 
   }
   return new Date(`${bookingDate}T${bookingTime}:00`);
 };
+
+const startOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const endOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
+const isBeforeNow = (date) => new Date(date).getTime() < Date.now();
 
 const isAlignedTo15Minutes = (date) =>
   date.getMinutes() % 15 === 0 && date.getSeconds() === 0 && date.getMilliseconds() === 0;
@@ -133,12 +149,16 @@ const buildSlotStarts = (startTime, endTime) => {
 
 const buildSlotKey = (group, slotStart) => `${group}:${slotStart.toISOString()}`;
 
+const buildServiceSlotKey = (serviceId, slotStart) => `${serviceId}:${slotStart.toISOString()}`;
+
 const buildLockTargets = (scheduledItems) => {
   const map = new Map();
   for (const item of scheduledItems) {
     const slots = buildSlotStarts(item.startTime, item.endTime);
     for (const slotStart of slots) {
-      const key = buildSlotKey(item.group, slotStart);
+      const key = item.serviceId
+        ? buildServiceSlotKey(item.serviceId, slotStart)
+        : buildSlotKey(item.group, slotStart);
       if (!map.has(key)) {
         map.set(key, { key, group: item.group, slotStart });
       }
@@ -197,6 +217,92 @@ const countGroupOccupancyAtSlot = async (group, slotStart) => {
   ]);
 
   return result[0]?.total || 0;
+};
+
+const countServiceOccupancyAtSlot = async (serviceId, slotStart) => {
+  const slotEnd = new Date(slotStart.getTime() + SLOT_MS);
+
+  const result = await Booking.aggregate([
+    { $match: { status: { $in: ACTIVE_STATUSES } } },
+    { $unwind: '$items' },
+    {
+      $match: {
+        'items.service': new mongoose.Types.ObjectId(serviceId),
+        'items.startTime': { $lt: slotEnd },
+        'items.endTime': { $gt: slotStart },
+      },
+    },
+    { $count: 'total' },
+  ]);
+
+  return result[0]?.total || 0;
+};
+
+const validateServiceCapacityAndAssignRooms = async (scheduledItems) => {
+  const occupancyCache = new Map();
+  const requestAdds = new Map();
+
+  const getBaseOccupancy = async (serviceId, slotStart) => {
+    const key = buildServiceSlotKey(serviceId, slotStart);
+    if (!occupancyCache.has(key)) {
+      occupancyCache.set(key, await countServiceOccupancyAtSlot(serviceId, slotStart));
+    }
+    return occupancyCache.get(key);
+  };
+
+  for (const item of scheduledItems) {
+    const slots = buildSlotStarts(item.startTime, item.endTime);
+    const maxCapacity = Math.max(1, Number(item.svc.maxCapacity) || 1);
+    const itemServiceId = String(item.svc._id);
+
+    for (const slotStart of slots) {
+      const key = buildServiceSlotKey(itemServiceId, slotStart);
+      const base = await getBaseOccupancy(itemServiceId, slotStart);
+      const inRequest = requestAdds.get(key) || 0;
+      if (base + inRequest >= maxCapacity) {
+        throw new AppError(
+          `Khung giờ ${formatBookingTime(slotStart)} đã hết chỗ cho dịch vụ ${item.svc.name}`,
+          409,
+          'SERVICE_SLOT_FULL',
+        );
+      }
+    }
+
+    const roomPool = ROOM_CONFIG[item.group] || ROOM_CONFIG.dry;
+    const firstSlot = slots[0];
+    item.assignedRoom = roomPool[firstSlot.getMinutes() % roomPool.length];
+
+    for (const slotStart of slots) {
+      const key = buildServiceSlotKey(itemServiceId, slotStart);
+      requestAdds.set(key, (requestAdds.get(key) || 0) + 1);
+    }
+  }
+};
+
+const getServiceDayDisabledSlots = async (service, date) => {
+  const dayStart = startOfDay(date);
+  const now = new Date();
+  const slots = [];
+
+  for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
+    for (let m = 0; m < 60; m += 15) {
+      const slotStart = new Date(dayStart);
+      slotStart.setHours(h, m, 0, 0);
+
+      if (isBeforeNow(slotStart)) {
+        slots.push(formatBookingTime(slotStart));
+        continue;
+      }
+
+      const occupied = await countServiceOccupancyAtSlot(service._id, slotStart);
+      const maxCapacity = Math.max(1, Number(service.maxCapacity) || 1);
+      if (occupied >= maxCapacity) {
+        slots.push(formatBookingTime(slotStart));
+      }
+    }
+  }
+
+  return slots;
 };
 
 const validateCapacityAndAssignRooms = async (scheduledItems) => {
@@ -819,6 +925,65 @@ exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
   });
 });
 
+const buildStayRange = ({ checkInDate, checkOutDate }) => {
+  const checkIn = new Date(checkInDate);
+  const checkOut = new Date(checkOutDate);
+
+  if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime()) || checkOut <= checkIn) {
+    return null;
+  }
+
+  return { checkIn, checkOut };
+};
+
+const hasRoomOverlapBooking = async (roomId, checkIn, checkOut) => {
+  const conflict = await Booking.findOne({
+    status: { $in: ACTIVE_STATUSES },
+    $or: [{ room: roomId }, { 'stayInfo.room': roomId }],
+    'stayInfo.enabled': true,
+    'stayInfo.checkInDate': { $lt: checkOut },
+    'stayInfo.checkOutDate': { $gt: checkIn },
+  }).lean();
+
+  return Boolean(conflict);
+};
+
+/**
+ * Get disabled slots for a specific service/date.
+ * The slot is considered unavailable only when capacity of that exact service is full.
+ * @route GET /api/bookings/available-slots
+ * @access Private (Customer)
+ */
+exports.getAvailableSlots = catchAsync(async (req, res, next) => {
+  const { date, serviceId } = req.query;
+
+  if (!date || !serviceId) {
+    return next(new AppError('date và serviceId là bắt buộc', 400, 'MISSING_REQUIRED_FIELDS'));
+  }
+
+  const day = new Date(date);
+  if (Number.isNaN(day.getTime())) {
+    return next(new AppError('Ngày không hợp lệ', 400, 'INVALID_DATE'));
+  }
+
+  const service = await Service.findById(serviceId);
+  if (!service || !service.isActive) {
+    return next(new AppError('Dịch vụ không tồn tại hoặc không còn hoạt động', 404, 'SERVICE_NOT_FOUND'));
+  }
+
+  const disabledSlots = await getServiceDayDisabledSlots(service, day);
+
+  return res.status(200).json({
+    status: 'success',
+    data: {
+      disabledSlots,
+      serviceId,
+      date: startOfDay(day).toISOString(),
+      maxCapacity: Math.max(1, Number(service.maxCapacity) || 1),
+    },
+  });
+});
+
 /**
  * Checkout Booking — Full business logic
  *
@@ -838,16 +1003,30 @@ exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
  */
 exports.checkoutBooking = catchAsync(async (req, res, next) => {
   // Wallet is the only accepted payment method for customer checkout
-  const { appointmentDate, petId, voucherCode, notes } = req.body;
+  const {
+    appointmentDate,
+    date,
+    time,
+    petId,
+    voucherCode,
+    notes,
+    stayCheckInDate,
+    stayCheckOutDate,
+  } = req.body;
   const paymentMethod = "wallet";
 
-  if (!appointmentDate || !petId) {
-    return next(new AppError("appointmentDate and petId are required", 400, "MISSING_REQUIRED_FIELDS"));
+  const apptDate = parseAppointmentDate({ appointmentDate, bookingDate: date, bookingTime: time });
+
+  if (!apptDate || !petId) {
+    return next(new AppError("appointmentDate (hoặc date + time) và petId là bắt buộc", 400, "MISSING_REQUIRED_FIELDS"));
   }
 
-  const apptDate = new Date(appointmentDate);
   if (Number.isNaN(apptDate.getTime())) {
-    return next(new AppError("Invalid appointmentDate", 400, "INVALID_DATE"));
+    return next(new AppError("appointmentDate không hợp lệ", 400, "INVALID_DATE"));
+  }
+
+  if (isBeforeNow(apptDate)) {
+    return next(new AppError("Không thể chọn lịch trong quá khứ", 400, "PAST_APPOINTMENT_DATE"));
   }
 
   if (!isAlignedTo15Minutes(apptDate)) {
@@ -867,10 +1046,19 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   const cart = await Cart.findOne({ userId: req.user.id });
   if (!cart || cart.items.length === 0) {
-    return next(new AppError("Cart is empty", 400, "CART_EMPTY"));
+    return next(new AppError("Giỏ hàng đang trống", 400, "CART_EMPTY"));
   }
 
-  const rawItems = cart.items.map((item) => ({
+  cart.recalculate();
+
+  const serviceCartItems = cart.items.filter((item) => (item.type || "service") === "service" && item.serviceId);
+  const stayCartItem = cart.items.find((item) => (item.type || "service") === "stay");
+
+  if (serviceCartItems.length === 0) {
+    return next(new AppError("Giỏ hàng phải có ít nhất 1 dịch vụ", 400, "CART_NO_SERVICE_ITEM"));
+  }
+
+  const rawItems = serviceCartItems.map((item) => ({
     serviceId: item.serviceId,
     quantity: Math.max(1, Number(item.quantity) || 1),
     note: item.note,
@@ -902,7 +1090,66 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   try {
     await acquireSlotLocks(lockTargets, lockHolder);
-    await validateCapacityAndAssignRooms(scheduledItems);
+    await validateServiceCapacityAndAssignRooms(scheduledItems);
+
+    let stayInfo = null;
+    let bookingRoomId = null;
+
+    if (stayCartItem) {
+      const stayRange = buildStayRange({
+        checkInDate: stayCheckInDate || stayCartItem.metadata?.checkInDate,
+        checkOutDate: stayCheckOutDate || stayCartItem.metadata?.checkOutDate,
+      });
+
+      if (!stayRange) {
+        return next(new AppError("Ngày nhận/trả phòng không hợp lệ", 400, "INVALID_STAY_RANGE"));
+      }
+
+      if (startOfDay(stayRange.checkIn).getTime() < startOfDay(new Date()).getTime()) {
+        return next(new AppError("Không thể chọn ngày nhận phòng trong quá khứ", 400, "PAST_CHECKIN_DATE"));
+      }
+
+      if (apptDate < stayRange.checkIn || apptDate >= stayRange.checkOut) {
+        return next(
+          new AppError(
+            "Lịch hẹn dịch vụ phải nằm trong khoảng thời gian lưu trú",
+            400,
+            "APPOINTMENT_OUTSIDE_STAY",
+          ),
+        );
+      }
+
+      const roomId = stayCartItem.roomId || stayCartItem.refId;
+      const room = await Room.findById(roomId);
+
+      if (!room || !room.isActive) {
+        return next(new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"));
+      }
+
+      const hasConflict = await hasRoomOverlapBooking(room._id, stayRange.checkIn, stayRange.checkOut);
+      if (hasConflict) {
+        return next(new AppError("Phòng đã được đặt trong khoảng thời gian lưu trú này", 409, "ROOM_STAY_CONFLICT"));
+      }
+
+      const nights = Math.max(
+        1,
+        Number(stayCartItem.metadata?.nights) || Math.ceil((stayRange.checkOut - stayRange.checkIn) / (1000 * 60 * 60 * 24)),
+      );
+      const pricePerNight = Number(stayCartItem.unitPrice ?? stayCartItem.price ?? 0);
+      const subtotal = pricePerNight * nights;
+
+      stayInfo = {
+        enabled: true,
+        room: room._id,
+        roomName: room.name,
+        checkInDate: stayRange.checkIn,
+        checkOutDate: stayRange.checkOut,
+        nights,
+        pricePerNight,
+        subtotal,
+      };
+      bookingRoomId = room._id;
+    }
 
     const overallStart = scheduledItems[0].startTime;
     const overallEnd = scheduledItems[scheduledItems.length - 1].endTime;
@@ -927,7 +1174,11 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       );
     }
 
-    let totalAmount = cart.totalPrice;
+    let totalAmount = Number(cart.grandTotal || cart.totalPrice || 0);
+    const serviceSubtotal = Number(cart.serviceSubtotal || 0);
+    const staySubtotal = Number(cart.staySubtotal || 0);
+    const serviceDurationTotal = Number(cart.serviceDurationTotal || 0);
+    const stayDurationTotal = Number(cart.stayDurationTotal || 0);
     let discount = 0;
     let voucherApplied = null;
 
@@ -1019,6 +1270,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
             totalAmount,
             paymentMethod,
             notes,
+            room: bookingRoomId,
+            stayInfo,
             status: bookingStatus,
             isPaid,
           },
@@ -1056,6 +1309,11 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       cart.items = [];
       cart.totalPrice = 0;
       cart.totalItems = 0;
+      cart.serviceSubtotal = 0;
+      cart.staySubtotal = 0;
+      cart.serviceDurationTotal = 0;
+      cart.stayDurationTotal = 0;
+      cart.grandTotal = 0;
       await cart.save({ session });
 
       await session.commitTransaction();
@@ -1082,7 +1340,14 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
           ...(voucherApplied
             ? { voucher: { code: voucherApplied.code, discountAmount: discount } }
             : {}),
-          totalAmount,
+          summary: {
+            serviceSubtotal,
+            staySubtotal,
+            serviceDurationTotal,
+            stayDurationTotal,
+            discount,
+            totalAmount,
+          },
         },
       });
     } catch (error) {

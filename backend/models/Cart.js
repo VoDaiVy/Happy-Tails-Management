@@ -4,16 +4,31 @@
  */
 
 const mongoose = require('mongoose');
+const { calculateCartSummary } = require('../utils/cartBookingRules');
 
 /**
  * Cart Item Subdocument Schema
  * Stores snapshot of service data at time of adding to cart
  */
 const cartItemSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['service', 'stay'],
+    default: 'service'
+  },
+  refId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
+  },
   serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
-    required: true
+    required: false
+  },
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    required: false
   },
   name: {
     type: String,
@@ -25,10 +40,19 @@ const cartItemSchema = new mongoose.Schema({
     required: true,
     min: [0, 'Price cannot be negative']
   },
+  unitPrice: {
+    type: Number,
+    min: [0, 'Unit price cannot be negative']
+  },
   duration: {
     type: Number,
     required: true,
     min: [1, 'Duration must be at least 1 minute']
+  },
+  durationUnit: {
+    type: String,
+    enum: ['minutes', 'days'],
+    default: 'minutes'
   },
   imageUrl: {
     type: String,
@@ -55,6 +79,10 @@ const cartItemSchema = new mongoose.Schema({
   addedAt: {
     type: Date,
     default: Date.now
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   }
 }, {
   _id: true
@@ -76,6 +104,31 @@ const cartSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: [0, 'Total items cannot be negative']
+  },
+  serviceSubtotal: {
+    type: Number,
+    default: 0,
+    min: [0, 'Service subtotal cannot be negative']
+  },
+  staySubtotal: {
+    type: Number,
+    default: 0,
+    min: [0, 'Stay subtotal cannot be negative']
+  },
+  serviceDurationTotal: {
+    type: Number,
+    default: 0,
+    min: [0, 'Service duration total cannot be negative']
+  },
+  stayDurationTotal: {
+    type: Number,
+    default: 0,
+    min: [0, 'Stay duration total cannot be negative']
+  },
+  grandTotal: {
+    type: Number,
+    default: 0,
+    min: [0, 'Grand total cannot be negative']
   }
 }, {
   timestamps: true
@@ -87,19 +140,36 @@ const cartSchema = new mongoose.Schema({
  * @returns {this} Cart instance for chaining
  */
 cartSchema.methods.recalculate = function() {
-  let totalPrice = 0;
-  let totalItems = 0;
+  const { normalizedItems, summary } = calculateCartSummary(this.items || []);
 
-  this.items.forEach(item => {
-    item.subtotal = item.price * item.quantity;
-    totalPrice += item.subtotal;
-    totalItems += item.quantity;
+  this.items = normalizedItems.map((item) => {
+    const next = {
+      ...item,
+      refId: item.refId || (item.type === 'stay' ? item.roomId : item.serviceId),
+    };
+    return next;
   });
 
-  this.totalPrice = totalPrice;
-  this.totalItems = totalItems;
+  this.serviceSubtotal = summary.serviceSubtotal;
+  this.staySubtotal = summary.staySubtotal;
+  this.serviceDurationTotal = summary.serviceDurationTotal;
+  this.stayDurationTotal = summary.stayDurationTotal;
+  this.grandTotal = summary.grandTotal;
+  this.totalPrice = this.grandTotal;
+  this.totalItems = summary.totalItems;
   
   return this;
+};
+
+cartSchema.methods.toSummary = function() {
+  return {
+    serviceSubtotal: this.serviceSubtotal || 0,
+    staySubtotal: this.staySubtotal || 0,
+    serviceDurationTotal: this.serviceDurationTotal || 0,
+    stayDurationTotal: this.stayDurationTotal || 0,
+    grandTotal: this.grandTotal || 0,
+    totalItems: this.totalItems || 0
+  };
 };
 
 /**
