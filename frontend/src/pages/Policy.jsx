@@ -1,934 +1,870 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  ArrowRight,
-  ArrowUp,
   CalendarCheck,
   CheckCircle2,
-  Clock3,
+  ChevronDown,
   CreditCard,
-  Home,
-  LifeBuoy,
-  Link2,
-  Lock,
-  Search,
+  Mail,
+  MessageCircle,
+  PhoneCall,
   ShieldCheck,
-  Siren,
   Sparkles,
   Stethoscope,
-  TriangleAlert,
+  Home,
   UserCheck,
   XCircle,
-  ChevronRight,
-  Mail,
-  PhoneCall,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import { getPublicPolicies } from "../api/policyApi";
 
-const NAVBAR_OFFSET = 108;
-const LAST_UPDATED = "2026-03-13";
-const TOAST_DURATION = 2200;
+const HERO_IMAGES = {
+  main: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
+  side: "https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=800&q=80",
+};
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1400&q=80";
-const SUPPORT_IMAGE =
-  "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&w=1400&q=80";
-
-const POLICY_SECTIONS = [
+const POLICY_OVERVIEW = [
   {
     id: "booking",
-    title: "Booking Policy",
-    tocTitle: "Booking",
+    title: "Booking Rules",
     icon: CalendarCheck,
-    tone: "coral",
-    points: [
-      "Select an available time slot before confirming a booking.",
-      "Bookings are assigned based on staff and room availability.",
-      "Multiple pets require separate bookings unless a package supports multi-pet.",
-      "Confirmation is available in your dashboard.",
-    ],
-    tip: "Tip: Book early on weekends to secure your preferred slot.",
+    desc: "Choose available slots and confirm.",
   },
   {
     id: "cancellation",
-    title: "Cancellation Policy",
-    tocTitle: "Cancellation",
+    title: "Cancellation",
     icon: XCircle,
-    tone: "sage",
-    points: [
-      "Cancel or reschedule at least 2 hours before appointment time.",
-      "Late cancellations may result in temporary booking restrictions.",
-      "No-show appointments may affect future booking privileges.",
-    ],
-    tip: "Tip: Use your dashboard to reschedule quickly when plans change.",
+    desc: "Cancel before your appointment.",
   },
   {
     id: "health",
-    title: "Pet Health Requirements",
-    tocTitle: "Health Requirements",
+    title: "Pet Health",
     icon: ShieldCheck,
-    tone: "sage",
-    points: [
-      "Pets must be free from contagious diseases.",
-      "Vaccination records may be required for boarding services.",
-      "Aggressive behavior must be reported in advance.",
-      "Please share current medications before the appointment.",
-    ],
-    tip: "Tip: Up-to-date health records help us serve your pet faster and safer.",
-  },
-  {
-    id: "safety",
-    title: "Grooming & Veterinary Safety",
-    tocTitle: "Grooming & Vet Safety",
-    icon: Stethoscope,
-    tone: "coral",
-    points: [
-      "Safe handling procedures are applied for grooming and veterinary services.",
-      "Equipment is sanitized and service areas are monitored.",
-      "Emergency support is available if unexpected issues occur.",
-      "Any unusual signs are communicated to owners promptly.",
-    ],
-  },
-  {
-    id: "boarding",
-    title: "Boarding Policy",
-    tocTitle: "Boarding",
-    icon: Home,
-    tone: "sage",
-    points: [
-      "Boarding requires advance reservations.",
-      "An emergency contact is required for every boarding stay.",
-      "Vaccinations are required before check-in.",
-      "Check-in and check-out windows must be followed.",
-    ],
+    desc: "Pets must be healthy and fully vaccinated.",
   },
   {
     id: "payment",
-    title: "Payment Policy",
-    tocTitle: "Payment",
+    title: "Payment",
     icon: CreditCard,
-    tone: "coral",
-    points: [
-      "Payment timing depends on the selected service type.",
-      "Online payments are securely processed.",
-      "Refunds follow the applicable cancellation conditions.",
-      "Receipts are accessible from your booking history.",
+    desc: "Payments collected after service.",
+  },
+];
+
+const POLICY_ACCORDION = [
+  {
+    id: "booking-policy",
+    title: "Booking Policy",
+    icon: CalendarCheck,
+    items: [
+      "Select an available time slot before confirming.",
+      "Availability depends on staff and room capacity.",
+      "Each pet needs a separate booking.",
     ],
   },
   {
-    id: "responsibilities",
-    title: "Customer Responsibilities",
-    tocTitle: "Responsibilities",
-    icon: UserCheck,
-    tone: "sage",
-    points: [
-      "Provide accurate pet information before service starts.",
-      "Arrive on time to avoid delays and service disruptions.",
-      "Inform our team of special conditions or allergies.",
-      "Follow check-in instructions from staff.",
+    id: "cancellation-policy",
+    title: "Cancellation Policy",
+    icon: XCircle,
+    items: [
+      "Cancel or reschedule at least 2 hours ahead.",
+      "Late cancellations may limit future bookings.",
+      "No-shows could require a deposit next time.",
     ],
   },
   {
-    id: "emergency",
-    title: "Emergency Policy",
-    tocTitle: "Emergency",
-    icon: Siren,
-    tone: "coral",
-    points: [
-      "Our vet team provides immediate care when needed.",
-      "Owners are contacted as soon as possible during urgent situations.",
-      "Critical decisions prioritize pet safety and stabilization.",
+    id: "grooming-policy",
+    title: "Grooming Safety",
+    icon: Stethoscope,
+    items: [
+      "We use pet-safe, hypoallergenic products.",
+      "Tools are sanitized between every pet.",
+      "We pause if a pet shows stress or discomfort.",
     ],
   },
   {
-    id: "privacy",
-    title: "Privacy Policy",
-    tocTitle: "Privacy",
-    icon: Lock,
-    tone: "sage",
-    points: [
-      "Customer and pet data is stored securely.",
-      "No third-party sharing occurs without consent.",
-      "Access to sensitive data is role-restricted internally.",
-      "Policy updates are reflected on this page.",
+    id: "boarding-policy",
+    title: "Boarding Policy",
+    icon: Home,
+    items: [
+      "Reservations are required for overnight stays.",
+      "Bring essentials and an emergency contact.",
+      "Check-in and pick-up windows are scheduled.",
     ],
   },
   {
-    id: "support",
-    title: "Contact Support",
-    tocTitle: "Support",
-    icon: LifeBuoy,
-    tone: "coral",
-    points: [
-      "Email: support@happytails.com",
-      "Phone: +84 000 000 000",
-      "Hours: 08:00 - 23:00",
-      "Support team is available before and after your booking.",
+    id: "payment-policy",
+    title: "Payment Policy",
+    icon: CreditCard,
+    items: [
+      "Payments are collected after service unless noted.",
+      "We accept cash, card, and approved online options.",
+      "Refunds follow the cancellation policy.",
     ],
   },
 ];
 
-const toneStyles = {
-  coral: {
-    accent: "bg-[#E07A5F]",
-    badge: "bg-[#E07A5F]/12",
-    icon: "text-[#E07A5F]",
-    chipActive: "border-[#E07A5F]/50 bg-[#E07A5F]/12 text-[#1F2A37]",
+const QUICK_NOTICES = [
+  {
+    id: "health-req",
+    title: "Pet Health Requirements",
+    icon: ShieldCheck,
+    items: [
+      "Must be free from contagious illnesses.",
+      "Vaccinations required for boarding & daycare.",
+      "Share allergies and medications.",
+    ],
   },
-  sage: {
-    accent: "bg-[#7FB069]",
-    badge: "bg-[#7FB069]/16",
-    icon: "text-[#5F8E4D]",
-    chipActive: "border-[#7FB069]/50 bg-[#7FB069]/12 text-[#1F2A37]",
+  {
+    id: "quick-reminder",
+    title: "Quick Reminder",
+    icon: Sparkles,
+    desc: "Arriving on time and keeping your pet's information updated helps us deliver smoother, safer care.",
   },
-};
+];
 
-const SECTION_KEYWORDS = {
-  booking: ["booking", "book", "slot", "appointment"],
-  cancellation: ["cancellation", "cancel", "reschedule", "no-show"],
-  health: ["health", "vaccination", "disease", "medical", "contagious"],
-  safety: ["safety", "groom", "veterinary", "sanitize", "handling"],
-  boarding: ["boarding", "check-in", "check in", "stay"],
-  payment: ["payment", "pay", "billing", "refund", "transaction"],
-  responsibilities: ["responsibil", "owner", "customer", "allerg"],
-  emergency: ["emergency", "urgent", "asap"],
-  privacy: ["privacy", "data", "consent", "third-party", "personal"],
-  support: ["support", "contact", "help", "email", "phone"],
-};
+const SAFETY_PROMISES = [
+  {
+    id: "products",
+    title: "Safe grooming products",
+    icon: Sparkles,
+    description: "pH-balanced formulas and gentle scents.",
+  },
+  {
+    id: "clean",
+    title: "Clean spa environment",
+    icon: ShieldCheck,
+    description: "Sanitized tools and fresh towels every visit.",
+  },
+  {
+    id: "staff",
+    title: "Professional staff care",
+    icon: UserCheck,
+    description: "Calm handling from certified groomers.",
+  },
+];
 
-const SECTION_TYPE_MAP = {
-  cancellation: "cancellation",
-  privacy: "privacy",
-};
+const FAQ_ITEMS = [
+  {
+    id: "cancel",
+    question: "Can I cancel my booking?",
+    answer: "Yes. Please cancel or reschedule at least 2 hours ahead.",
+  },
+  {
+    id: "vaccination",
+    question: "Do pets need vaccination before service?",
+    answer: "Vaccinations are required for boarding and daycare services.",
+  },
+  {
+    id: "payment",
+    question: "How do I pay for services?",
+    answer: "We accept cash, card, and approved online payment methods.",
+  },
+  {
+    id: "nervous",
+    question: "What if my pet is nervous during grooming?",
+    answer: "We slow down, use calming techniques, and keep you informed.",
+  },
+];
 
-const getPolicyKey = (policy) =>
-  policy?._id || policy?.id || policy?.slug || policy?.title || "";
-
-const toYmd = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-};
-
-const decodeHtmlEntities = (value) =>
-  value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
-
-const extractPolicyPoints = (content, fallbackPoints) => {
-  if (!content || typeof content !== "string") return fallbackPoints;
-
-  const plainText = decodeHtmlEntities(content)
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\r/g, "")
-    .replace(/\t/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  const byLine = plainText
-    .split("\n")
-    .map((line) => line.replace(/^\s*[-*•]\s*/, "").trim())
-    .filter((line) => line.length > 12);
-
-  const source =
-    byLine.length >= 3
-      ? byLine
-      : plainText
-          .split(/(?<=[.!?])\s+/)
-          .map((line) => line.replace(/^\s*[-*•]\s*/, "").trim())
-          .filter((line) => line.length > 20);
-
-  const unique = [];
-  source.forEach((point) => {
-    const normalized = point.replace(/\s+/g, " ").trim();
-    if (!normalized) return;
-    if (!unique.includes(normalized)) unique.push(normalized);
-  });
-
-  if (unique.length < 3) return fallbackPoints;
-  return unique.slice(0, 5);
-};
-
-const findPolicyForSection = (sectionId, policies, usedKeys) => {
-  const directBySlug = policies.find((policy) => {
-    const key = getPolicyKey(policy);
-    if (usedKeys.has(key)) return false;
-    return policy?.slug === sectionId;
-  });
-  if (directBySlug) return directBySlug;
-
-  const mappedType = SECTION_TYPE_MAP[sectionId];
-  if (mappedType) {
-    const directByType = policies.find((policy) => {
-      const key = getPolicyKey(policy);
-      if (usedKeys.has(key)) return false;
-      return policy?.type === mappedType;
-    });
-    if (directByType) return directByType;
-  }
-
-  const keywords = SECTION_KEYWORDS[sectionId] || [];
-  let bestMatch = null;
-  let bestScore = 0;
-
-  policies.forEach((policy) => {
-    const key = getPolicyKey(policy);
-    if (usedKeys.has(key)) return;
-
-    const haystack =
-      `${policy?.title || ""} ${policy?.slug || ""} ${policy?.type || ""} ${policy?.content || ""}`.toLowerCase();
-    const score = keywords.reduce(
-      (sum, keyword) => (haystack.includes(keyword) ? sum + 1 : sum),
-      0,
-    );
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = policy;
-    }
-  });
-
-  return bestScore > 0 ? bestMatch : null;
-};
-
-const mergeSectionsWithPolicies = (sections, policies) => {
-  const usedKeys = new Set();
-
-  return sections.map((section) => {
-    const matchedPolicy = findPolicyForSection(section.id, policies, usedKeys);
-    if (!matchedPolicy) return section;
-
-    const policyKey = getPolicyKey(matchedPolicy);
-    if (policyKey) usedKeys.add(policyKey);
-
-    const merged = {
-      ...section,
-      points: extractPolicyPoints(matchedPolicy.content, section.points),
-    };
-
-    const versionText = matchedPolicy?.version
-      ? `Version ${matchedPolicy.version}`
-      : "";
-    const effectiveText = toYmd(matchedPolicy?.effectiveDate)
-      ? `Effective ${toYmd(matchedPolicy.effectiveDate)}`
-      : "";
-    const tipText = [versionText, effectiveText].filter(Boolean).join(" | ");
-
-    if (tipText) {
-      merged.tip = tipText;
-    }
-
-    return merged;
-  });
-};
-
-const getLatestPolicyDate = (policies) => {
-  const timestamps = policies
-    .map(
-      (policy) =>
-        policy?.updatedAt || policy?.effectiveDate || policy?.createdAt,
-    )
-    .map((value) => new Date(value).getTime())
-    .filter((time) => Number.isFinite(time));
-
-  if (timestamps.length === 0) return LAST_UPDATED;
-  return new Date(Math.max(...timestamps)).toISOString().slice(0, 10);
-};
-
-const PolicySectionCard = ({ section, isActive, onCopyLink }) => {
-  const Icon = section.icon;
-  const tone = toneStyles[section.tone] || toneStyles.coral;
+const AccordionItem = ({
+  id,
+  title,
+  icon: Icon,
+  items,
+  answer,
+  isOpen,
+  onToggle,
+  className = "",
+  iconClassName = "text-[color:var(--navy)]",
+  iconBgClassName = "bg-[var(--surface)]",
+  compact = false,
+}) => {
+  const iconBoxClass = compact ? "h-8 w-8 rounded-lg" : "h-9 w-9 rounded-xl";
+  const iconSize = compact ? 14 : 16;
 
   return (
-    <article
-      id={section.id}
-      className={`relative overflow-hidden rounded-3xl border bg-white px-5 py-5 shadow-[0_20px_45px_rgba(15,23,42,0.08)] transition-all scroll-mt-32 md:px-6 md:py-6 ${
-        isActive
-          ? "border-[#E07A5F]/45 ring-2 ring-[#E07A5F]/20"
-          : "border-[#1F2A37]/10 hover:border-[#1F2A37]/15"
-      }`}
-    >
-      <span className={`absolute left-0 top-0 h-full w-1.5 ${tone.accent}`} />
-
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <div
-            className={`mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl ${tone.badge}`}
+    <div id={id} className={`group ${className}`}>
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        aria-expanded={isOpen}
+        aria-controls={`${id}-panel`}
+        className={`flex w-full items-center justify-between gap-4 text-left transition-colors hover:bg-[rgba(244,246,248,0.7)] ${
+          compact ? "px-0 py-3" : "px-4 py-4"
+        }`}
+      >
+        <span className="flex items-center gap-3">
+          <span
+            className={`flex items-center justify-center ${iconBoxClass} ${iconBgClassName} ${iconClassName}`}
           >
-            <Icon size={17} className={tone.icon} />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-xl font-black tracking-tight text-[#1F2A37] md:text-2xl">
-              {section.title}
-            </h2>
-          </div>
+            {React.createElement(Icon, { size: iconSize })}
+          </span>
+          <span
+            className={`font-semibold text-[color:var(--navy)] ${
+              compact ? "text-sm" : "text-base"
+            }`}
+          >
+            {title}
+          </span>
+        </span>
+        <ChevronDown
+          size={18}
+          className={`text-[color:var(--text)] opacity-70 transition-transform ${
+            isOpen ? "rotate-180" : "rotate-0"
+          }`}
+        />
+      </button>
+      <div
+        id={`${id}-panel`}
+        className={`grid transition-all duration-300 ${
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className={`overflow-hidden ${compact ? "pb-3" : "px-4 pb-4"}`}>
+          {items ? (
+            <ul className="space-y-2 text-sm text-[color:rgba(59,70,84,0.75)]">
+              {items.map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <CheckCircle2
+                    size={15}
+                    className="mt-0.5 text-[color:var(--orange)]"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[color:rgba(59,70,84,0.75)]">{answer}</p>
+          )}
         </div>
-
-        <button
-          type="button"
-          onClick={() => onCopyLink(section.id)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#1F2A37]/15 bg-white text-[#1F2A37]/60 transition-all hover:border-[#E07A5F]/40 hover:text-[#E07A5F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2"
-          aria-label={`Copy link to ${section.title}`}
-        >
-          <Link2 size={15} />
-        </button>
       </div>
-
-      <ul className="mt-5 space-y-3">
-        {section.points.map((point) => (
-          <li
-            key={point}
-            className="flex items-start gap-3 text-[14px] leading-relaxed text-[#1F2A37]/80"
-          >
-            <CheckCircle2
-              size={16}
-              className="mt-0.5 shrink-0 text-[#7FB069]"
-            />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
-
-      {section.tip && (
-        <div className="mt-4 rounded-2xl border border-[#1F2A37]/10 bg-[#F8F6F2] px-4 py-2.5 text-xs text-[#1F2A37]/65">
-          {section.tip}
-        </div>
-      )}
-
-      {section.id === "support" && (
-        <div className="mt-5 flex flex-wrap gap-2.5">
-          <a
-            href="mailto:support@happytails.com"
-            className="inline-flex items-center gap-2 rounded-full bg-[#1F2A37] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#E07A5F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2"
-          >
-            <Mail size={16} />
-            Email Support
-          </a>
-          <a
-            href="tel:+84000000000"
-            className="inline-flex items-center gap-2 rounded-full border border-[#1F2A37]/20 bg-white px-4 py-2 text-xs font-bold text-[#1F2A37] transition-all hover:border-[#E07A5F]/40 hover:bg-[#E07A5F]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2"
-          >
-            <PhoneCall size={16} />
-            Call Now
-          </a>
-        </div>
-      )}
-    </article>
+    </div>
   );
 };
 
 const Policy = () => {
-  const navigate = useNavigate();
-  const toastTimerRef = useRef(null);
-
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : null;
   });
-  const [policySections, setPolicySections] = useState(POLICY_SECTIONS);
-  const [lastUpdated, setLastUpdated] = useState(LAST_UPDATED);
-  const [isPolicyLoading, setIsPolicyLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState(POLICY_SECTIONS[0].id);
-  const [searchText, setSearchText] = useState("");
-  const [showBackTop, setShowBackTop] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const [openPolicyId, setOpenPolicyId] = useState(POLICY_ACCORDION[0].id);
+  const [openFaqId, setOpenFaqId] = useState(FAQ_ITEMS[0].id);
 
-  const filteredSections = useMemo(() => {
-    const keyword = searchText.trim().toLowerCase();
-    if (!keyword) return policySections;
-    return policySections.filter((item) =>
-      item.title.toLowerCase().includes(keyword),
-    );
-  }, [searchText, policySections]);
+  const togglePolicy = (id) => {
+    setOpenPolicyId((current) => (current === id ? "" : id));
+  };
 
-  const sectionsBeforeSupport = useMemo(
-    () => policySections.filter((item) => item.id !== "support"),
-    [policySections],
-  );
-  const supportSection = useMemo(
-    () => policySections.find((item) => item.id === "support"),
-    [policySections],
-  );
+  const toggleFaq = (id) => {
+    setOpenFaqId((current) => (current === id ? "" : id));
+  };
 
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(
-      () => setToastMessage(""),
-      TOAST_DURATION,
-    );
-  }, []);
-
-  const scrollToSection = useCallback((sectionId) => {
-    const target = document.getElementById(sectionId);
-    if (!target) return;
-
-    const y =
-      target.getBoundingClientRect().top + window.scrollY - NAVBAR_OFFSET;
-    window.scrollTo({ top: y, behavior: "smooth" });
-    window.history.replaceState(null, "", `#${sectionId}`);
-  }, []);
-
-  const copySectionLink = useCallback(
-    async (sectionId) => {
-      const fullUrl = `${window.location.origin}${window.location.pathname}#${sectionId}`;
-
-      const fallbackCopy = () => {
-        const temp = document.createElement("textarea");
-        temp.value = fullUrl;
-        temp.style.position = "fixed";
-        temp.style.opacity = "0";
-        document.body.appendChild(temp);
-        temp.focus();
-        temp.select();
-        document.execCommand("copy");
-        document.body.removeChild(temp);
-      };
-
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(fullUrl);
-        } else {
-          fallbackCopy();
-        }
-        window.history.replaceState(null, "", `#${sectionId}`);
-        showToast("Section link copied to clipboard");
-      } catch {
-        showToast("Unable to copy link right now");
-      }
-    },
-    [showToast],
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadPolicies = async () => {
-      setIsPolicyLoading(true);
-
-      try {
-        const response = await getPublicPolicies();
-        const policies = response?.data?.policies;
-
-        if (Array.isArray(policies) && policies.length > 0 && isMounted) {
-          setPolicySections(
-            mergeSectionsWithPolicies(POLICY_SECTIONS, policies),
-          );
-          setLastUpdated(getLatestPolicyDate(policies));
-        }
-      } catch (error) {
-        console.error("Failed to load policy API data:", error);
-      } finally {
-        if (isMounted) setIsPolicyLoading(false);
-      }
-    };
-
-    loadPolicies();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-
-        if (visible.length > 0) {
-          setActiveSection(visible[0].target.id);
-        }
-      },
-      {
-        root: null,
-        rootMargin: `-${NAVBAR_OFFSET + 20}px 0px -55% 0px`,
-        threshold: [0.2, 0.45, 0.7],
-      },
-    );
-
-    policySections.forEach((section) => {
-      const element = document.getElementById(section.id);
-      if (element) observer.observe(element);
-    });
-
-    return () => observer.disconnect();
-  }, [policySections]);
-
-  useEffect(() => {
-    const updateScrollUi = () => {
-      setShowBackTop(window.scrollY > 560);
-    };
-
-    updateScrollUi();
-    window.addEventListener("scroll", updateScrollUi, { passive: true });
-    window.addEventListener("resize", updateScrollUi);
-
-    return () => {
-      window.removeEventListener("scroll", updateScrollUi);
-      window.removeEventListener("resize", updateScrollUi);
-    };
-  }, []);
-
-  useEffect(() => {
-    const initialHash = window.location.hash.replace("#", "");
-    if (!initialHash) return;
-
-    const exists = policySections.some((item) => item.id === initialHash);
-    if (!exists) return;
-
-    const timer = setTimeout(() => {
-      scrollToSection(initialHash);
-      setActiveSection(initialHash);
-    }, 180);
-
-    return () => clearTimeout(timer);
-  }, [scrollToSection, policySections]);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
-
-  const handleTocClick = (sectionId) => {
-    setActiveSection(sectionId);
-    scrollToSection(sectionId);
+  const handleSupportClick = (event) => {
+    event.preventDefault();
+    const target = document.getElementById("support");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F1EB] text-[#1F2A37] selection:bg-[#E07A5F] selection:text-white">
+    <div
+      className="min-h-screen font-sans bg-white text-[color:var(--navy)] selection:bg-[var(--orange)] selection:text-white"
+      style={{
+        "--navy": "#1E2A3A",
+        "--orange": "#FF8A4C",
+        "--green": "#6FCF97",
+        "--beige": "#F7F3EF",
+        "--surface": "#F4F6F8",
+        "--border": "#E4E8EE",
+        "--text": "#3B4654",
+      }}
+    >
+      <style>{`
+        @keyframes policy-fade {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes policy-rise {
+          from { opacity: 0; transform: translateY(18px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes policy-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .policy-fade { animation: policy-fade 0.6s ease both; }
+        .policy-rise { animation: policy-rise 0.7s ease both; }
+        .policy-float { animation: policy-float 6s ease-in-out infinite; }
+        .policy-section {
+          animation: policy-fade 0.65s ease both;
+          animation-delay: var(--delay, 0s);
+        }
+        .policy-display { font-weight: 700; letter-spacing: -0.02em; }
+        .policy-kicker {
+          font-size: 0.62rem;
+          font-weight: 600;
+          letter-spacing: 0.32em;
+          text-transform: uppercase;
+        }
+        .policy-card {
+          box-shadow: 0 12px 26px rgba(30,42,58,0.08);
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .policy-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 18px 38px rgba(30,42,58,0.12);
+          border-color: rgba(30,42,58,0.2);
+        }
+        .policy-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .policy-btn:hover { transform: translateY(-1px); }
+        .policy-safety {
+          background: #1e2a3a;
+          color: #f8fafc;
+        }
+        .policy-support {
+          background: linear-gradient(135deg, #1e2a3a 0%, #25344a 100%);
+          color: #f8fafc;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .policy-fade,
+          .policy-rise,
+          .policy-float,
+          .policy-section {
+            animation: none;
+          }
+          .policy-card,
+          .policy-btn {
+            transition: none;
+          }
+        }
+      `}</style>
+
       <Navbar user={user} onLogout={() => setUser(null)} />
 
-      <main>
-        <section className="relative overflow-hidden bg-gradient-to-b from-[#0B1220] via-[#111B2B] to-[#1F2A37] px-4 pb-14 pt-28 sm:px-6">
-          <div className="pointer-events-none absolute -left-16 -top-24 h-72 w-72 rounded-full bg-[#E07A5F]/30 blur-3xl" />
-          <div className="pointer-events-none absolute -right-20 top-20 h-80 w-80 rounded-full bg-[#7FB069]/25 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 left-1/3 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+      <main className="relative bg-white pb-10">
+        <section className="relative px-4 pb-20 pt-32 sm:px-6 lg:pb-32 lg:pt-40 min-h-[650px] flex items-center">
+          {/* Background layered correctly with z-0, span full width */}
+          <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#1E2A3A] to-[#151d28] overflow-hidden shadow-xl">
+            <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[rgba(255,138,76,0.18)] blur-[80px]" />
+            <div className="pointer-events-none absolute -bottom-24 right-0 h-96 w-96 rounded-full bg-[rgba(111,207,151,0.12)] blur-[80px]" />
+          </div>
 
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <div className="mb-6 flex items-center gap-2 text-sm text-slate-300/90">
-                <Link
-                  to="/"
-                  className="font-medium transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1220]"
-                >
-                  Home
-                </Link>
-                <ChevronRight size={15} className="text-slate-500" />
-                <span className="text-white">Policies</span>
+          <div className="relative z-10 mx-auto grid w-full max-w-5xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] px-4 lg:px-8">
+            <div className="policy-fade space-y-6">
+              <div className="policy-kicker inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[color:var(--orange)] shadow-sm backdrop-blur-md">
+                <Sparkles size={14} />
+                HappyTails Guide
               </div>
 
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-200">
-                <Sparkles size={14} className="text-[#E07A5F]" />
-                HappyTails
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl lg:leading-[1.1]">
+                  Pet Care <br />
+                  <span className="text-[color:var(--orange)]">Policies</span>
+                </h1>
+                <p className="mt-4 text-base leading-relaxed text-[rgba(255,255,255,0.7)] sm:text-lg">
+                  Transparent guidelines crafted to ensure a safe, calm, and
+                  joyful experience for every furry friend visiting HappyTails.
+                </p>
               </div>
 
-              <h1 className="text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
-                <span className="text-[#E07A5F]">Service</span> Policies
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-                Please read these policies before booking services for your pet.
-              </p>
-
-              <ul className="mt-6 space-y-2.5">
+              <ul className="flex flex-col gap-3 text-sm font-medium text-white/90">
                 {[
-                  "Secure booking and payments",
-                  "Pet safety and health requirements",
-                  "Transparent cancellation rules",
+                  "Certified safe grooming practices",
+                  "Flexible & transparent booking",
+                  "Strict pet health requirements",
                 ].map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-center gap-3 text-slate-100"
-                  >
-                    <CheckCircle2
-                      size={16}
-                      className="shrink-0 text-[#7FB069]"
-                    />
-                    <span className="text-sm font-medium sm:text-[15px]">
-                      {item}
+                  <li key={item} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[rgba(111,207,151,0.2)] text-[#6FCF97]">
+                      <CheckCircle2 size={13} />
                     </span>
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-7 flex flex-wrap gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleTocClick("support")}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#E07A5F] px-5 py-2.5 text-xs font-bold text-white shadow-[0_14px_28px_rgba(224,122,95,0.35)] transition-all hover:bg-[#d96f54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1220]"
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <Link
+                  to="/service"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-[color:var(--orange)] px-8 text-sm font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(255,138,76,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#ff7a33] hover:shadow-[0_12px_24px_rgba(255,138,76,0.3)]"
+                >
+                  View Services
+                </Link>
+                <a
+                  href="#support"
+                  onClick={handleSupportClick}
+                  className="inline-flex h-12 items-center justify-center rounded-full border-2 border-[rgba(255,255,255,0.2)] bg-transparent px-8 text-sm font-bold tracking-wide text-white transition-all hover:-translate-y-0.5 hover:border-[rgba(255,255,255,0.5)] hover:bg-white/5"
                 >
                   Contact Support
-                  <ArrowRight size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/service")}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 px-5 py-2.5 text-xs font-bold text-white transition-all hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1220]"
-                >
-                  Go to Services
-                </button>
+                </a>
               </div>
             </div>
 
-            <div className="lg:col-span-5">
-              <div className="relative">
-                <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-br from-[#E07A5F]/35 via-transparent to-[#7FB069]/35 blur-2xl" />
-                <div className="relative overflow-hidden rounded-[2rem] border border-white/15 shadow-[0_26px_70px_rgba(0,0,0,0.45)]">
-                  <img
-                    src={HERO_IMAGE}
-                    alt="Happy pet with caregiver"
-                    className="h-[360px] w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/65 via-transparent to-[#0B1220]/25" />
+            <div className="relative policy-rise">
+              <div className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-[rgba(255,138,76,0.1)] blur-3xl" />
 
-                  <div className="absolute left-4 top-4 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
-                    Trusted Care
+              <div className="relative aspect-[4/5] w-full max-w-md mx-auto lg:ml-auto overflow-hidden rounded-[2.5rem] bg-white p-2 shadow-[0_20px_40px_rgba(30,42,58,0.06)] ring-1 ring-white/10">
+                <img
+                  src={HERO_IMAGES.main}
+                  alt="Happy pet at the spa"
+                  className="h-full w-full rounded-[2rem] object-cover"
+                />
+
+                <div className="policy-float absolute bottom-6 left-[-1.5rem] flex items-center gap-3 rounded-2xl bg-white/95 p-3.5 pl-4 shadow-xl backdrop-blur-md ring-1 ring-black/5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(111,207,151,0.15)] text-[#20834B]">
+                    <ShieldCheck size={18} />
                   </div>
-                  <div className="absolute bottom-4 right-4 rounded-full border border-white/25 bg-black/35 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md">
-                    Updated {lastUpdated}
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--navy)]">
+                      Vaccinated Care
+                    </p>
+                    <p className="text-[10px] font-medium text-[color:var(--text)] opacity-70">
+                      100% verified pets
+                    </p>
                   </div>
+                </div>
+
+                <div
+                  className="policy-float absolute right-4 top-6 flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 shadow-lg backdrop-blur-md ring-1 ring-black/5"
+                  style={{ animationDelay: "1s" }}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--orange)] opacity-75"></span>
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--orange)]"></span>
+                  </span>
+                  <p className="text-[11px] font-bold text-[color:var(--navy)]">
+                    Gentle Touch
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="px-4 pb-16 pt-7 sm:px-6">
+        <section
+          className="policy-section mt-12 px-4 sm:px-6 relative z-10"
+          style={{ "--delay": "0.05s" }}
+        >
           <div className="mx-auto w-full max-w-6xl">
-            <div className="mb-6 lg:hidden">
-              <p className="px-1 text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/45">
-                Policy Menu
-              </p>
-              <h2 className="mt-1 px-1 text-xl font-black tracking-tight text-[#1F2A37]">
-                On this page
-              </h2>
-              <p className="mt-1 px-1 text-xs text-[#2D3436]/55">
-                Updated {lastUpdated}
-              </p>
-              {isPolicyLoading && (
-                <p className="mt-1 px-1 text-[11px] text-[#2D3436]/50">
-                  Syncing policy data...
-                </p>
-              )}
+            <h2 className="mb-10 text-center text-sm font-bold uppercase tracking-widest text-[color:var(--text)] opacity-60">
+              Policy Overview
+            </h2>
+            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x divide-none sm:gap-y-12 divide-[color:var(--border)]">
+              {POLICY_OVERVIEW.map((item, index) => {
+                const Icon = item.icon;
+                const colors = [
+                  { bg: "bg-blue-50", text: "text-blue-500" },
+                  { bg: "bg-red-50", text: "text-red-500" },
+                  { bg: "bg-green-50", text: "text-green-500" },
+                  { bg: "bg-purple-50", text: "text-purple-500" },
+                ];
+                const theme = colors[index % colors.length];
 
-              <div className="relative mt-3">
-                <Search
-                  size={16}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#1F2A37]/45"
-                />
-                <input
-                  type="text"
-                  value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="Search section..."
-                  className="h-10 w-full rounded-xl border border-[#2D3436]/10 bg-white pl-9 pr-4 text-sm text-[#1F2A37] outline-none transition-all placeholder:text-[#1F2A37]/45 focus:border-[#D97853]/45 focus:ring-2 focus:ring-[#D97853]/20"
-                />
-              </div>
-
-              <div className="mt-3 space-y-1">
-                {filteredSections.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.id;
-
-                  return (
-                    <button
-                      key={`mobile-${item.id}`}
-                      type="button"
-                      onClick={() => handleTocClick(item.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97853] focus-visible:ring-offset-2 ${
-                        isActive
-                          ? "bg-[#D97853] text-white"
-                          : "text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436]"
-                      }`}
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col items-center text-center ${index !== 0 ? "lg:pl-10" : "lg:pr-4"}`}
+                  >
+                    <div
+                      className={`mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl ${theme.bg} ${theme.text} transition-transform hover:-translate-y-1`}
                     >
-                      <Icon size={18} className="shrink-0" />
-                      <span className="truncate">
-                        {item.tocTitle || item.title}
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {filteredSections.length === 0 && (
-                  <p className="px-3 py-2 text-sm text-[#1F2A37]/55">
-                    No matching sections.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid items-start gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-              <aside className="hidden lg:block lg:sticky lg:top-24">
-                <div className="px-1">
-                  <p className="px-3 mb-1 text-[10px] font-bold tracking-widest uppercase text-[#2D3436]/40">
-                    Policies
-                  </p>
-                  <h2 className="px-3 text-lg font-black tracking-tight text-[#1F2A37]">
-                    On this page
-                  </h2>
-                  <p className="px-3 mt-1 text-xs text-[#2D3436]/55">
-                    Updated {lastUpdated}
-                  </p>
-                  {isPolicyLoading && (
-                    <p className="px-3 mt-1 text-[11px] text-[#2D3436]/50">
-                      Syncing policy data...
+                      <Icon size={24} strokeWidth={2.5} />
+                    </div>
+                    <h3 className="text-base font-bold text-[color:var(--navy)]">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2.5 text-sm leading-relaxed text-[color:var(--text)] opacity-70 px-2 lg:px-0">
+                      {item.desc}
                     </p>
-                  )}
-
-                  <div className="relative mt-4">
-                    <Search
-                      size={16}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#1F2A37]/45"
-                    />
-                    <input
-                      type="text"
-                      value={searchText}
-                      onChange={(event) => setSearchText(event.target.value)}
-                      placeholder="Search section..."
-                      className="h-10 w-full rounded-xl border border-[#2D3436]/10 bg-white pl-9 pr-4 text-sm text-[#1F2A37] outline-none transition-all placeholder:text-[#1F2A37]/45 focus:border-[#D97853]/45 focus:ring-2 focus:ring-[#D97853]/20"
-                    />
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-                  <div className="mt-4 space-y-1">
-                    {filteredSections.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeSection === item.id;
+        <section
+          className="policy-section mt-24 px-4 sm:px-6 relative z-10"
+          style={{ "--delay": "0.1s" }}
+        >
+          <div className="mx-auto w-full max-w-5xl">
+            <div className="grid gap-8 lg:gap-10 lg:grid-cols-[1.3fr_0.9fr] items-start">
+              
+              {/* Left Column: Accordion */}
+              <div className="space-y-6 sm:space-y-8">
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight text-[color:var(--navy)] sm:text-3xl relative inline-block">
+                    Detailed Guidelines
+                    <svg className="absolute -bottom-3 left-0 w-16 text-[color:var(--orange)]" viewBox="0 0 100 10" preserveAspectRatio="none">
+                      <path d="M0 5 Q 50 15 100 0" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round"/>
+                    </svg>
+                  </h2>
+                  <p className="mt-4 text-sm sm:text-base leading-relaxed text-[color:var(--text)] opacity-80 max-w-xl">
+                    Everything you need to know to ensure a smooth, pleasant experience for you and your beloved pet.
+                  </p>
+                </div>
+
+                <div className="relative rounded-[2rem] bg-white p-2 sm:p-4 shadow-[0_15px_40px_-15px_rgba(30,42,58,0.06)] ring-1 ring-[color:var(--border)] overflow-visible">
+                  {/* Subtle background layers */}
+                  <div className="absolute top-0 right-0 -mr-4 -mt-4 h-32 w-32 rounded-full bg-[rgba(255,138,76,0.1)] blur-3xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 -ml-4 -mb-4 h-32 w-32 rounded-full bg-[rgba(111,207,151,0.08)] blur-3xl pointer-events-none" />
+                  
+                  <div className="flex flex-col relative z-10 gap-1.5 sm:gap-2">
+                    {POLICY_ACCORDION.map((section, index) => {
+                      const isActive = openPolicyId === section.id;
+                      const Icon = section.icon;
+                      const isMostImportant = index === 0;
 
                       return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => handleTocClick(item.id)}
-                          className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97853] focus-visible:ring-offset-2 ${
-                            isActive
-                              ? "bg-[#D97853] text-white"
-                              : "text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436]"
+                        <div 
+                          key={section.id} 
+                          className={`group relative overflow-hidden rounded-[1.25rem] transition-all duration-300 ${
+                            isActive 
+                              ? "bg-[#FFF7F2] shadow-[0_8px_30px_rgba(255,138,76,0.08)] ring-1 ring-[rgba(255,138,76,0.2)] pb-4" 
+                              : "bg-transparent hover:bg-[#F9FAFB] pb-0"
                           }`}
                         >
-                          <Icon size={18} className="shrink-0" />
-                          <span className="truncate">
-                            {item.tocTitle || item.title}
-                          </span>
-                        </button>
+                          {/* Active Accent Line */}
+                          {isActive && (
+                            <div className="absolute left-0 top-4 bottom-4 w-1.5 bg-[color:var(--orange)] rounded-r-lg shadow-[0_0_12px_rgba(255,138,76,0.4)]" />
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => togglePolicy(section.id)}
+                            className="flex w-full items-center justify-between gap-3 p-4 sm:p-5 text-left"
+                          >
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
+                                isActive 
+                                  ? "bg-white text-[color:var(--orange)] shadow-md shadow-[rgba(255,138,76,0.2)] scale-105" 
+                                  : "bg-[#F3F5F7] text-[color:var(--navy)] opacity-80 group-hover:bg-white group-hover:shadow-sm"
+                              }`}>
+                                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className={`text-sm sm:text-base transition-colors font-bold ${
+                                    isActive ? "text-[color:var(--orange)]" : "text-[color:var(--navy)]"
+                                  }`}>
+                                    {section.title}
+                                  </h3>
+                                  {isMostImportant && (
+                                    <span className="hidden sm:inline-flex items-center rounded-full bg-[#FFEAE0] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[color:var(--orange)] ring-1 ring-inset ring-[rgba(255,138,76,0.3)]">
+                                      Required
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 text-xs text-[color:var(--text)] opacity-60 hidden sm:block transition-opacity">
+                                  {isActive ? "Tap to collapse details" : "Tap to expand details"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
+                              isActive ? "bg-[rgba(255,138,76,0.15)] text-[color:var(--orange)] rotate-180" : "bg-[#F3F5F7] text-[#9BA3AF] group-hover:bg-[#EAECEF]"
+                            }`}>
+                              <ChevronDown size={18} className="transition-transform" />
+                            </div>
+                          </button>
+
+                          <div
+                            className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+                              isActive ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                            }`}
+                          >
+                            <div className="overflow-hidden">
+                              <div className="px-4 sm:px-5 pb-2 sm:pl-[4.5rem] pt-0">
+                                <ul className="space-y-2.5">
+                                  {section.items.map((item, i) => (
+                                    <li key={i} className="flex items-start gap-2.5 group/item">
+                                      <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#FFEAE0] text-[color:var(--orange)]">
+                                        <CheckCircle2 size={10} strokeWidth={3} />
+                                      </span>
+                                      <span className="text-[13px] sm:text-sm leading-relaxed text-[color:rgba(59,70,84,0.85)] font-medium">
+                                        {item}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Elegant Separator */}
+                          {!isActive && index !== POLICY_ACCORDION.length - 1 && (
+                            <div className="absolute bottom-0 left-16 right-6 h-[1px] bg-gradient-to-r from-[rgba(0,0,0,0.05)] to-transparent" />
+                          )}
+                        </div>
                       );
                     })}
-
-                    {filteredSections.length === 0 && (
-                      <p className="px-3 py-2 text-sm text-[#1F2A37]/55">
-                        No matching sections.
-                      </p>
-                    )}
                   </div>
                 </div>
-              </aside>
+              </div>
 
-              <div>
-                <div className="space-y-4">
-                  {sectionsBeforeSupport.map((section) => (
-                    <PolicySectionCard
-                      key={section.id}
-                      section={section}
-                      isActive={activeSection === section.id}
-                      onCopyLink={copySectionLink}
-                    />
-                  ))}
+              {/* Right Column: Highlight Sidebar */}
+              <div className="lg:pt-[4.5rem] flex flex-col gap-4 sm:gap-5 relative">
+                {/* Decorative blob behind right column */}
+                <div className="absolute -inset-8 bg-[rgba(255,138,76,0.04)] rounded-[4rem] -z-10 blur-3xl pointer-events-none hidden lg:block" />
 
-                  <div className="relative overflow-hidden rounded-3xl border border-[#E07A5F]/30 bg-gradient-to-br from-[#E07A5F]/18 via-[#FBE4DD] to-[#F5F1EB] px-5 py-5 shadow-[0_20px_40px_rgba(224,122,95,0.14)] md:px-6">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E07A5F]/20 text-[#E07A5F]">
-                        <TriangleAlert size={20} />
+                {/* Highlight Cards */}
+                {QUICK_NOTICES.map((notice) => {
+                  if (notice.id === "health-req") {
+                    const Icon = notice.icon;
+                    return (
+                      <div
+                        key={notice.id}
+                        className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#FFF8F5] to-[#FFF0E8] p-5 sm:p-6 shadow-[0_10px_30px_-10px_rgba(255,138,76,0.15)] ring-1 ring-[rgba(255,138,76,0.2)] transform transition-transform hover:-translate-y-1"
+                      >
+                        {/* Decorative pattern/shape */}
+                        <div className="absolute -right-6 -top-6 text-[rgba(255,138,76,0.1)] rotate-12 pointer-events-none">
+                          <ShieldCheck size={100} strokeWidth={1} />
+                        </div>
+                        
+                        <div className="relative z-10">
+                          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-white/80 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[color:var(--orange)] shadow-sm ring-1 ring-[rgba(255,138,76,0.2)]">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--orange)] opacity-75"></span>
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[color:var(--orange)]"></span>
+                            </span>
+                            Required before visit
+                          </span>
+                          
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-white text-[color:var(--orange)] shadow-[0_8px_16px_rgba(255,138,76,0.15)] ring-1 ring-[rgba(255,138,76,0.1)]">
+                              <Icon size={20} strokeWidth={2.5} />
+                            </div>
+                            <h3 className="text-base sm:text-lg font-extrabold text-[color:var(--navy)] leading-tight">
+                              {notice.title}
+                            </h3>
+                          </div>
+
+                          <ul className="space-y-2.5 text-[13px] sm:text-[14px] font-medium text-[color:var(--navy)] opacity-80">
+                            {notice.items.map((li) => (
+                              <li key={li} className="flex items-start gap-2.5">
+                                <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white text-[color:var(--orange)] shadow-sm ring-1 ring-[rgba(255,138,76,0.15)]">
+                                  <CheckCircle2 size={10} strokeWidth={3} />
+                                </div>
+                                <span className="leading-snug">{li}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-black tracking-tight text-[#1F2A37]">
-                          Important Notice
-                        </h3>
-                        <p className="mt-2 text-[14px] leading-relaxed text-[#1F2A37]/78">
-                          HappyTails reserves the right to refuse service if a
-                          pet&apos;s health condition poses a risk to other pets
-                          or staff.
-                        </p>
+                    );
+                  }
+
+                  if (notice.id === "quick-reminder") {
+                    const Icon = notice.icon;
+                    return (
+                      <div
+                        key={notice.id}
+                        className="relative rounded-[1.5rem] bg-gradient-to-br from-[#1E2A3A] to-[#151d28] p-5 sm:p-6 shadow-[0_15px_30px_-10px_rgba(30,42,58,0.4)] mt-2 overflow-visible transform transition-transform hover:-translate-y-1"
+                      >
+                        {/* Floating Badge */}
+                        <div className="absolute -top-4 left-5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#FF8A4C] to-[#ff7029] text-white shadow-[0_8px_16px_rgba(255,138,76,0.4)] ring-4 ring-white">
+                          <Icon size={18} className="animate-pulse" style={{ animationDuration: '3s' }} />
+                        </div>
+
+                        <div className="relative z-10 pt-3">
+                          <h3 className="text-sm sm:text-base font-bold text-white mb-2 tracking-wide">
+                            {notice.title}
+                          </h3>
+                          <p className="text-[13px] sm:text-[14px] leading-relaxed text-[#94A3B8] font-medium">
+                            {notice.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="safety-promise"
+          className="policy-section mt-24 relative"
+          style={{ "--delay": "0.15s" }}
+        >
+          <div className="relative w-full overflow-hidden bg-gradient-to-br from-[#FF8A4C] to-[#ff6a1a] py-12 sm:py-16 lg:py-20 shadow-[0_20px_50px_-10px_rgba(255,138,76,0.25)]">
+            {/* Background patterns */}
+            <div className="pointer-events-none absolute -left-20 -top-20 h-80 w-80 rounded-full bg-white/20 blur-[70px]" />
+            <div className="pointer-events-none absolute bottom-0 right-0 h-[30rem] w-[30rem] rounded-full bg-[#FFEAE0]/20 blur-[80px]" />
+            
+            {/* Subtle texture overlay */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 mix-blend-overlay pointer-events-none"></div>
+
+            <div className="relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6">
+              <div className="flex flex-col gap-12 lg:flex-row lg:items-center xl:gap-16">
+                <div className="lg:w-[45%]">
+                  <div className="mb-6 inline-flex items-center gap-2.5 rounded-full bg-white/20 px-4 py-1.5 backdrop-blur-md ring-1 ring-white/40 shadow-sm">
+                    <ShieldCheck size={14} className="text-white" strokeWidth={2.5}/>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-white">
+                      Pet Safety Promise
+                    </span>
+                  </div>
+                  <h3 className="text-3xl font-black leading-[1.15] tracking-tight text-white sm:text-4xl lg:text-5xl drop-shadow-sm">
+                    A safer, calmer <br className="hidden sm:inline" /> spa experience.
+                  </h3>
+                  <p className="mt-6 text-[15px] sm:text-[16px] leading-relaxed text-white/95 font-medium max-w-md">
+                    Your pet's well-being is our top priority. We strictly
+                    follow certified safety protocols to ensure a stress-free
+                    and joyful environment.
+                  </p>
+                </div>
+
+                <div className="grid flex-1 gap-4 sm:gap-5 sm:grid-cols-3">
+                  {SAFETY_PROMISES.map((item, idx) => {
+                    const Icon = item.icon;
+                    return (
+                      <div
+                        key={item.id}
+                        className="group relative flex flex-col items-start gap-4 rounded-[1.5rem] bg-white p-6 shadow-xl ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_-5px_rgba(0,0,0,0.15)]"
+                        style={{ transitionDelay: `${idx * 50}ms` }}
+                      >
+                        <div className="inline-flex h-12 w-12 items-center justify-center rounded-[1rem] bg-[#FFF7F2] text-[color:var(--orange)] shadow-inner ring-1 ring-[rgba(255,138,76,0.15)] group-hover:scale-110 group-hover:bg-[color:var(--orange)] group-hover:text-white transition-all duration-300">
+                          <Icon size={22} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-[color:var(--navy)] text-[15px] leading-tight mb-2">
+                            {item.title}
+                          </h4>
+                          <p className="text-[13px] font-medium text-[color:var(--text)] opacity-75 leading-relaxed">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="policy-section mt-16 sm:mt-24 py-16 sm:py-24 relative overflow-visible"
+          style={{ "--delay": "0.2s" }}
+        >
+          {/* Expanded premium background */}
+          <div className="absolute inset-0 bg-[#FFFbf9]" />
+          
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[rgba(255,138,76,0.2)] to-transparent" />
+          
+          {/* Soft background blobs */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full pointer-events-none">
+            <div className="absolute top-10 -left-20 w-96 h-96 rounded-full bg-[rgba(255,138,76,0.06)] blur-3xl" />
+            <div className="absolute bottom-10 -right-20 w-[30rem] h-[30rem] rounded-full bg-[rgba(111,207,151,0.04)] blur-[100px]" />
+          </div>
+
+          <div className="mx-auto w-full max-w-4xl relative z-10 px-4 sm:px-6">
+            <div className="text-center mb-10 sm:mb-12">
+              <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(255,138,76,0.3)] bg-white px-4 py-1.5 shadow-sm text-[12px] font-bold tracking-widest text-[color:var(--orange)] uppercase">
+                <MessageCircle size={14} className="text-[color:var(--orange)]" />
+                Helpful Answers
+              </span>
+              <h2 className="text-3xl sm:text-[40px] font-black tracking-tight text-[color:var(--navy)] leading-tight">
+                Quick answers for <br className="hidden sm:inline" /> pet parents
+              </h2>
+              <p className="mt-4 text-[15px] sm:text-[16px] text-[color:var(--text)] opacity-80 max-w-2xl mx-auto font-medium leading-relaxed">
+                Find out everything you need to know about our policies, procedures, 
+                and how we ensure the best care for your furry friends.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {FAQ_ITEMS.map((item, index) => {
+                const isActive = openFaqId === item.id;
+                const isMostAsked = index === 0;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`group relative overflow-hidden rounded-[1.25rem] transition-all duration-300 bg-white ring-1 ring-[rgba(228,232,238,0.8)] shadow-[0_2px_10px_rgba(30,42,58,0.02)] hover:shadow-[0_8px_30px_rgba(30,42,58,0.06)] hover:ring-[rgba(228,232,238,1)] ${
+                      isActive ? "ring-[rgba(255,138,76,0.3)] shadow-[0_8px_30px_rgba(255,138,76,0.08)]" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleFaq(item.id)}
+                      className="flex w-full items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left"
+                    >
+                      <div className="flex items-center gap-4 flex-1 pr-6">
+                        <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-[#F8FAFC] text-[color:var(--text)] opacity-70 transition-all duration-300 group-hover:bg-[#F1F5F9] group-hover:text-[color:var(--navy)] group-hover:opacity-100">
+                          <Sparkles size={20} className={isActive ? "text-[color:var(--orange)]" : ""} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <h3 className="text-[15px] sm:text-[16px] font-bold text-[color:var(--navy)] transition-colors">
+                            {item.question}
+                          </h3>
+                          {isMostAsked && (
+                            <span className="inline-flex items-center rounded-full bg-[#FFF0E6] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--orange)]">
+                              Most Asked
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className={`shrink-0 text-[#94A3B8] transition-transform duration-300 ${isActive ? "rotate-180 text-[color:var(--orange)]" : ""}`}>
+                        <ChevronDown size={20} strokeWidth={2.5} />
+                      </div>
+                    </button>
+
+                    <div
+                      className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out ${
+                        isActive ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0 sm:pl-[4.5rem]">
+                          <p className="text-[14px] sm:text-[15px] leading-relaxed text-[color:var(--text)] opacity-80 font-medium">
+                            {item.answer}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-                  {supportSection && (
-                    <PolicySectionCard
-                      section={supportSection}
-                      isActive={activeSection === supportSection.id}
-                      onCopyLink={copySectionLink}
-                    />
-                  )}
+        <section
+          id="support"
+          className="policy-section policy-support relative overflow-hidden mt-16 px-4 py-16 sm:px-6 shadow-[0_20px_50px_-10px_rgba(30,42,58,0.2)]"
+        >
+          <div className="pointer-events-none absolute -left-20 -top-20 h-[500px] w-[500px] rounded-full bg-[rgba(255,138,76,0.15)] blur-[100px]" />
+          <div className="pointer-events-none absolute -bottom-20 -right-20 h-[500px] w-[500px] rounded-full bg-[rgba(111,207,151,0.1)] blur-[100px]" />
 
-                  <div className="relative overflow-hidden rounded-[2rem] bg-[#1F2A37] p-5 text-white shadow-[0_26px_60px_rgba(15,23,42,0.35)] md:p-6">
-                    <div className="pointer-events-none absolute -right-14 -top-14 h-48 w-48 rounded-full bg-[#E07A5F]/25 blur-3xl" />
-                    <div className="pointer-events-none absolute -bottom-14 left-20 h-44 w-44 rounded-full bg-[#7FB069]/20 blur-3xl" />
-
-                    <div className="relative grid items-center gap-7 lg:grid-cols-12">
-                      <div className="lg:col-span-7">
-                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-300">
-                          Need Assistance
-                        </p>
-                        <h3 className="mt-3 text-2xl font-black tracking-tight md:text-[2rem]">
-                          We&apos;re here to help before and after your booking.
-                        </h3>
-                        <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-300">
-                          Reach out anytime for policy clarification, booking
-                          guidance, or special pet care requests.
-                        </p>
-
-                        <div className="mt-5 flex flex-wrap gap-2.5">
-                          <a
-                            href="mailto:support@happytails.com"
-                            className="inline-flex items-center gap-2 rounded-full bg-[#E07A5F] px-4 py-2 text-xs font-bold text-white transition-all hover:bg-[#d96f54] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F2A37]"
-                          >
-                            <Mail size={16} />
-                            Email Support
-                          </a>
-                          <a
-                            href="tel:+84000000000"
-                            className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F2A37]"
-                          >
-                            <PhoneCall size={16} />
-                            Call Now
-                          </a>
-                        </div>
-
-                        <div className="mt-5 inline-flex items-center gap-2 text-xs text-slate-300">
-                          <Clock3 size={15} className="text-[#7FB069]" />
-                          Available daily from 08:00 to 23:00
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-5">
-                        <div className="relative overflow-hidden rounded-3xl border border-white/15">
-                          <img
-                            src={SUPPORT_IMAGE}
-                            alt="Happy pet support"
-                            className="h-[230px] w-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220]/40 via-transparent to-transparent" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+          <div className="mx-auto w-full max-w-6xl">
+            <div className="relative z-10 flex flex-col gap-8 md:flex-row md:items-center md:justify-between px-4 sm:px-8">
+              <div className="md:max-w-md lg:max-w-lg">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 backdrop-blur-md ring-1 ring-white/20 shadow-md shadow-black/10">
+                   <span className="policy-kicker mb-0 text-white/90 font-semibold tracking-wider">SUPPORT TEAM</span>
                 </div>
+                <h2 className="policy-display text-3xl font-bold text-white sm:text-[40px] leading-[1.15]">
+                  Need help understanding our policies?
+                </h2>
+                <p className="mt-5 text-[16px] text-white/80 font-medium max-w-sm">
+                  We are here to explain anything in plain language and assist you with your bookings.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-4 md:justify-end shrink-0 w-full sm:w-auto mt-4 md:mt-0">
+                <button className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[color:var(--orange)] to-[#ff7029] px-7 py-4 text-[15px] font-bold tracking-wide text-white shadow-[0_8px_20px_rgba(255,138,76,0.3)] transition-all hover:shadow-[0_12px_24px_rgba(255,138,76,0.4)] hover:-translate-y-1 hover:brightness-110">
+                  <MessageCircle size={18} strokeWidth={2.5}/>
+                  Live Chat
+                </button>
+                <button className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/20 px-7 py-4 text-[15px] font-bold tracking-wide text-white transition-all hover:bg-white/10 hover:border-white/40 hover:-translate-y-1 backdrop-blur-sm">
+                  <Mail size={18} strokeWidth={2.5}/>
+                  Email
+                </button>
+                <button className="w-full sm:w-auto justify-center inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/20 px-7 py-4 text-[15px] font-bold tracking-wide text-white transition-all hover:bg-white/10 hover:border-white/40 hover:-translate-y-1 backdrop-blur-sm">
+                  <PhoneCall size={18} strokeWidth={2.5}/>
+                  Call Us
+                </button>
               </div>
             </div>
           </div>
@@ -936,27 +872,6 @@ const Policy = () => {
       </main>
 
       <Footer />
-
-      {toastMessage && (
-        <div
-          className="fixed bottom-24 right-5 z-[70] rounded-full border border-[#1F2A37]/15 bg-white px-4 py-2 text-sm font-semibold text-[#1F2A37] shadow-[0_18px_35px_rgba(15,23,42,0.18)]"
-          role="status"
-          aria-live="polite"
-        >
-          {toastMessage}
-        </div>
-      )}
-
-      {showBackTop && (
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 z-[60] inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#1F2A37] text-white shadow-[0_12px_26px_rgba(15,23,42,0.35)] transition-all hover:bg-[#E07A5F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E07A5F] focus-visible:ring-offset-2"
-          aria-label="Back to top"
-        >
-          <ArrowUp size={18} />
-        </button>
-      )}
     </div>
   );
 };
