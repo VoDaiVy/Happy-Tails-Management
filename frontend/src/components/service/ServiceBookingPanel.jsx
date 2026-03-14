@@ -14,6 +14,7 @@ import TimeSlotPicker from "./TimeSlotPicker";
 import CalendarPicker from "./CalendarPicker";
 import { checkoutBooking, getAvailableSlots } from "../../api/bookingApi";
 import { getMyPets } from "../../api/petApi";
+import { getWallet } from "../../api/walletApi";
 import axiosInstance from "../../api/axiosInstance";
 import { generateTimeSlots } from "../../data/servicesData";
 
@@ -48,9 +49,21 @@ export default function ServiceBookingPanel({ service }) {
   const [bookedSlots, setBookedSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [confirmedData, setConfirmedData] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const hasToken = Boolean(localStorage.getItem("accessToken"));
+  const servicePrice = Number(service.price) || 0;
+
+  useEffect(() => {
+    if (!hasToken) return;
+    setWalletLoading(true);
+    getWallet()
+      .then((res) => setWalletBalance(res?.data?.balance ?? null))
+      .catch(() => setWalletBalance(null))
+      .finally(() => setWalletLoading(false));
+  }, [hasToken]);
 
   useEffect(() => {
     let alive = true;
@@ -129,7 +142,8 @@ export default function ServiceBookingPanel({ service }) {
     selectedSlot &&
     selectedPet &&
     Boolean(linkedServiceId) &&
-    !isSubmitting;
+    !isSubmitting &&
+    (walletBalance === null || walletBalance >= servicePrice);
   const pets = apiPets;
 
   // Calculate End Time
@@ -186,7 +200,7 @@ export default function ServiceBookingPanel({ service }) {
       const result = await checkoutBooking({
         petId: selectedPet,
         appointmentDate,
-        paymentMethod: "cash",
+        paymentMethod: "wallet",
         notes: note || "",
       });
 
@@ -460,6 +474,44 @@ export default function ServiceBookingPanel({ service }) {
           step={4}
           locked={step4Locked}
         />
+
+        {/* Wallet Balance */}
+        {hasToken && (
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs mb-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-semibold">💳 Ví của bạn:</span>
+              {walletLoading ? (
+                <span className="text-gray-400">Đang tải...</span>
+              ) : walletBalance !== null ? (
+                <span
+                  className={
+                    walletBalance >= servicePrice
+                      ? "text-green-600 font-bold"
+                      : "text-red-500 font-bold"
+                  }
+                >
+                  {walletBalance.toLocaleString("vi-VN")}đ
+                </span>
+              ) : (
+                <span className="text-gray-400">Không xác địnhđược</span>
+              )}
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <span className="text-gray-500">Phí dịch vụ:</span>
+              <span className="font-bold text-[#E07A5F]">
+                {servicePrice.toLocaleString("vi-VN")}đ
+              </span>
+            </div>
+            {walletBalance !== null && walletBalance < servicePrice && (
+              <div className="mt-2 rounded bg-red-50 border border-red-100 px-2 py-1 text-red-600">
+                ⚠️ Số dư không đủ. Vui lòng{" "}
+                <a href="/wallet" className="underline font-semibold">
+                  nạp thêm tiền
+                </a>.
+              </div>
+            )}
+          </div>
+        )}
 
         {canBook && (
           <div className="rounded-lg bg-[#F5F1EB] p-3 text-xs text-gray-600 space-y-1 mb-3">

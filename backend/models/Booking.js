@@ -175,13 +175,12 @@ const bookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate booking number before saving
-bookingSchema.pre('save', async function(next) {
+// Generate booking number before validation (must run before Mongoose validates required fields)
+bookingSchema.pre('validate', async function() {
   if (!this.bookingNumber) {
     const count = await mongoose.model('Booking').countDocuments();
     this.bookingNumber = `BK${Date.now()}-${count + 1}`;
   }
-  next();
 });
 
 // Indexes

@@ -6,6 +6,7 @@ const Cart = require("../models/Cart");
 const Service = require("../models/Service");
 const UserPet = require("../models/UserPet");
 const User = require("../models/User");
+const Wallet = require("../models/Wallet");
 const Room = require("../models/Room");
 const Transaction = require("../models/Transaction");
 const Voucher = require("../models/Voucher");
@@ -703,11 +704,12 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
       refundTransaction = await Transaction.create(
         [
           {
+            userId: booking.customer,
             user: booking.customer,
             type: "refund",
             amount: refundAmount,
             status: "completed",
-            paymentMethod: booking.paymentMethod,
+            method: "system",
             booking: booking._id,
             description: `Refund for cancelled booking ${booking.bookingNumber} (${refundPercentage}%)`,
             processedBy: req.user.id,
@@ -835,7 +837,9 @@ exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
  * @access Private (Customer)
  */
 exports.checkoutBooking = catchAsync(async (req, res, next) => {
-  const { appointmentDate, petId, voucherCode, paymentMethod = "cash", notes } = req.body;
+  // Wallet is the only accepted payment method for customer checkout
+  const { appointmentDate, petId, voucherCode, notes } = req.body;
+  const paymentMethod = "wallet";
 
   if (!appointmentDate || !petId) {
     return next(new AppError("appointmentDate and petId are required", 400, "MISSING_REQUIRED_FIELDS"));
@@ -967,6 +971,19 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       voucherApplied = voucher;
     }
 
+    // ── Wallet balance check (before opening DB transaction) ──────────────────
+    const wallet = await Wallet.findOne({ userId: req.user.id });
+    const currentBalance = wallet ? wallet.balance : 0;
+    if (currentBalance < totalAmount) {
+      return next(
+        new AppError(
+          `Số dư ví không đủ. Số dư hiện tại: ${currentBalance.toLocaleString("vi-VN")}đ, cần thanh toán: ${totalAmount.toLocaleString("vi-VN")}đ. Vui lòng nạp thêm tiền vào ví.`,
+          400,
+          "INSUFFICIENT_WALLET_BALANCE",
+        ),
+      );
+    }
+
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -983,6 +1000,15 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         assignedRoom: item.assignedRoom,
       }));
 
+      // Deduct wallet balance atomically, auto-confirm booking
+      await Wallet.findByIdAndUpdate(
+        wallet._id,
+        { $inc: { balance: -totalAmount, totalSpent: totalAmount } },
+        { session },
+      );
+      const bookingStatus = "confirmed";
+      const isPaid = true;
+
       const [booking] = await Booking.create(
         [
           {
@@ -993,7 +1019,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
             totalAmount,
             paymentMethod,
             notes,
-            status: "pending",
+            status: bookingStatus,
+            isPaid,
           },
         ],
         { session },
@@ -1002,11 +1029,12 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       await Transaction.create(
         [
           {
+            userId: req.user.id,
             user: req.user.id,
             type: "payment",
             amount: totalAmount,
-            status: "pending",
-            paymentMethod,
+            status: isPaid ? "completed" : "pending",
+            method: "system",
             booking: booking._id,
             description: `Payment for booking ${booking.bookingNumber}`,
             notes: voucherApplied
