@@ -15,6 +15,7 @@ const {
   deposit,
   getTransactions,
   getTransactionById,
+  getPayOSDepositStatus,
   handlePayOSWebhook,
   handlePayOSReturn
 } = require('../controllers/walletController');
@@ -41,10 +42,25 @@ router.post('/payos/webhook', handlePayOSWebhook);
  */
 router.get('/payos/return', handlePayOSReturn);
 
+/**
+ * @route   GET /api/wallet/payos/cancel
+ * @desc    Handle PayOS cancel URL
+ * @access  Public
+ * @note    Uses the same handler so Wallet can redirect back cleanly after cancellation
+ */
+router.get('/payos/cancel', handlePayOSReturn);
+
 // ==================== PROTECTED ROUTES (Require authentication) ====================
 
 // All routes below require authentication
 router.use(protect);
+
+/**
+ * @route   GET /api/wallet/payos/status/:orderCode
+ * @desc    Sync and get PayOS deposit status for current user
+ * @access  Private
+ */
+router.get('/payos/status/:orderCode', getPayOSDepositStatus);
 
 /**
  * @route   GET /api/wallet

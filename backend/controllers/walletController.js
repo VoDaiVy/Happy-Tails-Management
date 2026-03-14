@@ -13,7 +13,8 @@ const walletService = require('../services/wallet.service');
 const {
   depositSchema,
   getTransactionsQuerySchema,
-  transactionIdParamSchema
+  transactionIdParamSchema,
+  payosOrderCodeParamSchema
 } = require('../validations/wallet.validation');
 const { catchAsync } = require('../utils/catchAsync');
 const { createError } = require('../utils/AppError');
@@ -113,6 +114,31 @@ const getTransactionById = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get and synchronize PayOS deposit status
+ * GET /api/wallet/payos/status/:orderCode
+ */
+const getPayOSDepositStatus = catchAsync(async (req, res) => {
+  const { error, value } = payosOrderCodeParamSchema.validate(req.params, { abortEarly: false });
+  if (error) {
+    throw createError.validation(
+      error.details.map(d => d.message).join(', '),
+      error.details.map(d => ({
+        field: d.path.join('.'),
+        message: d.message
+      }))
+    );
+  }
+
+  const result = await walletService.getPayOSDepositStatus(req.user._id, value.orderCode);
+
+  res.status(200).json({
+    success: true,
+    message: 'Payment status fetched successfully',
+    data: result
+  });
+});
+
+/**
  * Handle PayOS webhook
  * POST /api/wallet/payos/webhook
  * NOTE: This is a PUBLIC endpoint - NO JWT auth
@@ -139,19 +165,27 @@ const handlePayOSReturn = catchAsync(async (req, res) => {
   const result = await walletService.handlePayOSReturn(req.query);
 
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const orderCode = req.query.orderCode || '';
 
   if (result.success && result.data) {
-    // Payment completed — redirect to wallet page with success flag
-    return res.redirect(
-      `${frontendUrl}/wallet?payment=success&amount=${result.data.amount || ''}&code=${result.data.transactionCode || ''}`
-    );
+    const params = new URLSearchParams({
+      payment: 'success',
+      amount: String(result.data.amount || ''),
+      code: result.data.transactionCode || '',
+      orderCode: String(orderCode),
+    });
+
+    return res.redirect(`${frontendUrl}/wallet?${params.toString()}`);
   }
 
-  // Cancelled or still pending
   const status = result.status || 'cancelled';
-  return res.redirect(
-    `${frontendUrl}/wallet?payment=${status}&code=${result.transactionCode || ''}`
-  );
+  const params = new URLSearchParams({
+    payment: status,
+    code: result.transactionCode || '',
+    orderCode: String(orderCode),
+  });
+
+  return res.redirect(`${frontendUrl}/wallet?${params.toString()}`);
 });
 
 module.exports = {
@@ -159,6 +193,7 @@ module.exports = {
   deposit,
   getTransactions,
   getTransactionById,
+  getPayOSDepositStatus,
   handlePayOSWebhook,
   handlePayOSReturn
 };
