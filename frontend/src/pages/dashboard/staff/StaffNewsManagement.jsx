@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import useScrollLock from "../../../hooks/useScrollLock";
 import {
   Plus,
   Search,
-  Filter,
   FileText,
   Megaphone,
   Clock,
@@ -15,6 +14,7 @@ import {
   MoreVertical,
   X,
   UploadCloud,
+  Loader2,
   CheckCircle2,
   ChevronDown,
   Monitor,
@@ -24,6 +24,8 @@ import {
 import DatePicker from "react-datepicker";
 import {
   getAllNews,
+  getNewsBySlug,
+  uploadNewsImage as uploadNewsImageApi,
   createNews as createNewsApi,
   updateNews as updateNewsApi,
   deleteNews as deleteNewsApi,
@@ -140,6 +142,48 @@ const CATEGORY_VALUE_BY_LABEL = {
   General: "general",
 };
 
+const CATEGORY_DEFAULT_IMAGE_BY_VALUE = {
+  announcement:
+    "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&w=1200&q=80",
+  tips: "https://images.unsplash.com/photo-1505628346881-b72b27e84530?auto=format&fit=crop&w=1200&q=80",
+  promotion:
+    "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=1200&q=80",
+  event:
+    "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=1200&q=80",
+  general:
+    "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
+};
+
+const CATEGORY_TAGS_BY_VALUE = {
+  announcement: ["community", "announcement"],
+  tips: ["wellness", "pet-care"],
+  promotion: ["promotion", "deals"],
+  event: ["event", "community"],
+  general: ["pet-care", "happytails"],
+};
+
+const AUDIENCE_LABEL_CANONICAL = {
+  allcustomers: "All Customers",
+  dogowners: "Dog Owners",
+  catowners: "Cat Owners",
+  vipmembers: "VIP Members",
+};
+
+const AUDIENCE_TAG_BY_LABEL = {
+  "All Customers": "all-customers",
+  "Dog Owners": "dog-owners",
+  "Cat Owners": "cat-owners",
+  "VIP Members": "vip-members",
+};
+
+const AUDIENCE_LABEL_BY_TAG = Object.entries(AUDIENCE_TAG_BY_LABEL).reduce(
+  (acc, [label, tag]) => {
+    acc[tag] = label;
+    return acc;
+  },
+  {},
+);
+
 const formatNewsDate = (value) => {
   if (!value) return "--";
   const parsed = new Date(value);
@@ -161,103 +205,112 @@ const normalizeCategoryValue = (label) => {
   return CATEGORY_VALUE_BY_LABEL[label] || "general";
 };
 
+const normalizeAudienceLabel = (label) => {
+  const key = String(label || "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+  return AUDIENCE_LABEL_CANONICAL[key] || "All Customers";
+};
+
+const getDefaultImageByCategory = (categoryValue) => {
+  return CATEGORY_DEFAULT_IMAGE_BY_VALUE[categoryValue] || FALLBACK_NEWS_IMAGE;
+};
+
+const buildExcerpt = (excerpt, content) => {
+  return toPlainText(excerpt || content).slice(0, 500);
+};
+
+const buildNewsTags = (categoryValue, audienceLabel) => {
+  const categoryTags =
+    CATEGORY_TAGS_BY_VALUE[categoryValue] || CATEGORY_TAGS_BY_VALUE.general;
+  const audienceTag =
+    AUDIENCE_TAG_BY_LABEL[normalizeAudienceLabel(audienceLabel)];
+
+  return [...new Set([...categoryTags, audienceTag].filter(Boolean))];
+};
+
+const getAudienceFromTags = (tags) => {
+  if (!Array.isArray(tags)) {
+    return "All Customers";
+  }
+
+  const matchedTag = tags
+    .map((tag) =>
+      String(tag || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-"),
+    )
+    .find((tag) => AUDIENCE_LABEL_BY_TAG[tag]);
+
+  if (!matchedTag) {
+    return "All Customers";
+  }
+
+  return AUDIENCE_LABEL_BY_TAG[matchedTag] || "All Customers";
+};
+
 const mapNewsToRow = (item) => {
   const dateSource = item.publishedAt || item.createdAt;
+  const categoryValue = String(item.category || "general").toLowerCase();
+  const coverImage =
+    item.coverImage ||
+    (Array.isArray(item.images) ? item.images[0] : "") ||
+    getDefaultImageByCategory(categoryValue);
+
   return {
     id: item._id,
+    slug: item.slug || "",
     title: item.title || "Untitled",
-    category: normalizeCategoryLabel(item.category),
-    audience: "All customers",
+    category: normalizeCategoryLabel(categoryValue),
+    audience: getAudienceFromTags(item.tags),
     status: item.isPublished ? "Published" : "Draft",
     date: formatNewsDate(dateSource),
     views: Number(item.views || 0).toLocaleString("en-US"),
-    img: item.coverImage || FALLBACK_NEWS_IMAGE,
+    viewsCount: Number(item.views || 0),
+    img: coverImage,
     content: item.content || "",
     excerpt: item.excerpt || "",
-    categoryValue: item.category || "general",
+    categoryValue,
+    createdAt: item.createdAt || null,
+    updatedAt: item.updatedAt || null,
     raw: item,
   };
 };
 
-const promoData = [
-  {
-    id: 1,
-    title: "Bring 5 Pets – Get 20% Spa Discount",
-    desc: "Special offer for multiple pet owners. Book now and save!",
-    badge: "20% OFF",
-    date: "Mar 1 - Mar 31",
-    img: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=400",
-  },
-  {
-    id: 2,
-    title: "Free Health Check Week",
-    desc: "Complimentary health checkups for all pets this week.",
-    badge: "FREE",
-    date: "Mar 10 - Mar 17",
-    img: "https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?w=400",
-  },
-  {
-    id: 3,
-    title: "Weekend Grooming Special",
-    desc: "Get 20% off on all grooming services this weekend!",
-    badge: "20% OFF",
-    date: "Mar 8 - Mar 9",
-    img: "https://images.unsplash.com/photo-1517849845537-4d257902454a?w=400",
-  },
-];
+const formatRelativeTime = (value) => {
+  if (!value) return "Just now";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "Just now";
 
-const activityData = [
-  {
-    id: 1,
-    type: "article",
-    action: "Staff created article",
-    target: '"Best Indoor Activities for Cats"',
-    time: "2 hours ago",
-    icon: FileText,
-    color: "text-blue-500",
-    bg: "bg-blue-100",
-  },
-  {
-    id: 2,
-    type: "promo",
-    action: "Promotion activated",
-    target: '"Weekend Grooming Special"',
-    time: "5 hours ago",
-    icon: Megaphone,
-    color: "text-[#D97853]",
-    bg: "bg-[#D97853]/15",
-  },
-  {
-    id: 3,
-    type: "edit",
-    action: "Article updated",
-    target: '"How to Prevent Parasites"',
-    time: "1 day ago",
-    icon: Edit,
-    color: "text-[#7FB069]",
-    bg: "bg-[#7FB069]/15",
-  },
-  {
-    id: 4,
-    type: "article",
-    action: "Staff created article",
-    target: '"Understanding Pet Nutrition"',
-    time: "2 days ago",
-    icon: FileText,
-    color: "text-blue-500",
-    bg: "bg-blue-100",
-  },
-  {
-    id: 5,
-    type: "promo",
-    action: "Campaign scheduled",
-    target: '"Free Health Check Week"',
-    time: "3 days ago",
-    icon: Megaphone,
-    color: "text-[#D97853]",
-    bg: "bg-[#D97853]/15",
-  },
-];
+  const diffMs = Date.now() - time;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return "Just now";
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} minutes ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} hours ago`;
+  return `${Math.floor(diffMs / day)} days ago`;
+};
+
+const toPlainText = (value) => {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const getTimeValue = (value) => {
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const getPublishedOrderTime = (item) => {
+  return getTimeValue(
+    item?.raw?.publishedAt || item?.createdAt || item?.updatedAt,
+  );
+};
 
 const StaffNewsManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -270,6 +323,10 @@ const StaffNewsManagement = () => {
   const [isLoadingNews, setIsLoadingNews] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingCreateImage, setIsUploadingCreateImage] = useState(false);
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const createImageInputRef = useRef(null);
+  const editImageInputRef = useRef(null);
   const [createForm, setCreateForm] = useState({
     title: "",
     content: "",
@@ -280,7 +337,7 @@ const StaffNewsManagement = () => {
     id: "",
     title: "",
     category: "General",
-    audience: "All customers",
+    audience: "All Customers",
     status: "Draft",
     date: "",
     content: "",
@@ -299,7 +356,20 @@ const StaffNewsManagement = () => {
   }, []);
 
   const getErrorMessage = (error, fallback) => {
-    return error?.response?.data?.message || fallback;
+    const payload = error?.response?.data;
+    const details =
+      payload?.error?.details || payload?.details || payload?.errors;
+    const firstDetail = Array.isArray(details) ? details[0] : null;
+    const detailMessage =
+      typeof firstDetail === "string" ? firstDetail : firstDetail?.message;
+
+    return (
+      payload?.message ||
+      payload?.error?.message ||
+      detailMessage ||
+      error?.message ||
+      fallback
+    );
   };
 
   const anyModalOpen =
@@ -313,8 +383,59 @@ const StaffNewsManagement = () => {
       excerpt: "",
     });
     setModalCat("Select Category");
-    setModalStat("Save as Draft");
+    setModalStat("Publish Now");
+    setModalAud("All Customers");
     setPublishDate(new Date());
+    if (createImageInputRef.current) {
+      createImageInputRef.current.value = "";
+    }
+  };
+
+  const uploadCoverImage = async (file, target = "create") => {
+    if (!file) return;
+
+    if (target === "create") {
+      setIsUploadingCreateImage(true);
+    } else {
+      setIsUploadingEditImage(true);
+    }
+
+    try {
+      const response = await uploadNewsImageApi(file);
+      const uploadedUrl = response?.data?.url;
+
+      if (!uploadedUrl) {
+        throw new Error("Upload response missing image URL");
+      }
+
+      if (target === "create") {
+        setCreateForm((prev) => ({
+          ...prev,
+          coverImage: uploadedUrl,
+        }));
+      } else {
+        setEditForm((prev) => ({
+          ...prev,
+          coverImage: uploadedUrl,
+        }));
+      }
+
+      showToast("Image uploaded successfully");
+    } catch (error) {
+      showToast(getErrorMessage(error, "Failed to upload image"), "error");
+    } finally {
+      if (target === "create") {
+        setIsUploadingCreateImage(false);
+        if (createImageInputRef.current) {
+          createImageInputRef.current.value = "";
+        }
+      } else {
+        setIsUploadingEditImage(false);
+        if (editImageInputRef.current) {
+          editImageInputRef.current.value = "";
+        }
+      }
+    }
   };
 
   const loadNews = useCallback(async () => {
@@ -345,9 +466,31 @@ const StaffNewsManagement = () => {
     loadNews();
   }, [loadNews]);
 
-  const openDetail = (item) => {
+  const fetchNewsDetailBySlug = async (item) => {
+    if (!item?.slug) return item;
+
+    try {
+      const response = await getNewsBySlug(item.slug);
+      const freshNews = response?.data?.news;
+      if (!freshNews) return item;
+
+      const mapped = mapNewsToRow(freshNews);
+      setNewsRows((current) =>
+        current.map((row) => (row.id === mapped.id ? mapped : row)),
+      );
+
+      return mapped;
+    } catch {
+      return item;
+    }
+  };
+
+  const openDetail = async (item) => {
     setSelectedNews(item);
     setIsDetailOpen(true);
+
+    const refreshed = await fetchNewsDetailBySlug(item);
+    setSelectedNews(refreshed);
   };
   const openEdit = (item) => {
     setSelectedNews(item);
@@ -389,7 +532,7 @@ const StaffNewsManagement = () => {
   // Modal Form States
   const [modalCat, setModalCat] = useState("Select Category");
   const [modalAud, setModalAud] = useState("All Customers");
-  const [modalStat, setModalStat] = useState("Save as Draft");
+  const [modalStat, setModalStat] = useState("Publish Now");
   const [publishDate, setPublishDate] = useState(new Date());
   const [isModalCatOpen, setIsModalCatOpen] = useState(false);
   const [isModalAudOpen, setIsModalAudOpen] = useState(false);
@@ -409,7 +552,13 @@ const StaffNewsManagement = () => {
     "Cat Owners",
     "VIP Members",
   ];
-  const modalStatOpts = ["Save as Draft", "Publish Now", "Schedule Later"];
+  const modalStatOpts = ["Publish Now", "Save as Draft", "Schedule Later"];
+  const createActionLabel =
+    modalStat === "Publish Now"
+      ? "Publish Post"
+      : modalStat === "Save as Draft"
+        ? "Save Draft"
+        : "Schedule Draft";
 
   const handleCreateNews = async () => {
     if (!createForm.title.trim() || !createForm.content.trim()) {
@@ -419,24 +568,48 @@ const StaffNewsManagement = () => {
 
     setIsSubmitting(true);
     try {
+      const title = createForm.title.trim();
+      const content = createForm.content.trim();
+      const categoryValue = normalizeCategoryValue(modalCat);
+      const audienceLabel = normalizeAudienceLabel(modalAud);
+      const coverImage =
+        createForm.coverImage.trim() ||
+        getDefaultImageByCategory(categoryValue);
+      const isPublishNow = modalStat === "Publish Now";
+
       const payload = {
-        title: createForm.title.trim(),
-        content: createForm.content.trim(),
-        excerpt: (createForm.excerpt || createForm.content)
-          .trim()
-          .slice(0, 500),
-        coverImage: createForm.coverImage.trim() || undefined,
-        category: normalizeCategoryValue(modalCat),
-        isPublished: modalStat === "Publish Now",
-        tags: [],
+        title,
+        content,
+        excerpt: buildExcerpt(createForm.excerpt, content),
+        coverImage,
+        images: [coverImage],
+        category: categoryValue,
+        isPublished: isPublishNow,
+        tags: buildNewsTags(categoryValue, audienceLabel),
       };
 
       await createNewsApi(payload);
       await loadNews();
-      showToast("Article created successfully");
+
+      if (modalStat === "Schedule Later") {
+        showToast(
+          "Scheduling is not supported yet. Article was saved as draft.",
+        );
+      } else {
+        showToast(
+          isPublishNow
+            ? "Article published successfully"
+            : "Article saved as draft successfully",
+        );
+      }
+
       setIsModalOpen(false);
       resetCreateForm();
     } catch (error) {
+      console.error("[News Create Error]", {
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
       showToast(getErrorMessage(error, "Failed to create article"), "error");
     } finally {
       setIsSubmitting(false);
@@ -451,12 +624,21 @@ const StaffNewsManagement = () => {
 
     setIsSubmitting(true);
     try {
+      const title = editForm.title.trim();
+      const content = editForm.content.trim();
+      const categoryValue = normalizeCategoryValue(editForm.category);
+      const audienceLabel = normalizeAudienceLabel(editForm.audience);
+      const coverImage =
+        editForm.coverImage.trim() || getDefaultImageByCategory(categoryValue);
+
       const payload = {
-        title: editForm.title.trim(),
-        content: editForm.content.trim(),
-        excerpt: (editForm.excerpt || editForm.content).trim().slice(0, 500),
-        coverImage: editForm.coverImage.trim() || undefined,
-        category: normalizeCategoryValue(editForm.category),
+        title,
+        content,
+        excerpt: buildExcerpt(editForm.excerpt, content),
+        coverImage,
+        images: [coverImage],
+        category: categoryValue,
+        tags: buildNewsTags(categoryValue, audienceLabel),
         isPublished: editForm.status === "Published",
       };
 
@@ -501,6 +683,97 @@ const StaffNewsManagement = () => {
       filterStatus === "All Status" || item.status === filterStatus;
     return matchSearch && matchCat && matchStatus;
   });
+
+  const promotionRows = newsRows.filter(
+    (item) => item.categoryValue === "promotion",
+  );
+
+  const promotionCards = [...promotionRows]
+    .sort((a, b) => b.viewsCount - a.viewsCount)
+    .slice(0, 3)
+    .map((item) => ({
+      ...item,
+      badge: item.status === "Published" ? "LIVE" : "DRAFT",
+      desc:
+        toPlainText(item.excerpt || item.content || "No description") ||
+        "No description",
+    }));
+
+  const recentActivityRows = [...newsRows]
+    .sort(
+      (a, b) =>
+        getTimeValue(b.updatedAt || b.createdAt) -
+        getTimeValue(a.updatedAt || a.createdAt),
+    )
+    .slice(0, 5)
+    .map((item) => {
+      const createdTime = getTimeValue(item.createdAt);
+      const updatedTime = getTimeValue(item.updatedAt);
+      const isEdited = updatedTime > createdTime + 60 * 1000;
+      const isPromotion = item.categoryValue === "promotion";
+
+      if (isEdited) {
+        return {
+          id: item.id,
+          action: "Article updated",
+          target: `"${item.title}"`,
+          time: formatRelativeTime(item.updatedAt || item.createdAt),
+          icon: Edit,
+          color: "text-[#7FB069]",
+          bg: "bg-[#7FB069]/15",
+          item,
+        };
+      }
+
+      if (isPromotion) {
+        return {
+          id: item.id,
+          action:
+            item.status === "Published"
+              ? "Promotion activated"
+              : "Promotion drafted",
+          target: `"${item.title}"`,
+          time: formatRelativeTime(item.createdAt),
+          icon: Megaphone,
+          color: "text-[#D97853]",
+          bg: "bg-[#D97853]/15",
+          item,
+        };
+      }
+
+      return {
+        id: item.id,
+        action: "Staff created article",
+        target: `"${item.title}"`,
+        time: formatRelativeTime(item.createdAt),
+        icon: FileText,
+        color: "text-blue-500",
+        bg: "bg-blue-100",
+        item,
+      };
+    });
+
+  const mostViewedArticle = [...newsRows].sort(
+    (a, b) => b.viewsCount - a.viewsCount,
+  )[0];
+
+  const mostViewedPromotion = [...promotionRows].sort(
+    (a, b) => b.viewsCount - a.viewsCount,
+  )[0];
+
+  const upcomingPromotion = [...promotionRows]
+    .filter((item) => item.status === "Draft")
+    .sort(
+      (a, b) =>
+        getTimeValue(b.updatedAt || b.createdAt) -
+        getTimeValue(a.updatedAt || a.createdAt),
+    )[0];
+
+  const heroPublishedArticleId =
+    [...newsRows]
+      .filter((item) => item.status === "Published")
+      .sort((a, b) => getPublishedOrderTime(b) - getPublishedOrderTime(a))[0]
+      ?.id || "";
 
   return (
     <Motion.div
@@ -625,6 +898,7 @@ const StaffNewsManagement = () => {
                       Target Audience
                     </th>
                     <th className="px-6 py-4 whitespace-nowrap">Status</th>
+                    <th className="px-6 py-4 whitespace-nowrap">News Feed</th>
                     <th className="px-6 py-4 whitespace-nowrap text-center">
                       Actions
                     </th>
@@ -633,7 +907,7 @@ const StaffNewsManagement = () => {
                 <tbody className="text-sm">
                   {isLoadingNews ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center">
+                      <td colSpan="7" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center justify-center opacity-50">
                           <Clock size={36} className="mb-3 animate-pulse" />
                           <p className="text-base font-bold text-[#2D3436]">
@@ -692,6 +966,21 @@ const StaffNewsManagement = () => {
                             {item.status}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.status !== "Published" ? (
+                            <span className="px-3 py-1 text-[11px] font-bold rounded-full border border-[#2D3436]/10 bg-[#2D3436]/5 text-[#2D3436]/50">
+                              Not in feed
+                            </span>
+                          ) : item.id === heroPublishedArticleId ? (
+                            <span className="px-3 py-1 text-[11px] font-bold rounded-full border border-[#D97853]/20 bg-[#D97853]/10 text-[#D97853]">
+                              Hero
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 text-[11px] font-bold rounded-full border border-[#7FB069]/20 bg-[#7FB069]/10 text-[#7FB069]">
+                              In feed
+                            </span>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-3 text-[#2D3436]/40">
                             <Edit
@@ -716,7 +1005,7 @@ const StaffNewsManagement = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center">
+                      <td colSpan="7" className="px-6 py-12 text-center">
                         <div className="flex flex-col items-center justify-center opacity-40">
                           <Search size={40} className="mb-4" />
                           <p className="text-lg font-bold text-[#2D3436]">
@@ -752,38 +1041,58 @@ const StaffNewsManagement = () => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {promoData.map((promo) => (
-                <div
-                  key={promo.id}
-                  className="bg-[#FDFBF7] border border-[#2D3436]/5 rounded-[20px] overflow-hidden group hover:border-[#D97853]/40 hover:shadow-lg transition-all duration-300 flex flex-col"
-                >
-                  <div className="relative h-36 overflow-hidden">
-                    <img
-                      src={promo.img}
-                      alt={promo.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute top-3 right-3 bg-[#D97853] text-white text-[10px] font-black tracking-wider px-3 py-1.5 rounded-full shadow-md">
-                      {promo.badge}
+              {promotionCards.length > 0 ? (
+                promotionCards.map((promo) => (
+                  <div
+                    key={promo.id}
+                    className="bg-[#FDFBF7] border border-[#2D3436]/5 rounded-[20px] overflow-hidden group hover:border-[#D97853]/40 hover:shadow-lg transition-all duration-300 flex flex-col"
+                  >
+                    <div className="relative h-36 overflow-hidden">
+                      <img
+                        src={promo.img}
+                        alt={promo.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div
+                        className={`absolute top-3 right-3 text-white text-[10px] font-black tracking-wider px-3 py-1.5 rounded-full shadow-md ${
+                          promo.badge === "LIVE"
+                            ? "bg-[#7FB069]"
+                            : "bg-[#D97853]"
+                        }`}
+                      >
+                        {promo.badge}
+                      </div>
+                    </div>
+                    <div className="p-4 md:p-5 flex-grow flex flex-col">
+                      <h3 className="font-bold text-[#2D3436] text-[15px] mb-2 leading-tight group-hover:text-[#D97853] transition-colors truncate">
+                        {promo.title}
+                      </h3>
+                      <p className="text-xs text-[#2D3436]/60 line-clamp-2 mb-4 flex-grow leading-relaxed">
+                        {promo.desc}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#2D3436]/40 mb-4 bg-white self-start px-2.5 py-1 rounded-md border border-[#2D3436]/5">
+                        <Calendar size={12} className="text-[#D97853]" />{" "}
+                        {promo.date}
+                      </div>
+                      <button
+                        onClick={() => openDetail(promo)}
+                        className="w-full py-2.5 bg-white border border-[#2D3436]/5 text-[#D97853] font-bold text-xs rounded-xl hover:bg-[#D97853] hover:text-white transition-colors shadow-sm"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
-                  <div className="p-4 md:p-5 flex-grow flex flex-col">
-                    <h3 className="font-bold text-[#2D3436] text-[15px] mb-2 leading-tight group-hover:text-[#D97853] transition-colors truncate">
-                      {promo.title}
-                    </h3>
-                    <p className="text-xs text-[#2D3436]/60 line-clamp-2 mb-4 flex-grow leading-relaxed">
-                      {promo.desc}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#2D3436]/40 mb-4 bg-white self-start px-2.5 py-1 rounded-md border border-[#2D3436]/5">
-                      <Calendar size={12} className="text-[#D97853]" />{" "}
-                      {promo.date}
-                    </div>
-                    <button className="w-full py-2.5 bg-white border border-[#2D3436]/5 text-[#D97853] font-bold text-xs rounded-xl hover:bg-[#D97853] hover:text-white transition-colors shadow-sm">
-                      View Details
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="md:col-span-3 rounded-2xl border border-dashed border-[#2D3436]/15 bg-[#FDFBF7] p-8 text-center">
+                  <p className="text-sm font-bold text-[#2D3436]">
+                    No promotion news available
+                  </p>
+                  <p className="mt-1 text-xs text-[#2D3436]/50">
+                    Create or publish a promotion article to show it here.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </Motion.div>
         </div>
@@ -812,30 +1121,37 @@ const StaffNewsManagement = () => {
             </div>
 
             <div className="space-y-5">
-              {activityData.map((item) => (
-                <div key={item.id} className="flex gap-4 relative group">
-                  <div
-                    className={`w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center shrink-0 z-10 opacity-80`}
-                  >
-                    <item.icon size={18} />
+              {recentActivityRows.length > 0 ? (
+                recentActivityRows.map((item) => (
+                  <div key={item.id} className="flex gap-4 relative group">
+                    <div
+                      className={`w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center shrink-0 z-10 opacity-80`}
+                    >
+                      <item.icon size={18} />
+                    </div>
+                    <div className="pt-0.5 flex-1 min-w-0">
+                      <h4 className="text-sm text-[#2D3436]/70 font-medium truncate">
+                        {item.action}
+                      </h4>
+                      <p className="text-[13px] font-bold text-[#2D3436] mt-0.5 group-hover:text-[#D97853] transition-colors truncate">
+                        {item.target}
+                      </p>
+                      <p className="text-[11px] font-medium text-[#2D3436]/40 mt-1">
+                        {item.time}
+                      </p>
+                    </div>
                   </div>
-                  <div className="pt-0.5 flex-1 min-w-0">
-                    <h4 className="text-sm text-[#2D3436]/70 font-medium truncate">
-                      {item.action}
-                    </h4>
-                    <p className="text-[13px] font-bold text-[#2D3436] mt-0.5 group-hover:text-[#D97853] transition-colors truncate">
-                      {item.target}
-                    </p>
-                    <p className="text-[11px] font-medium text-[#2D3436]/40 mt-1">
-                      {item.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-[#2D3436]/60">No activity yet.</p>
+              )}
             </div>
 
-            <button className="w-full mt-6 py-2.5 bg-white border border-[#D97853]/20 rounded-xl text-sm font-bold text-[#D97853] hover:bg-[#D97853] hover:text-white transition-all shadow-sm">
-              View All Activity
+            <button
+              onClick={loadNews}
+              className="w-full mt-6 py-2.5 bg-white border border-[#D97853]/20 rounded-xl text-sm font-bold text-[#D97853] hover:bg-[#D97853] hover:text-white transition-all shadow-sm"
+            >
+              Refresh Activity
             </button>
           </Motion.div>
 
@@ -859,12 +1175,14 @@ const StaffNewsManagement = () => {
                   Most Viewed Article
                 </span>
                 <p className="font-bold text-white text-[15px] mt-1.5 group-hover:text-[#D97853] transition-colors leading-tight truncate">
-                  Weekend Grooming Special
+                  {mostViewedArticle?.title || "No data"}
                 </p>
                 <div className="flex items-center gap-1.5 mt-2">
                   <Eye size={14} className="text-[#7FB069]" />
                   <p className="text-sm text-[#7FB069] font-bold">
-                    5,120 views
+                    {mostViewedArticle
+                      ? `${mostViewedArticle.views} views`
+                      : "0 views"}
                   </p>
                 </div>
               </div>
@@ -874,10 +1192,12 @@ const StaffNewsManagement = () => {
                   Most Clicked Promotion
                 </span>
                 <p className="font-bold text-white text-[15px] mt-1.5 group-hover:text-[#D97853] transition-colors leading-tight truncate">
-                  20% Spa Discount
+                  {mostViewedPromotion?.title || "No promotion data"}
                 </p>
                 <p className="text-sm text-[#D97853] font-bold mt-2">
-                  842 clicks
+                  {mostViewedPromotion
+                    ? `${mostViewedPromotion.views} views`
+                    : "0 views"}
                 </p>
               </div>
               <div className="w-full h-[1px] bg-white/10" />
@@ -886,10 +1206,10 @@ const StaffNewsManagement = () => {
                   Upcoming
                 </span>
                 <p className="font-bold text-white text-[15px] mt-1.5 group-hover:text-[#D97853] transition-colors leading-tight truncate">
-                  Christmas Grooming Promotion
+                  {upcomingPromotion?.title || "No draft promotion"}
                 </p>
                 <p className="text-xs text-white/40 font-bold mt-2 flex items-center gap-1">
-                  <Calendar size={12} /> Dec 24, 2026
+                  <Calendar size={12} /> {upcomingPromotion?.date || "--"}
                 </p>
               </div>
             </div>
@@ -950,19 +1270,49 @@ const StaffNewsManagement = () => {
                   <label className="block text-sm font-bold text-[#2D3436] mb-2">
                     Cover Thumbnail <span className="text-[#D97853]">*</span>
                   </label>
-                  <div className="w-full h-[180px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-3 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group">
+                  <input
+                    ref={createImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) =>
+                      uploadCoverImage(e.target.files?.[0], "create")
+                    }
+                  />
+                  <div
+                    onClick={() => createImageInputRef.current?.click()}
+                    className="w-full h-[180px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-3 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group"
+                  >
                     <div className="w-12 h-12 rounded-full bg-[#2D3436]/5 group-hover:bg-white flex items-center justify-center shadow-sm transition-colors">
-                      <UploadCloud size={24} className="text-[#D97853]" />
+                      {isUploadingCreateImage ? (
+                        <Loader2
+                          size={24}
+                          className="text-[#D97853] animate-spin"
+                        />
+                      ) : (
+                        <UploadCloud size={24} className="text-[#D97853]" />
+                      )}
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-bold text-[#2D3436]">
-                        Click to upload or drag & drop
+                        {isUploadingCreateImage
+                          ? "Uploading image..."
+                          : "Click to upload or drag & drop"}
                       </p>
                       <p className="text-xs text-[#2D3436]/40 mt-1">
-                        SVG, PNG, JPG or WEBP (max. 5MB)
+                        PNG, JPG, WEBP or GIF (max. 5MB)
                       </p>
                     </div>
                   </div>
+                  {createForm.coverImage && (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
+                      <img
+                        src={createForm.coverImage}
+                        alt="Cover preview"
+                        className="h-36 w-full object-cover"
+                      />
+                    </div>
+                  )}
                   <input
                     type="url"
                     value={createForm.coverImage}
@@ -1096,7 +1446,7 @@ const StaffNewsManagement = () => {
                   className="bg-[#D97853] text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 >
                   <CheckCircle2 size={18} />{" "}
-                  {isSubmitting ? "Saving..." : "Publish Post"}
+                  {isSubmitting ? "Saving..." : createActionLabel}
                 </button>
               </div>
             </Motion.div>
@@ -1295,6 +1645,28 @@ const StaffNewsManagement = () => {
                     Cover Image URL
                   </label>
                   <input
+                    ref={editImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) =>
+                      uploadCoverImage(e.target.files?.[0], "edit")
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editImageInputRef.current?.click()}
+                    disabled={isUploadingEditImage}
+                    className="mb-3 inline-flex items-center gap-2 rounded-xl border border-[#2D3436]/10 bg-white px-3 py-2 text-xs font-bold text-[#2D3436]/70 hover:border-[#D97853]/40 hover:text-[#D97853] transition-colors disabled:opacity-60"
+                  >
+                    {isUploadingEditImage ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <UploadCloud size={14} />
+                    )}
+                    {isUploadingEditImage ? "Uploading..." : "Upload New Image"}
+                  </button>
+                  <input
                     type="url"
                     value={editForm.coverImage}
                     onChange={(e) =>
@@ -1303,6 +1675,15 @@ const StaffNewsManagement = () => {
                     placeholder="https://example.com/image.jpg"
                     className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
                   />
+                  {editForm.coverImage && (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
+                      <img
+                        src={editForm.coverImage}
+                        alt="Edit cover preview"
+                        className="h-32 w-full object-cover"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-[#2D3436] mb-2">
@@ -1343,9 +1724,9 @@ const StaffNewsManagement = () => {
                     label="Target Audience"
                     isModal={true}
                     options={[
-                      "All customers",
-                      "Dog owners",
-                      "Cat owners",
+                      "All Customers",
+                      "Dog Owners",
+                      "Cat Owners",
                       "VIP Members",
                     ]}
                     value={editForm.audience}
