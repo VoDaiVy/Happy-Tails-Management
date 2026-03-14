@@ -27,7 +27,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  QrCode,
   ExternalLink,
   Loader2,
   Banknote,
@@ -37,7 +36,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
-import { getWallet, depositToWallet, getWalletTransactions } from '../api/walletApi';
+import { getWallet, depositToWallet, getWalletTransactions, getPayOSDepositStatus } from '../api/walletApi';
 
 // ─────────────────────────────────────────────────────────────
 // Helpers & constants
@@ -134,6 +133,7 @@ export default function WalletPage() {
   const [depositLoading, setDepositLoading]     = useState(false);
   const [depositResult, setDepositResult]       = useState(null);
   const [depositError, setDepositError]         = useState(null);
+  const [checkingDepositStatus, setCheckingDepositStatus] = useState(false);
 
   // ── Fetchers ─────────────────────────────────────────────────
   const fetchWallet = useCallback(async () => {
@@ -201,17 +201,73 @@ export default function WalletPage() {
     setDepositLoading(true); setDepositError(null);
     try {
       const res = await depositToWallet({ amount, note: depositNote || undefined });
+
+      if (res?.data?.checkoutUrl) {
+        window.location.assign(res.data.checkoutUrl);
+        return;
+      }
+
       setDepositResult(res.data);
     } catch (err) {
       setDepositError(err?.response?.data?.message || 'Failed to create payment link. Please try again.');
     } finally { setDepositLoading(false); }
   };
 
-  const closeDepositModal = () => {
+  const applyPaymentStatusBanner = useCallback((paymentData) => {
+    const type = paymentData?.status === 'completed'
+      ? 'success'
+      : paymentData?.status === 'cancelled' || paymentData?.status === 'failed'
+      ? 'cancelled'
+      : 'pending';
+
+    setPaymentBanner({
+      type,
+      amount: paymentData?.amount ?? null,
+      code: paymentData?.transactionCode || paymentData?.orderCode || null,
+    });
+
+    return type;
+  }, []);
+
+  const syncPayOSDepositStatus = useCallback(async (orderCode) => {
+    if (!orderCode) return null;
+    const res = await getPayOSDepositStatus(orderCode);
+    return res.data;
+  }, []);
+
+  const closeDepositModal = useCallback(() => {
     setShowDepositModal(false); setDepositAmount(''); setDepositNote('');
     setDepositResult(null); setDepositError(null);
     fetchWallet(); fetchTransactions(1);
-  };
+  }, [fetchTransactions, fetchWallet]);
+
+  const handleCheckDepositStatus = useCallback(async (orderCode, { closeOnFinal = false } = {}) => {
+    if (!orderCode) return null;
+
+    setCheckingDepositStatus(true);
+    setDepositError(null);
+
+    try {
+      const paymentData = await syncPayOSDepositStatus(orderCode);
+      const type = applyPaymentStatusBanner(paymentData);
+
+      await fetchWallet();
+      await fetchTransactions(1);
+
+      if (type === 'pending') {
+        setDepositError('Payment is still pending. Complete the PayOS payment and check again.');
+      } else if (closeOnFinal) {
+        closeDepositModal();
+      }
+
+      return { type, paymentData };
+    } catch (err) {
+      setDepositError(err?.response?.data?.message || 'Failed to check payment status.');
+      return null;
+    } finally {
+      setCheckingDepositStatus(false);
+    }
+  }, [applyPaymentStatusBanner, closeDepositModal, fetchTransactions, fetchWallet, syncPayOSDepositStatus]);
 
   // ── Lock body scroll + hide floating chat when any modal is open
   useEffect(() => {
@@ -226,20 +282,109 @@ export default function WalletPage() {
     };
   }, [showDepositModal, isAuthModalOpen]);
 
-  // ── Read PayOS return params (?payment=success|cancelled|pending)
+  // ── Read PayOS return params and synchronize with backend when possible
   useEffect(() => {
     const payment = searchParams.get('payment');
-    if (!payment) return;
-    const amount  = searchParams.get('amount');
-    const code    = searchParams.get('code');
-    setPaymentBanner({ type: payment, amount: amount ? parseInt(amount) : null, code });
-    // Clean URL without reloading
-    setSearchParams({}, { replace: true });
-    // Auto-dismiss after 8 s
-    const t = setTimeout(() => setPaymentBanner(null), 8000);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const payosStatus = searchParams.get('status');
+    const payosCancel = searchParams.get('cancel');
+    const payosCode = searchParams.get('code');
+    const orderCode = searchParams.get('orderCode');
+    const hasPayOSNative = payosStatus || payosCancel !== null || payosCode;
+
+    if (!payment && !hasPayOSNative) return;
+    if (orderCode && !user) return;
+
+    let disposed = false;
+    let dismissTimer = null;
+
+    const setFallbackBanner = async () => {
+      let type;
+      let amount = null;
+      let code = null;
+
+      if (payment) {
+        type = payment;
+        amount = searchParams.get('amount') ? parseInt(searchParams.get('amount'), 10) : null;
+        code = searchParams.get('code') || null;
+      } else {
+        if (payosCancel === 'true' || payosStatus === 'CANCELLED') {
+          type = 'cancelled';
+        } else if (payosCode === '00' || payosStatus === 'PAID') {
+          type = 'success';
+        } else {
+          type = 'pending';
+        }
+        code = orderCode;
+      }
+
+      if (disposed) return;
+      setPaymentBanner({ type, amount, code });
+
+      if ((type === 'success' || type === 'pending') && user) {
+        await fetchWallet();
+        await fetchTransactions(1);
+      }
+    };
+
+    const syncReturnStatus = async () => {
+      try {
+        let bannerType = null;
+
+        if (orderCode && user) {
+          for (let attempt = 0; attempt < 4 && !disposed; attempt += 1) {
+            try {
+              const paymentData = await syncPayOSDepositStatus(orderCode);
+              if (disposed || !paymentData) return;
+
+              bannerType = applyPaymentStatusBanner(paymentData);
+              await fetchWallet();
+              await fetchTransactions(1);
+
+              if (bannerType !== 'pending') {
+                break;
+              }
+
+              if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+              }
+            } catch (error) {
+              console.error('Failed to sync PayOS return status:', error);
+              bannerType = null;
+              break;
+            }
+          }
+        }
+
+        if (!bannerType && !disposed) {
+          await setFallbackBanner();
+        }
+
+        if (!disposed) {
+          setSearchParams({}, { replace: true });
+          dismissTimer = setTimeout(() => {
+            if (!disposed) setPaymentBanner(null);
+          }, 8000);
+        }
+      } catch (error) {
+        console.error('Failed to process PayOS return params:', error);
+      }
+    };
+
+    syncReturnStatus();
+
+    return () => {
+      disposed = true;
+      if (dismissTimer) clearTimeout(dismissTimer);
+    };
+  }, [
+    applyPaymentStatusBanner,
+    fetchTransactions,
+    fetchWallet,
+    searchParams,
+    setSearchParams,
+    syncPayOSDepositStatus,
+    user,
+  ]);
 
   // ─────────────────────────────────────────────────────────────
   // RENDER
@@ -719,6 +864,13 @@ export default function WalletPage() {
                       />
                     </div>
 
+                    <div className="flex items-start gap-2.5 p-3.5 bg-[#F6F3EF] border border-[#1C2B33]/8 rounded-2xl mb-4">
+                      <ExternalLink size={15} className="text-[#D97853] shrink-0 mt-0.5" />
+                      <p className="text-sm text-[#1C2B33]/60 font-medium leading-snug">
+                        After you continue, HappyTails will open the PayOS checkout page immediately. Once payment succeeds, your wallet will sync automatically when you return.
+                      </p>
+                    </div>
+
                     {depositError && (
                       <div className="flex items-start gap-2.5 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl mb-4">
                         <AlertCircle size={15} className="text-rose-500 shrink-0 mt-0.5" />
@@ -739,8 +891,8 @@ export default function WalletPage() {
                         className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#D97853] hover:bg-[#c86035] text-white font-black rounded-2xl text-sm shadow-lg shadow-orange-200 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {depositLoading
-                          ? <><Loader2 size={16} className="animate-spin" /> Processing...</>
-                          : <><QrCode size={16} /> Generate QR Code</>
+                          ? <><Loader2 size={16} className="animate-spin" /> Redirecting to PayOS...</>
+                          : <><ExternalLink size={16} /> Continue to PayOS</>
                         }
                       </button>
                     </div>
@@ -750,27 +902,39 @@ export default function WalletPage() {
                     <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-4">
                       <CheckCircle2 size={32} className="text-emerald-500" />
                     </div>
-                    <h4 className="font-black text-xl mb-1">QR Code Ready</h4>
+                    <h4 className="font-black text-xl mb-1">Payment Link Ready</h4>
                     <p className="text-sm text-[#1C2B33]/40 mb-5">
-                      Scan or open the link to top up{' '}
+                      Automatic redirect did not start. Open PayOS to top up{' '}
                       <span className="font-black text-[#D97853]">{formatVND(depositResult.amount)}</span>
                     </p>
-                    {depositResult.qrCode && (
-                      <div className="inline-block p-4 bg-white border-2 border-[#1C2B33]/8 rounded-3xl mb-5 shadow-inner">
-                        <img src={depositResult.qrCode} alt="Payment QR Code" className="w-48 h-48 object-contain rounded-xl" onError={(e) => { e.target.parentElement.style.display = 'none'; }} />
-                      </div>
-                    )}
                     <div className="flex flex-col gap-2.5">
                       <a
                         href={depositResult.checkoutUrl} target="_blank" rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 py-3.5 bg-[#D97853] hover:bg-[#c86035] text-white font-black rounded-2xl text-sm shadow-lg shadow-orange-200 transition-all"
                       >
-                        <ExternalLink size={15} /> Open PayOS Payment Page
+                        <ExternalLink size={15} /> Go to PayOS now
                       </a>
+                      <button
+                        onClick={() => handleCheckDepositStatus(depositResult.orderCode, { closeOnFinal: true })}
+                        disabled={checkingDepositStatus}
+                        className="flex items-center justify-center gap-2 py-3 border-2 border-[#D97853]/20 text-sm font-bold text-[#D97853] hover:bg-orange-50 rounded-2xl transition-all disabled:opacity-50"
+                      >
+                        {checkingDepositStatus ? (
+                          <><Loader2 size={15} className="animate-spin" /> Checking status...</>
+                        ) : (
+                          <><RefreshCw size={15} /> I have paid, check status</>
+                        )}
+                      </button>
                       <button onClick={closeDepositModal} className="py-3 border-2 border-[#1C2B33]/10 text-sm font-bold text-[#1C2B33]/50 hover:text-[#1C2B33] hover:border-[#1C2B33]/20 rounded-2xl transition-all">
                         Close &amp; Refresh Wallet
                       </button>
                     </div>
+                    {depositError && (
+                      <div className="mt-3 flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-left">
+                        <AlertCircle size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-sm text-amber-700 font-medium leading-snug">{depositError}</p>
+                      </div>
+                    )}
                     <p className="text-[10px] text-[#1C2B33]/20 font-mono mt-4">{depositResult.transactionCode}</p>
                   </div>
                 )}

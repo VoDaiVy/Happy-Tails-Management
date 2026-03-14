@@ -25,6 +25,12 @@ export const getMyBookings = async (params = {}) => {
   };
 };
 
+// Get available slots
+export const getAvailableSlots = async (date, serviceId) => {
+  const response = await axiosInstance.get("/bookings/available-slots", { params: { date, serviceId } });
+  return response.data;
+};
+
 export const getMyPetsMedicalRecords = async () => {
   const response = await axiosInstance.get("/medical-records/my-pets");
   return response.data;
@@ -45,17 +51,8 @@ export const getBookingById = async (id) => {
 
 // Create booking from cart (Customer)
 export const createBooking = async (bookingData) => {
-  const response = await axiosInstance.post("/bookings", bookingData);
-  const normalized = normalizeResponse(response);
-  if (!normalized.success) {
-    const error = new Error(normalized.message || 'Failed to create booking');
-    error.response = { data: normalized };
-    throw error;
-  }
-  return {
-    data: normalized.data?.booking || normalized.data,
-    message: normalized.message,
-  };
+  const response = await axiosInstance.post("/bookings/checkout", bookingData);
+  return response.data;
 };
 
 // Checkout with availability check (Customer)
@@ -143,4 +140,5 @@ export default {
   updateBookingStatus,
   cancelBooking,
   assignStaffToBooking,
+  getAvailableSlots,
 };

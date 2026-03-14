@@ -23,7 +23,9 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: function() {
+      return this.authProvider !== 'google';
+    },
     minlength: [8, 'Password must be at least 8 characters'],
     select: false // Don't return password by default
   },
@@ -33,6 +35,22 @@ const userSchema = new mongoose.Schema({
     trim: true,
     minlength: [2, 'Name must be at least 2 characters'],
     maxlength: [100, 'Name must be less than 100 characters']
+  },
+  avatar: {
+    type: String,
+    default: null,
+    trim: true
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local',
+    index: true
+  },
+  googleId: {
+    type: String,
+    default: null,
+    index: true
   },
 
   // Role & Permissions
@@ -167,6 +185,7 @@ userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1, isDeleted: 1 });
 userSchema.index({ passwordResetToken: 1 });
 userSchema.index({ emailVerificationToken: 1 });
+userSchema.index({ googleId: 1 });
 
 // ==================== VIRTUALS ====================
 
@@ -186,6 +205,7 @@ userSchema.virtual('isLocked').get(function() {
 userSchema.pre('save', async function() {
   // Only hash if password is modified
   if (!this.isModified('password')) return;
+  if (!this.password) return;
 
   const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
   this.password = await bcrypt.hash(this.password, rounds);

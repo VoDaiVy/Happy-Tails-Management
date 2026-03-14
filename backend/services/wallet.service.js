@@ -31,6 +31,258 @@ const formatCurrency = (amount) => {
 };
 
 /**
+ * Flatten PayOS payloads where useful data may be nested under `data`.
+ * Supports webhook payloads and getPaymentLinkInformation responses.
+ */
+const extractPayOSPayload = (payload = {}) => {
+  if (payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object') {
+    return {
+      ...payload,
+      ...payload.data,
+      rawData: payload.data
+    };
+  }
+
+  return payload || {};
+};
+
+const getLocalPayOSStatus = (transactionStatus) => {
+  if (transactionStatus === 'completed') return 'PAID';
+  if (transactionStatus === 'cancelled') return 'CANCELLED';
+  if (transactionStatus === 'failed') return 'FAILED';
+  return 'PENDING';
+};
+
+/**
+ * Normalize PayOS responses to a single status vocabulary.
+ */
+const resolvePayOSStatus = (payload = {}) => {
+  const data = extractPayOSPayload(payload);
+  const code = data.code !== undefined && data.code !== null ? String(data.code) : null;
+  const desc = data.desc ? String(data.desc) : '';
+  const rawStatus = String(data.status || '').toUpperCase();
+  const upperDesc = desc.toUpperCase();
+
+  let normalizedStatus = 'PENDING';
+
+  if (code === '00' || rawStatus === 'PAID' || rawStatus === 'SUCCESS') {
+    normalizedStatus = 'PAID';
+  } else if (rawStatus === 'CANCELLED' || rawStatus === 'CANCELED' || upperDesc.includes('CANCEL')) {
+    normalizedStatus = 'CANCELLED';
+  } else if (rawStatus === 'EXPIRED' || upperDesc.includes('EXPIRE')) {
+    normalizedStatus = 'EXPIRED';
+  } else if (rawStatus === 'FAILED' || rawStatus === 'FAIL') {
+    normalizedStatus = 'FAILED';
+  } else if (code && code !== '00' && !rawStatus) {
+    normalizedStatus = 'FAILED';
+  }
+
+  return {
+    ...data,
+    code,
+    desc,
+    normalizedStatus,
+    orderCode: data.orderCode !== undefined && data.orderCode !== null
+      ? Number(data.orderCode)
+      : null,
+    amount: Number(data.amount || 0) || 0,
+  };
+};
+
+const buildDepositStatusPayload = (transaction, walletBalance = null, payosStatus = null) => ({
+  transactionId: transaction._id,
+  transactionCode: transaction.transactionCode,
+  orderCode: transaction.payosOrderCode,
+  amount: transaction.amount,
+  status: transaction.status,
+  payosStatus: payosStatus || getLocalPayOSStatus(transaction.status),
+  checkoutUrl: transaction.payosCheckoutUrl,
+  qrCode: transaction.metadata?.qrCode || transaction.metadata?.payosResponse?.qrCode || null,
+  failureReason: transaction.failureReason,
+  expiredAt: transaction.expiredAt,
+  newBalance: walletBalance ?? transaction.balanceAfter ?? null,
+});
+
+const notifyDepositSuccess = (userId, amount, newBalance, transactionCode) => {
+  setImmediate(() => {
+    notificationService.send(
+      userId,
+      NOTIFICATION_TEMPLATES.DEPOSIT_SUCCESS(amount, newBalance, transactionCode)
+    ).catch(err => console.error('[Notif] deposit_success:', err.message));
+  });
+};
+
+const notifyDepositFailure = (userId, amount, transactionCode) => {
+  setImmediate(() => {
+    notificationService.send(
+      userId,
+      NOTIFICATION_TEMPLATES.DEPOSIT_FAILED(amount, transactionCode)
+    ).catch(err => console.error('[Notif] deposit_failed:', err.message));
+  });
+};
+
+/**
+ * Idempotently complete a pending PayOS deposit transaction.
+ */
+const completeDepositTransaction = async (transactionId, metadata = {}) => {
+  const session = await mongoose.startSession();
+  let result;
+
+  try {
+    await session.withTransaction(async () => {
+      const transaction = await Transaction.findById(transactionId).session(session);
+
+      if (!transaction) {
+        throw createError.notFound('Transaction not found', 'TRANSACTION_NOT_FOUND');
+      }
+
+      const wallet = await Wallet.findById(transaction.walletId).session(session);
+      if (!wallet) {
+        throw new Error('Wallet not found');
+      }
+
+      if (transaction.status !== 'pending') {
+        result = buildDepositStatusPayload(transaction, wallet.balance, 'PAID');
+        return;
+      }
+
+      const balanceBefore = wallet.balance;
+
+      wallet.deposit(transaction.amount);
+      await wallet.save({ session });
+
+      transaction.status = 'completed';
+      transaction.balanceBefore = balanceBefore;
+      transaction.balanceAfter = wallet.balance;
+      transaction.failureReason = null;
+      transaction.processedAt = new Date();
+      transaction.metadata = {
+        ...(transaction.metadata || {}),
+        ...metadata,
+      };
+      await transaction.save({ session });
+
+      result = {
+        ...buildDepositStatusPayload(transaction, wallet.balance, 'PAID'),
+        userId: transaction.userId,
+        completedNow: true,
+      };
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  if (result?.completedNow) {
+    notifyDepositSuccess(result.userId, result.amount, result.newBalance, result.transactionCode);
+  }
+
+  return result;
+};
+
+/**
+ * Idempotently cancel or fail a pending PayOS deposit transaction.
+ */
+const stopPendingDepositTransaction = async (transactionId, reason, metadata = {}) => {
+  const existing = await Transaction.findById(transactionId);
+
+  if (!existing) {
+    throw createError.notFound('Transaction not found', 'TRANSACTION_NOT_FOUND');
+  }
+
+  if (existing.status !== 'pending') {
+    const wallet = existing.walletId ? await Wallet.findById(existing.walletId).select('balance') : null;
+    return buildDepositStatusPayload(existing, wallet?.balance ?? null, getLocalPayOSStatus(existing.status));
+  }
+
+  const nextStatus = reason === 'FAILED' ? 'failed' : 'cancelled';
+
+  const updated = await Transaction.findOneAndUpdate(
+    { _id: transactionId, status: 'pending' },
+    {
+      $set: {
+        status: nextStatus,
+        failureReason: reason,
+        processedAt: new Date(),
+        metadata: {
+          ...(existing.metadata || {}),
+          ...metadata,
+        }
+      }
+    },
+    { new: true }
+  );
+
+  if (!updated) {
+    const latest = await Transaction.findById(transactionId);
+    const wallet = latest?.walletId ? await Wallet.findById(latest.walletId).select('balance') : null;
+    return buildDepositStatusPayload(latest, wallet?.balance ?? null, getLocalPayOSStatus(latest.status));
+  }
+
+  notifyDepositFailure(updated.userId, updated.amount, updated.transactionCode);
+
+  const wallet = updated.walletId ? await Wallet.findById(updated.walletId).select('balance') : null;
+  return buildDepositStatusPayload(updated, wallet?.balance ?? null, reason);
+};
+
+/**
+ * Sync a deposit transaction using PayOS API when webhook is unavailable.
+ */
+const syncDepositTransactionStatus = async ({ orderCode, userId = null, source = 'status-api' }) => {
+  const numericOrderCode = Number(orderCode);
+
+  if (!numericOrderCode || Number.isNaN(numericOrderCode)) {
+    throw createError.badRequest('Invalid PayOS order code', 'INVALID_ORDER_CODE');
+  }
+
+  const filter = {
+    payosOrderCode: numericOrderCode,
+    type: 'deposit'
+  };
+
+  if (userId) {
+    filter.userId = new mongoose.Types.ObjectId(userId);
+  }
+
+  const transaction = await Transaction.findOne(filter);
+
+  if (!transaction) {
+    throw createError.notFound('Transaction not found', 'TRANSACTION_NOT_FOUND');
+  }
+
+  if (transaction.status !== 'pending') {
+    const wallet = transaction.walletId ? await Wallet.findById(transaction.walletId).select('balance') : null;
+    return buildDepositStatusPayload(transaction, wallet?.balance ?? null);
+  }
+
+  try {
+    const payosInfo = await payosService.getPaymentLinkInfo(numericOrderCode);
+    const payosState = resolvePayOSStatus(payosInfo);
+    const syncMetadata = {
+      lastStatusSyncAt: new Date().toISOString(),
+      lastStatusSyncSource: source,
+      payosStatusResponse: payosInfo,
+    };
+
+    if (payosState.normalizedStatus === 'PAID') {
+      return completeDepositTransaction(transaction._id, syncMetadata);
+    }
+
+    if (['CANCELLED', 'EXPIRED', 'FAILED'].includes(payosState.normalizedStatus)) {
+      return stopPendingDepositTransaction(transaction._id, payosState.normalizedStatus, syncMetadata);
+    }
+
+    const latest = await Transaction.findById(transaction._id);
+    const wallet = latest.walletId ? await Wallet.findById(latest.walletId).select('balance') : null;
+    return buildDepositStatusPayload(latest, wallet?.balance ?? null, payosState.normalizedStatus);
+  } catch (error) {
+    logger.warn(`PayOS status sync failed for orderCode=${numericOrderCode}: ${error.message}`);
+    const latest = await Transaction.findById(transaction._id);
+    const wallet = latest.walletId ? await Wallet.findById(latest.walletId).select('balance') : null;
+    return buildDepositStatusPayload(latest, wallet?.balance ?? null);
+  }
+};
+
+/**
  * Get wallet for user (creates if not exists)
  * @param {ObjectId} userId - User ID
  * @returns {Promise<Object>} Wallet data
@@ -98,112 +350,54 @@ const handlePayOSWebhook = async (webhookBody) => {
   // Step 1: Verify webhook signature
   let verifiedData;
   try {
-    verifiedData = payosService.verifyWebhookData(webhookBody);
+    verifiedData = await payosService.verifyWebhookData(webhookBody);
   } catch (error) {
     logger.error(`Webhook verification failed: ${error.message}`);
     throw createError.badRequest('Invalid webhook signature', 'INVALID_WEBHOOK');
   }
-  
-  // Step 2: Extract data
-  const { orderCode, code, desc } = verifiedData;
-  const status = code === '00' ? 'PAID' : (desc || 'FAILED');
-  const amount = verifiedData.amount || webhookBody.data?.amount;
-  
-  logger.info(`PayOS webhook received: orderCode=${orderCode}, status=${status}`);
-  
-  // Step 3: Find pending transaction
+
+  const payosState = resolvePayOSStatus(verifiedData);
+  const { orderCode, normalizedStatus } = payosState;
+
+  if (!orderCode) {
+    throw createError.badRequest('Webhook missing orderCode', 'INVALID_WEBHOOK');
+  }
+
+  logger.info(`PayOS webhook received: orderCode=${orderCode}, status=${normalizedStatus}`);
+
   const transaction = await Transaction.findOne({
     payosOrderCode: orderCode,
-    status: 'pending',
     type: 'deposit'
   });
-  
+
   if (!transaction) {
-    // Already processed or not found - return success for idempotency
-    logger.info(`Transaction already processed or not found: orderCode=${orderCode}`);
-    return { received: true, message: 'Already processed' };
+    logger.info(`Transaction not found for PayOS webhook: orderCode=${orderCode}`);
+    return { received: true, message: 'Transaction not found' };
   }
-  
-  // Step 4: Handle by status
-  if (status === 'PAID' || code === '00') {
-    const session = await mongoose.startSession();
-    
-    try {
-      await session.withTransaction(async () => {
-        // Get wallet with session
-        const wallet = await Wallet.findById(transaction.walletId).session(session);
-        
-        if (!wallet) {
-          throw new Error('Wallet not found');
-        }
-        
-        const balanceBefore = wallet.balance;
-        
-        // Update wallet balance
-        wallet.deposit(transaction.amount);
-        await wallet.save({ session });
-        
-        // Update transaction status
-        transaction.status = 'completed';
-        transaction.balanceBefore = balanceBefore;
-        transaction.balanceAfter = wallet.balance;
-        transaction.metadata = {
-          ...transaction.metadata,
-          webhookData: webhookBody
-        };
-        await transaction.save({ session });
-      });
-      
-      await session.endSession();
 
-      // Notify: deposit success (fire-and-forget — must run outside transaction)
-      setImmediate(() => {
-        notificationService.send(
-          transaction.userId,
-          NOTIFICATION_TEMPLATES.DEPOSIT_SUCCESS(
-            transaction.amount,
-            wallet.balance,
-            transaction.transactionCode
-          )
-        ).catch(err => console.error('[Notif] deposit_success:', err.message));
-      });
-      
-      logger.info(`PayOS deposit completed: orderCode=${orderCode}, amount=${transaction.amount}`);
-      return { received: true, status: 'completed' };
-      
-    } catch (error) {
-      await session.endSession();
-      logger.error(`PayOS webhook processing failed: ${error.message}`);
-      throw error;
-    }
-  }
-  
-  // Handle CANCELLED or EXPIRED
-  if (status === 'CANCELLED' || status === 'EXPIRED' || code !== '00') {
-    transaction.status = 'cancelled';
-    transaction.failureReason = status;
-    transaction.metadata = {
-      ...transaction.metadata,
-      webhookData: webhookBody
-    };
-    await transaction.save();
-
-    // Notify: deposit failed (fire-and-forget)
-    setImmediate(() => {
-      notificationService.send(
-        transaction.userId,
-        NOTIFICATION_TEMPLATES.DEPOSIT_FAILED(
-          transaction.amount,
-          transaction.transactionCode
-        )
-      ).catch(err => console.error('[Notif] deposit_failed:', err.message));
+  if (normalizedStatus === 'PAID') {
+    const result = await completeDepositTransaction(transaction._id, {
+      webhookReceivedAt: new Date().toISOString(),
+      verifiedWebhookData: verifiedData,
+      webhookBody,
     });
-    
-    logger.info(`PayOS deposit cancelled: orderCode=${orderCode}, reason=${status}`);
-    return { received: true, status: 'cancelled' };
+
+    logger.info(`PayOS deposit completed: orderCode=${orderCode}, amount=${result.amount}`);
+    return { received: true, status: result.status };
   }
-  
-  return { received: true };
+
+  if (['CANCELLED', 'EXPIRED', 'FAILED'].includes(normalizedStatus)) {
+    const result = await stopPendingDepositTransaction(transaction._id, normalizedStatus, {
+      webhookReceivedAt: new Date().toISOString(),
+      verifiedWebhookData: verifiedData,
+      webhookBody,
+    });
+
+    logger.info(`PayOS deposit stopped: orderCode=${orderCode}, reason=${normalizedStatus}`);
+    return { received: true, status: result.status };
+  }
+
+  return { received: true, status: 'pending' };
 };
 
 /**
@@ -315,43 +509,31 @@ const handlePayOSReturn = async (queryParams) => {
     };
   }
   
-  // Find transaction
-  const transaction = await Transaction.findOne({
-    payosOrderCode: parseInt(orderCode)
-  });
-  
-  if (!transaction) {
-    return {
-      success: false,
-      message: 'Không tìm thấy giao dịch'
-    };
-  }
-  
-  // Get wallet for balance info
-  const wallet = await Wallet.findById(transaction.walletId);
-  
   // If cancelled by user
   if (cancel === 'true' || status === 'CANCELLED') {
-    if (transaction.status === 'pending') {
-      transaction.status = 'cancelled';
-      transaction.failureReason = 'User cancelled';
-      await transaction.save();
-      
-      // Cancel PayOS payment link
-      if (transaction.payosPaymentLinkId) {
-        await payosService.cancelPaymentLink(transaction.payosPaymentLinkId);
+    try {
+      const synced = await syncDepositTransactionStatus({ orderCode, source: 'return-cancel' });
+
+      if (synced.status === 'pending') {
+        await stopPendingDepositTransaction(synced.transactionId, 'CANCELLED', {
+          returnQuery: queryParams,
+          returnReceivedAt: new Date().toISOString(),
+        });
       }
+    } catch (error) {
+      logger.warn(`PayOS return cancel sync failed for orderCode=${orderCode}: ${error.message}`);
     }
-    
+
     return {
       success: false,
       message: 'Giao dịch đã bị huỷ',
-      transactionCode: transaction.transactionCode,
+      transactionCode: null,
       status: 'cancelled'
     };
   }
-  
-  // Payment successful - return with details
+
+  const transaction = await syncDepositTransactionStatus({ orderCode, source: 'return-url' });
+
   if (transaction.status === 'completed') {
     return {
       success: true,
@@ -359,13 +541,12 @@ const handlePayOSReturn = async (queryParams) => {
       data: {
         transactionCode: transaction.transactionCode,
         amount: transaction.amount,
-        newBalance: wallet ? wallet.balance : null,
+        newBalance: transaction.newBalance,
         formattedAmount: formatCurrency(transaction.amount)
       }
     };
   }
-  
-  // Still pending/processing
+
   return {
     success: false,
     message: 'Giao dịch đang được xử lý',
@@ -374,11 +555,19 @@ const handlePayOSReturn = async (queryParams) => {
   };
 };
 
+/**
+ * Get PayOS deposit status for the current user and synchronize it when possible.
+ */
+const getPayOSDepositStatus = async (userId, orderCode) => {
+  return syncDepositTransactionStatus({ orderCode, userId, source: 'wallet-page' });
+};
+
 module.exports = {
   getWallet,
   deposit,
   handlePayOSWebhook,
   getTransactions,
   getTransactionById,
-  handlePayOSReturn
+  handlePayOSReturn,
+  getPayOSDepositStatus
 };

@@ -7,7 +7,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Clock,
   CreditCard,
   FileText,
   Plus,
@@ -21,6 +20,7 @@ import {
 } from "lucide-react";
 import { getAllServices } from "../../api/serviceApi";
 import { createGuestBooking } from "../../api/bookingApi";
+import TimeSlotPicker from "./TimeSlotPicker";
 
 // Payment methods
 const PAYMENT_METHODS = [
@@ -40,6 +40,17 @@ const PET_TYPES = [
   { value: "other", label: "Khác" },
 ];
 
+// Derive service type from selected services for time slot interval logic
+const getServiceType = (selectedServices) => {
+  if (!selectedServices.length) return "default";
+  const names = selectedServices.map((s) =>
+    (s.service.name || "").toLowerCase(),
+  );
+  if (names.some((n) => n.includes("boarding") || n.includes("lưu trú")))
+    return "boarding";
+  return "default";
+};
+
 const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
   // Guest info state
   const [guestInfo, setGuestInfo] = useState({
@@ -50,7 +61,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Booking info state
   const [bookingDate, setBookingDate] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [bookingTime, setBookingTime] = useState("09:00");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -120,15 +131,17 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Add service to selection
   const handleAddService = (service) => {
-    const existing = selectedServices.find((s) => s.service._id === service._id);
+    const existing = selectedServices.find(
+      (s) => s.service._id === service._id,
+    );
     if (existing) {
       // Increase quantity
       setSelectedServices(
         selectedServices.map((s) =>
           s.service._id === service._id
             ? { ...s, quantity: s.quantity + 1 }
-            : s
-        )
+            : s,
+        ),
       );
     } else {
       // Add new
@@ -141,7 +154,9 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
   // Remove service from selection
   const handleRemoveService = (serviceId) => {
-    setSelectedServices(selectedServices.filter((s) => s.service._id !== serviceId));
+    setSelectedServices(
+      selectedServices.filter((s) => s.service._id !== serviceId),
+    );
   };
 
   // Update quantity
@@ -155,14 +170,14 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
           }
           return s;
         })
-        .filter(Boolean)
+        .filter(Boolean),
     );
   };
 
   // Calculate total
   const totalAmount = selectedServices.reduce(
     (total, item) => total + item.price * item.quantity,
-    0
+    0,
   );
 
   // Format currency
@@ -199,15 +214,15 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
 
       const bookingData = {
         guestInfo,
+        appointmentDate: `${bookingDate}T${bookingTime}:00`,
+        petInfo: {
+          petName,
+          petType,
+        },
         items: selectedServices.map((s) => ({
           service: s.service._id,
           quantity: s.quantity,
-          price: s.price,
-          // Thêm thông tin pet tạm (guest booking không có pet trong DB)
-          petInfo: {
-            petName,
-            petType,
-          },
+          note: s.note || "",
         })),
         bookingDate,
         bookingTime,
@@ -331,7 +346,10 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                           required
                           value={guestInfo.email}
                           onChange={(e) =>
-                            setGuestInfo({ ...guestInfo, email: e.target.value })
+                            setGuestInfo({
+                              ...guestInfo,
+                              email: e.target.value,
+                            })
                           }
                           placeholder="email@example.com"
                           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
@@ -352,7 +370,10 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                           required
                           value={guestInfo.phone}
                           onChange={(e) =>
-                            setGuestInfo({ ...guestInfo, phone: e.target.value })
+                            setGuestInfo({
+                              ...guestInfo,
+                              phone: e.target.value,
+                            })
                           }
                           placeholder="0912345678"
                           className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
@@ -419,22 +440,12 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Giờ
-                      </label>
-                      <div className="relative">
-                        <Clock
-                          size={16}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-                        <input
-                          type="time"
-                          value={bookingTime}
-                          onChange={(e) => setBookingTime(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-                        />
-                      </div>
+                    <div className="col-span-2">
+                      <TimeSlotPicker
+                        serviceType={getServiceType(selectedServices)}
+                        selectedTime={bookingTime}
+                        onChange={setBookingTime}
+                      />
                     </div>
                   </div>
                   <div className="mt-3">
@@ -500,7 +511,10 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="max-h-[200px] overflow-y-auto space-y-2">
                     {servicesLoading ? (
                       <div className="flex items-center justify-center py-4">
-                        <RefreshCw className="animate-spin text-gray-400" size={20} />
+                        <RefreshCw
+                          className="animate-spin text-gray-400"
+                          size={20}
+                        />
                       </div>
                     ) : filteredServices.length === 0 ? (
                       <p className="text-center text-gray-500 text-sm py-4">
@@ -517,7 +531,8 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                               {service.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {formatCurrency(service.price)} • {service.duration} phút
+                              {formatCurrency(service.price)} •{" "}
+                              {service.duration} phút
                             </p>
                           </div>
                           <button
@@ -581,7 +596,9 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleRemoveService(item.service._id)}
+                              onClick={() =>
+                                handleRemoveService(item.service._id)
+                              }
                               className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors ml-1"
                             >
                               <X size={14} />
