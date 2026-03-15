@@ -125,7 +125,7 @@ const CustomSelect = ({
 );
 
 const FALLBACK_NEWS_IMAGE =
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='675' viewBox='0 0 1200 675'%3E%3Crect width='1200' height='675' fill='%23f4efe6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239b8c7c' font-family='Arial,sans-serif' font-size='42'%3ENo image uploaded%3C/text%3E%3C/svg%3E";
 const CATEGORY_LABEL_BY_VALUE = {
   announcement: "Announcement",
   tips: "Tips",
@@ -140,18 +140,6 @@ const CATEGORY_VALUE_BY_LABEL = {
   Promotion: "promotion",
   Event: "event",
   General: "general",
-};
-
-const CATEGORY_DEFAULT_IMAGE_BY_VALUE = {
-  announcement:
-    "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&w=1200&q=80",
-  tips: "https://images.unsplash.com/photo-1505628346881-b72b27e84530?auto=format&fit=crop&w=1200&q=80",
-  promotion:
-    "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=1200&q=80",
-  event:
-    "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=1200&q=80",
-  general:
-    "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
 };
 
 const CATEGORY_TAGS_BY_VALUE = {
@@ -212,10 +200,6 @@ const normalizeAudienceLabel = (label) => {
   return AUDIENCE_LABEL_CANONICAL[key] || "All Customers";
 };
 
-const getDefaultImageByCategory = (categoryValue) => {
-  return CATEGORY_DEFAULT_IMAGE_BY_VALUE[categoryValue] || FALLBACK_NEWS_IMAGE;
-};
-
 const buildExcerpt = (excerpt, content) => {
   return toPlainText(excerpt || content).slice(0, 500);
 };
@@ -256,7 +240,7 @@ const mapNewsToRow = (item) => {
   const coverImage =
     item.coverImage ||
     (Array.isArray(item.images) ? item.images[0] : "") ||
-    getDefaultImageByCategory(categoryValue);
+    FALLBACK_NEWS_IMAGE;
 
   return {
     id: item._id,
@@ -566,15 +550,18 @@ const StaffNewsManagement = () => {
       return;
     }
 
+    const coverImage = createForm.coverImage.trim();
+    if (!coverImage) {
+      showToast("Please upload a cover image before publishing", "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const title = createForm.title.trim();
       const content = createForm.content.trim();
       const categoryValue = normalizeCategoryValue(modalCat);
       const audienceLabel = normalizeAudienceLabel(modalAud);
-      const coverImage =
-        createForm.coverImage.trim() ||
-        getDefaultImageByCategory(categoryValue);
       const isPublishNow = modalStat === "Publish Now";
 
       const payload = {
@@ -622,14 +609,18 @@ const StaffNewsManagement = () => {
       return;
     }
 
+    const coverImage = editForm.coverImage.trim();
+    if (!coverImage) {
+      showToast("Please upload a cover image before saving", "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const title = editForm.title.trim();
       const content = editForm.content.trim();
       const categoryValue = normalizeCategoryValue(editForm.category);
       const audienceLabel = normalizeAudienceLabel(editForm.audience);
-      const coverImage =
-        editForm.coverImage.trim() || getDefaultImageByCategory(categoryValue);
 
       const payload = {
         title,
@@ -1313,18 +1304,9 @@ const StaffNewsManagement = () => {
                       />
                     </div>
                   )}
-                  <input
-                    type="url"
-                    value={createForm.coverImage}
-                    onChange={(e) =>
-                      setCreateForm({
-                        ...createForm,
-                        coverImage: e.target.value,
-                      })
-                    }
-                    placeholder="Or paste image URL (optional)"
-                    className="mt-3 w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
-                  />
+                  <p className="mt-3 text-xs font-medium text-[#2D3436]/50">
+                    Cover image only supports file upload.
+                  </p>
                 </div>
 
                 {/* Form Grid */}
@@ -1642,7 +1624,7 @@ const StaffNewsManagement = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Cover Image URL
+                    Cover Image <span className="text-[#D97853]">*</span>
                   </label>
                   <input
                     ref={editImageInputRef}
@@ -1666,15 +1648,9 @@ const StaffNewsManagement = () => {
                     )}
                     {isUploadingEditImage ? "Uploading..." : "Upload New Image"}
                   </button>
-                  <input
-                    type="url"
-                    value={editForm.coverImage}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, coverImage: e.target.value })
-                    }
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
-                  />
+                  <p className="text-xs font-medium text-[#2D3436]/50">
+                    Manual image URL input is disabled. Please upload a file.
+                  </p>
                   {editForm.coverImage && (
                     <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
                       <img
