@@ -47,10 +47,10 @@ describe("cart/booking business rules", () => {
     ]);
 
     expect(summary.serviceSubtotal).toBe(120000);
-    expect(summary.staySubtotal).toBe(300000);
+    expect(summary.staySubtotal).toBe(600000);
     expect(summary.serviceDurationTotal).toBe(45);
     expect(summary.stayDurationTotal).toBe(2);
-    expect(summary.grandTotal).toBe(420000);
+    expect(summary.grandTotal).toBe(720000);
   });
 
   test("rejects past date", () => {

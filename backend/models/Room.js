@@ -29,6 +29,12 @@ const roomSchema = new mongoose.Schema({
     required: [true, 'Capacity is required'],
     min: [1, 'Capacity must be at least 1']
   },
+  pricePerNight: {
+    type: Number,
+    required: [true, 'Price per night is required'],
+    min: [0, 'Price per night cannot be negative'],
+    default: 0
+  },
   amenities: [{
     type: String,
     trim: true

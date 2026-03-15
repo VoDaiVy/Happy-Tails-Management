@@ -18,7 +18,7 @@ const normalizeCartItem = (item = {}) => {
     price: unitPrice,
     duration,
     durationUnit,
-    subtotal: unitPrice * quantity,
+    subtotal: type === "stay" ? unitPrice * duration : unitPrice * quantity,
   };
 };
 

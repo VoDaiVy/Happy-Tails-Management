@@ -162,7 +162,15 @@ const BookingBoard = () => {
         if (selectedDate) params.date = selectedDate;
 
         const response = await getAllBookings(params);
-        let fetchedBookings = response.data || [];
+        const fetchedRaw = response?.data;
+        let fetchedBookings = [];
+        if (Array.isArray(fetchedRaw)) {
+          fetchedBookings = fetchedRaw;
+        } else if (Array.isArray(fetchedRaw?.bookings)) {
+          fetchedBookings = fetchedRaw.bookings;
+        } else if (Array.isArray(response?.bookings)) {
+          fetchedBookings = response.bookings;
+        }
 
         // Staff only sees: unassigned pending bookings OR their own accepted bookings
         if (role === "staff" && currentUserId) {
@@ -185,7 +193,7 @@ const BookingBoard = () => {
         setBookings(fetchedBookings);
       } catch (err) {
         console.error("Error fetching bookings:", err);
-        setError(err.response?.data?.message || "Cannot load bookings");
+        setError(err.response?.data?.error?.message || err.response?.data?.message || "Cannot load bookings");
       } finally {
         setLoading(false);
         setIsRefreshing(false);

@@ -47,7 +47,7 @@ const cartItemSchema = new mongoose.Schema({
   duration: {
     type: Number,
     required: true,
-    min: [1, 'Duration must be at least 1 minute']
+    min: [0, 'Duration cannot be negative']
   },
   durationUnit: {
     type: String,

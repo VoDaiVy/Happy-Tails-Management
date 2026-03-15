@@ -925,9 +925,9 @@ exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
   });
 });
 
-const buildStayRange = ({ checkInDate, checkOutDate }) => {
-  const checkIn = new Date(checkInDate);
-  const checkOut = new Date(checkOutDate);
+const buildStayRange = ({ checkInDate, checkInTime = '00:00', checkOutDate, checkOutTime = '00:00' }) => {
+  const checkIn = new Date(`${String(checkInDate).split('T')[0]}T${checkInTime}:00`);
+  const checkOut = new Date(`${String(checkOutDate).split('T')[0]}T${checkOutTime}:00`);
 
   if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime()) || checkOut <= checkIn) {
     return null;
@@ -1011,14 +1011,25 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     voucherCode,
     notes,
     stayCheckInDate,
+    stayCheckInTime,
     stayCheckOutDate,
+    stayCheckOutTime,
   } = req.body;
   const paymentMethod = "wallet";
 
-  const apptDate = parseAppointmentDate({ appointmentDate, bookingDate: date, bookingTime: time });
+  const derivedAppointmentFromStay =
+    stayCheckInDate && stayCheckInTime
+      ? `${stayCheckInDate}T${stayCheckInTime}:00`
+      : null;
+
+  const apptDate = parseAppointmentDate({
+    appointmentDate: appointmentDate || derivedAppointmentFromStay,
+    bookingDate: date,
+    bookingTime: time,
+  });
 
   if (!apptDate || !petId) {
-    return next(new AppError("appointmentDate (hoặc date + time) và petId là bắt buộc", 400, "MISSING_REQUIRED_FIELDS"));
+    return next(new AppError("Cần chọn thời gian dịch vụ (hoặc dùng giờ nhận phòng) và petId", 400, "MISSING_REQUIRED_FIELDS"));
   }
 
   if (Number.isNaN(apptDate.getTime())) {
@@ -1098,7 +1109,9 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     if (stayCartItem) {
       const stayRange = buildStayRange({
         checkInDate: stayCheckInDate || stayCartItem.metadata?.checkInDate,
+        checkInTime: stayCheckInTime || stayCartItem.metadata?.checkInTime || '00:00',
         checkOutDate: stayCheckOutDate || stayCartItem.metadata?.checkOutDate,
+        checkOutTime: stayCheckOutTime || stayCartItem.metadata?.checkOutTime || '10:00',
       });
 
       if (!stayRange) {
@@ -1120,35 +1133,69 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       }
 
       const roomId = stayCartItem.roomId || stayCartItem.refId;
-      const room = await Room.findById(roomId);
+      const requestedRoom = await Room.findById(roomId);
 
-      if (!room || !room.isActive) {
+      if (!requestedRoom || !requestedRoom.isActive) {
         return next(new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"));
       }
 
-      const hasConflict = await hasRoomOverlapBooking(room._id, stayRange.checkIn, stayRange.checkOut);
+      let selectedRoom = requestedRoom;
+      const hasConflict = await hasRoomOverlapBooking(requestedRoom._id, stayRange.checkIn, stayRange.checkOut);
       if (hasConflict) {
-        return next(new AppError("Phòng đã được đặt trong khoảng thời gian lưu trú này", 409, "ROOM_STAY_CONFLICT"));
+        const roomFilter = {
+          isActive: true,
+          type: requestedRoom.type,
+          _id: { $ne: requestedRoom._id },
+        };
+
+        const candidateRooms = await Room.find(roomFilter).sort({ pricePerNight: 1, roomNumber: 1 });
+        let replacement = null;
+        for (const candidate of candidateRooms) {
+          const candidateConflict = await hasRoomOverlapBooking(candidate._id, stayRange.checkIn, stayRange.checkOut);
+          if (!candidateConflict) {
+            replacement = candidate;
+            break;
+          }
+        }
+
+        if (!replacement) {
+          return next(
+            new AppError(
+              "Không còn phòng trống trong khoảng nhận/trả đã chọn. Vui lòng đổi ngày hoặc giờ trả phòng.",
+              409,
+              "ROOM_STAY_CONFLICT",
+            ),
+          );
+        }
+
+        selectedRoom = replacement;
       }
 
       const nights = Math.max(
         1,
         Number(stayCartItem.metadata?.nights) || Math.ceil((stayRange.checkOut - stayRange.checkIn) / (1000 * 60 * 60 * 24)),
       );
-      const pricePerNight = Number(stayCartItem.unitPrice ?? stayCartItem.price ?? 0);
+      const pricePerNight = Number(
+        selectedRoom.pricePerNight ??
+          stayCartItem.unitPrice ??
+          stayCartItem.price ??
+          0,
+      );
       const subtotal = pricePerNight * nights;
 
       stayInfo = {
         enabled: true,
-        room: room._id,
-        roomName: room.name,
+        room: selectedRoom._id,
+        roomName: selectedRoom.name,
         checkInDate: stayRange.checkIn,
         checkOutDate: stayRange.checkOut,
+        checkInTime: stayCheckInTime || stayCartItem.metadata?.checkInTime || '00:00',
+        checkOutTime: stayCheckOutTime || stayCartItem.metadata?.checkOutTime || '10:00',
         nights,
         pricePerNight,
         subtotal,
       };
-      bookingRoomId = room._id;
+      bookingRoomId = selectedRoom._id;
     }
 
     const overallStart = scheduledItems[0].startTime;
@@ -1174,11 +1221,11 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       );
     }
 
-    let totalAmount = Number(cart.grandTotal || cart.totalPrice || 0);
     const serviceSubtotal = Number(cart.serviceSubtotal || 0);
-    const staySubtotal = Number(cart.staySubtotal || 0);
     const serviceDurationTotal = Number(cart.serviceDurationTotal || 0);
-    const stayDurationTotal = Number(cart.stayDurationTotal || 0);
+    const staySubtotal = Number(stayInfo?.subtotal || 0);
+    const stayDurationTotal = Number(stayInfo?.nights || 0);
+    let totalAmount = serviceSubtotal + staySubtotal;
     let discount = 0;
     let voucherApplied = null;
 
@@ -1251,13 +1298,13 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         assignedRoom: item.assignedRoom,
       }));
 
-      // Deduct wallet balance atomically, auto-confirm booking
+      // Deduct wallet balance atomically; booking remains pending for staff confirmation
       await Wallet.findByIdAndUpdate(
         wallet._id,
         { $inc: { balance: -totalAmount, totalSpent: totalAmount } },
         { session },
       );
-      const bookingStatus = "confirmed";
+      const bookingStatus = "pending";
       const isPaid = true;
 
       const [booking] = await Booking.create(

@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import {
   AlertCircle,
   BarChart3,
   Clock3,
@@ -20,6 +29,13 @@ const currencyFormatter = new Intl.NumberFormat('vi-VN', {
 });
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
+
+const formatShort = (n) => {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return `${n || 0}`;
+};
 
 const RANGE_OPTIONS = [
   { label: '7 days', value: 7 },
@@ -41,6 +57,28 @@ const formatShortDate = (value) => {
     day: '2-digit',
     month: 'short',
   }).format(date);
+};
+
+const RevenueChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: 'rgba(15,24,32,0.96)',
+        backdropFilter: 'blur(14px)',
+        border: '1px solid rgba(217,120,83,0.25)',
+        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.50)',
+      }}
+      className="rounded-2xl px-4 py-3"
+    >
+      <p className="text-[10px] font-black uppercase tracking-widest mb-2.5 text-white/40">{formatShortDate(label)}</p>
+      <div className="flex items-center gap-2.5">
+        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'linear-gradient(135deg,#D97853,#f59e0b)' }} />
+        <span className="text-white font-black text-sm tabular-nums">{currencyFormatter.format(payload[0].value || 0)}</span>
+      </div>
+      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-white/35">{numberFormatter.format(payload[0].payload?.orders || 0)} orders</p>
+    </div>
+  );
 };
 
 const StatCard = ({ icon: Icon, label, value, accent, helper }) => (
@@ -93,7 +131,7 @@ const AdminDashboard = () => {
       const [overviewResponse, revenueResponse, topServicesResponse] = await Promise.all([
         getOverview(),
         getRevenueStats(filters),
-        getTopServices({ from: filters.from, to: filters.to, limit: 5 }),
+        getTopServices({ from: filters.from, to: filters.to, limit: 3 }),
       ]);
 
       setOverview(overviewResponse.data || null);
@@ -121,7 +159,11 @@ const AdminDashboard = () => {
     return () => window.clearInterval(intervalId);
   }, [loadDashboard]);
 
-  const peakRevenue = revenueChart.reduce((max, item) => Math.max(max, item.revenue || 0), 0);
+  const chartData = useMemo(() => (
+    (revenueChart || []).map((item) => ({
+      ...item,
+    }))
+  ), [revenueChart]);
 
   const stats = [
     {
@@ -235,7 +277,7 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.85fr] items-stretch">
         <div className="rounded-[24px] border border-[#2D3436]/8 bg-white p-6 shadow-[0_14px_40px_rgba(45,52,54,0.05)]">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -254,40 +296,44 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="flex h-[260px] items-end gap-3 rounded-[24px] bg-[linear-gradient(180deg,#fdfbf7_0%,#ffffff_100%)] p-4">
-            {(loading ? Array.from({ length: 7 }) : revenueChart).map((item, index) => {
-              const revenue = item?.revenue || 0;
-              const height = peakRevenue > 0 ? Math.max((revenue / peakRevenue) * 100, 8) : 8;
-
-              return (
-                <div key={item?.date || `loading-${index}`} className="flex h-full flex-1 flex-col justify-end gap-3">
-                  <div className="flex flex-1 items-end">
-                    <div
-                      className={`w-full rounded-t-[18px] ${loading ? 'animate-pulse bg-[#E8F3D6]' : 'bg-[linear-gradient(180deg,#7FB069_0%,#D97853_100%)]'} transition-all`}
-                      style={{ height: `${height}%` }}
-                      title={loading ? 'Loading' : `${item.date}: ${currencyFormatter.format(revenue)}`}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-center text-[11px] font-bold text-[#2D3436]/70">
-                      {loading ? '--' : formatShortDate(item.date)}
-                    </p>
-                    <p className="mt-1 text-center text-[10px] text-[#2D3436]/35">
-                      {loading ? '' : numberFormatter.format(item.orders || 0)} orders
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="h-[260px] rounded-[24px] bg-[linear-gradient(180deg,#fdfbf7_0%,#ffffff_100%)] p-4">
+            {loading ? (
+              <div className="h-full animate-pulse rounded-2xl bg-[#E8F3D6]/50" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="gRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#D97853" stopOpacity={0.55} />
+                      <stop offset="45%" stopColor="#f59e0b" stopOpacity={0.18} />
+                      <stop offset="100%" stopColor="#D97853" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 8" stroke="#EDE8E2" vertical={false} />
+                  <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={formatShort} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} width={52} />
+                  <Tooltip content={<RevenueChartTooltip />} cursor={{ stroke: 'rgba(217,120,83,0.25)', strokeWidth: 1, strokeDasharray: '5 4' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#D97853"
+                    strokeWidth={2.5}
+                    fill="url(#gRevenue)"
+                    dot={false}
+                    activeDot={{ r: 6, fill: '#D97853', stroke: '#fff', strokeWidth: 2.5 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-[24px] border border-[#2D3436]/8 bg-white p-6 shadow-[0_14px_40px_rgba(45,52,54,0.05)]">
+        <div className="h-full">
+          <div className="h-full rounded-[24px] border border-[#2D3436]/8 bg-white p-6 shadow-[0_14px_40px_rgba(45,52,54,0.05)]">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-black text-[#2D3436]">Top Services</h3>
-                <p className="mt-1 text-sm text-[#2D3436]/55">Highest revenue generators in the selected window</p>
+                <p className="mt-1 text-sm text-[#2D3436]/55">Top 3 services by completed booking orders</p>
               </div>
               <BarChart3 size={18} className="text-[#D97853]" />
             </div>
@@ -301,7 +347,7 @@ const AdminDashboard = () => {
                       <h4 className="mt-1 text-sm font-black text-[#2D3436]">{service.serviceName}</h4>
                     </div>
                     <span className="rounded-full bg-[#D97853]/10 px-3 py-1 text-xs font-bold text-[#D97853]">
-                      {service.revenueShare}
+                      {service.orderShare || `${numberFormatter.format(service.totalOrders || 0)} orders`}
                     </span>
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs text-[#2D3436]/60">
@@ -311,24 +357,9 @@ const AdminDashboard = () => {
                 </div>
               )) : (
                 <div className="rounded-[20px] bg-[#FDFBF7] p-5 text-sm text-[#2D3436]/55">
-                  No service revenue data found for this period.
+                  No completed booking data found for this period.
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-[#2D3436]/8 bg-[#2D3436] p-6 text-white shadow-[0_18px_50px_rgba(45,52,54,0.18)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/45">Realtime Summary</p>
-            <h3 className="mt-3 text-xl font-black">Operational snapshot</h3>
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              <div className="rounded-[20px] bg-white/8 p-4">
-                <p className="text-xs text-white/55">Completed Orders</p>
-                <p className="mt-2 text-2xl font-black">{numberFormatter.format(overview?.completedOrders || 0)}</p>
-              </div>
-              <div className="rounded-[20px] bg-white/8 p-4">
-                <p className="text-xs text-white/55">New Orders Today</p>
-                <p className="mt-2 text-2xl font-black">{numberFormatter.format(overview?.newOrdersToday || 0)}</p>
-              </div>
             </div>
           </div>
         </div>

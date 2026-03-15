@@ -45,26 +45,15 @@ const addToCartSchema = Joi.object({
     .messages({
       'number.min': 'Quantity must be at least 1',
       'number.max': 'Maximum quantity is 99'
-    })
-    .when('type', {
-      is: 'stay',
-      then: Joi.default(1),
-      otherwise: Joi.default(1)
     }),
   checkInDate: Joi.date()
     .iso()
-    .when('type', {
-      is: 'stay',
-      then: Joi.required(),
-      otherwise: Joi.optional().allow(null)
-    }),
+    .optional()
+    .allow(null),
   checkOutDate: Joi.date()
     .iso()
-    .when('type', {
-      is: 'stay',
-      then: Joi.required(),
-      otherwise: Joi.optional().allow(null)
-    }),
+    .optional()
+    .allow(null),
   nights: Joi.number()
     .integer()
     .min(1)

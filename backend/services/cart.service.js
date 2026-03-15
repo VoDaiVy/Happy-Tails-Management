@@ -17,6 +17,19 @@ const logger = require('../utils/logger');
 const notificationService = require('./notification.service');
 const { NOTIFICATION_TEMPLATES } = require('../constants/notification.constants');
 
+const FALLBACK_ROOM_PRICE_BY_TYPE = {
+  standard: 10,
+  deluxe: 15,
+  suite: 20,
+  vip: 25,
+};
+
+const resolveRoomNightPrice = (room) => {
+  const direct = Number(room?.pricePerNight ?? room?.price ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  return FALLBACK_ROOM_PRICE_BY_TYPE[String(room?.type || 'standard').toLowerCase()] || 0;
+};
+
 /**
  * Get user's cart (create if not exists)
  * @param {string} userId - User's ID
@@ -69,13 +82,38 @@ const addToCart = async (userId, payload) => {
       throw createError.notFound('Room not found');
     }
 
-    const checkIn = checkInDate ? new Date(checkInDate) : null;
-    const checkOut = checkOutDate ? new Date(checkOutDate) : null;
-    if (!checkIn || !checkOut || Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime()) || checkOut <= checkIn) {
+    const hasAnyStayDate = Boolean(checkInDate || checkOutDate);
+    const hasFullStayDate = Boolean(checkInDate && checkOutDate);
+    if (hasAnyStayDate && !hasFullStayDate) {
+      throw createError.badRequest('Both check-in and check-out are required');
+    }
+
+    const checkIn = hasFullStayDate ? new Date(checkInDate) : null;
+    const checkOut = hasFullStayDate ? new Date(checkOutDate) : null;
+    if (
+      hasFullStayDate &&
+      (!checkIn ||
+        !checkOut ||
+        Number.isNaN(checkIn.getTime()) ||
+        Number.isNaN(checkOut.getTime()) ||
+        checkOut <= checkIn)
+    ) {
       throw createError.badRequest('Check-in/check-out date is invalid');
     }
 
-    const calculatedNights = Math.max(1, Number(nights) || Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+    const roomNightPrice = resolveRoomNightPrice(room);
+    const calculatedNights = hasFullStayDate
+      ? Math.max(1, Number(nights) || Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)))
+      : 0;
+    const staySubtotal = roomNightPrice * calculatedNights;
+    const stayMetadata = {
+      ...metadata,
+      roomType: room.type,
+      checkInDate: hasFullStayDate ? checkIn.toISOString() : null,
+      checkOutDate: hasFullStayDate ? checkOut.toISOString() : null,
+      nights: calculatedNights,
+      pendingStay: !hasFullStayDate,
+    };
 
     const existingStay = cart.items.find(
       (item) => (item.type || 'service') === 'stay' && item.roomId && item.roomId.toString() === roomId,
@@ -85,16 +123,13 @@ const addToCart = async (userId, payload) => {
       existingStay.quantity = 1;
       existingStay.duration = calculatedNights;
       existingStay.durationUnit = 'days';
-      existingStay.unitPrice = room.pricePerNight;
-      existingStay.price = room.pricePerNight;
+      existingStay.unitPrice = roomNightPrice;
+      existingStay.price = roomNightPrice;
+      existingStay.subtotal = staySubtotal;
       existingStay.note = note || existingStay.note;
       existingStay.metadata = {
         ...existingStay.metadata,
-        ...metadata,
-        checkInDate: checkIn.toISOString(),
-        checkOutDate: checkOut.toISOString(),
-        nights: calculatedNights,
-        roomType: room.type,
+        ...stayMetadata,
       };
     } else {
       cart.items.push({
@@ -102,21 +137,15 @@ const addToCart = async (userId, payload) => {
         refId: room._id,
         roomId: room._id,
         name: room.name,
-        unitPrice: room.pricePerNight,
-        price: room.pricePerNight,
+        unitPrice: roomNightPrice,
+        price: roomNightPrice,
         duration: calculatedNights,
         durationUnit: 'days',
         imageUrl: room.images && room.images[0] ? room.images[0] : null,
         quantity: 1,
-        subtotal: room.pricePerNight * calculatedNights,
+        subtotal: staySubtotal,
         note,
-        metadata: {
-          ...metadata,
-          checkInDate: checkIn.toISOString(),
-          checkOutDate: checkOut.toISOString(),
-          nights: calculatedNights,
-          roomType: room.type,
-        },
+        metadata: stayMetadata,
       });
     }
 

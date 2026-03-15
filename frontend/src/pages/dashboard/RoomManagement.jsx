@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getRoomsList, createRoom, updateRoom, deleteRoom } from "../../api/roomApi";
+import { getErrorMessage } from "../../utils/apiResponseHandler";
 
 // Room types
 const ROOM_TYPES = [
@@ -131,6 +132,7 @@ const RoomManagement = () => {
       name: "",
       type: "standard",
       capacity: 1,
+      pricePerNight: 10,
       amenities: [],
       petTypes: ["dog", "cat"],
       description: "",
@@ -150,6 +152,7 @@ const RoomManagement = () => {
       name: room.name || "",
       type: room.type || "standard",
       capacity: room.capacity || 1,
+      pricePerNight: room.pricePerNight ?? 0,
       amenities: room.amenities || [],
       petTypes: room.petTypes || ["dog", "cat"],
       description: room.description || "",
@@ -167,9 +170,34 @@ const RoomManagement = () => {
     setFormError(null);
 
     try {
+      const roomNumber = String(formData.roomNumber || "").trim();
+      const roomName = String(formData.name || "").trim();
+      const capacity = Number(formData.capacity);
+      const pricePerNight = Number(formData.pricePerNight);
+
+      if (!roomNumber) {
+        setFormError("Room Number là bắt buộc");
+        return;
+      }
+      if (!roomName) {
+        setFormError("Room Name là bắt buộc");
+        return;
+      }
+      if (!Number.isFinite(capacity) || capacity < 1) {
+        setFormError("Capacity phải lớn hơn hoặc bằng 1");
+        return;
+      }
+      if (!Number.isFinite(pricePerNight) || pricePerNight < 0) {
+        setFormError("Giá/đêm phải lớn hơn hoặc bằng 0");
+        return;
+      }
+
       const submitData = {
         ...formData,
-        capacity: Number(formData.capacity),
+        roomNumber,
+        name: roomName,
+        capacity,
+        pricePerNight,
       };
 
       if (modalMode === "create") {
@@ -181,7 +209,7 @@ const RoomManagement = () => {
       setShowModal(false);
       fetchRooms();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Có lỗi xảy ra");
+      setFormError(getErrorMessage(err) || "Có lỗi xảy ra");
     } finally {
       setFormLoading(false);
     }
@@ -198,7 +226,7 @@ const RoomManagement = () => {
       setRoomToDelete(null);
       fetchRooms();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Cannot delete room");
+      setFormError(getErrorMessage(err) || "Cannot delete room");
     } finally {
       setFormLoading(false);
     }
@@ -583,6 +611,24 @@ const RoomManagement = () => {
                       min="1"
                       className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                       placeholder="1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Price / Night <span className="text-[#D97853]">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.pricePerNight}
+                      onChange={(e) =>
+                        setFormData({ ...formData, pricePerNight: e.target.value })
+                      }
+                      required
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                      placeholder="10"
                     />
                   </div>
                 </div>

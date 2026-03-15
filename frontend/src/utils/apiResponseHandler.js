@@ -77,6 +77,13 @@ export const getErrorMessage = (error) => {
   if (error.response?.data?.message) {
     return error.response.data.message;
   }
+  if (error.response?.data?.error?.message) {
+    return error.response.data.error.message;
+  }
+  if (Array.isArray(error.response?.data?.error?.details) && error.response.data.error.details.length > 0) {
+    const first = error.response.data.error.details[0];
+    return first?.message || 'Validation failed';
+  }
   if (error.response?.data?.errors) {
     return error.response.data.errors[0] || 'An error occurred';
   }

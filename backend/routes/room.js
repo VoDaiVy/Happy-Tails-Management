@@ -25,6 +25,7 @@ router.use(protect);
 router.use(restrictTo('admin'));
 
 router.post('/', createRoom);  // POST /api/rooms - Create room
+router.post('/add', createRoom);  // POST /api/rooms/add - Backward-compatible create room endpoint
 
 router.route('/:id')
   .put(updateRoom)          // PUT /api/rooms/:id - Update room

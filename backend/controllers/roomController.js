@@ -5,7 +5,7 @@
 
 const Room = require('../models/Room');
 const { catchAsync } = require('../utils/catchAsync');
-const AppError = require('../utils/AppError');
+const { AppError, createError } = require('../utils/AppError');
 
 /**
  * Get all rooms
@@ -61,16 +61,43 @@ exports.getRoomById = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.createRoom = catchAsync(async (req, res, next) => {
-  const { roomNumber, name, type, capacity, amenities, images, petTypes, description } = req.body;
+  const { roomNumber, name, type, capacity, pricePerNight, amenities, images, petTypes, description } = req.body;
+
+  if (!roomNumber || !name || capacity === undefined || capacity === null || pricePerNight === undefined || pricePerNight === null) {
+    return next(createError.validation('Room number, room name, capacity and pricePerNight are required'));
+  }
+
+  const normalizedType = typeof type === 'string' ? type.toLowerCase() : 'standard';
+  const normalizedPetTypes = Array.isArray(petTypes)
+    ? petTypes.map((p) => String(p).toLowerCase())
+    : ['dog', 'cat'];
+  const normalizedAmenities = Array.isArray(amenities) ? amenities : [];
+  const normalizedImages = Array.isArray(images) ? images : [];
+  const normalizedCapacity = Number(capacity);
+  const normalizedPricePerNight = Number(pricePerNight);
+
+  if (!Number.isFinite(normalizedCapacity) || normalizedCapacity < 1) {
+    return next(createError.validation('Capacity must be a number greater than or equal to 1'));
+  }
+
+  if (!Number.isFinite(normalizedPricePerNight) || normalizedPricePerNight < 0) {
+    return next(createError.validation('Price per night must be a number greater than or equal to 0'));
+  }
+
+  const existingRoom = await Room.findOne({ roomNumber: String(roomNumber).trim() });
+  if (existingRoom) {
+    return next(createError.conflict(`Room number '${roomNumber}' already exists`, 'ROOM_NUMBER_EXISTS'));
+  }
 
   const room = await Room.create({
-    roomNumber,
-    name,
-    type,
-    capacity,
-    amenities,
-    images,
-    petTypes,
+    roomNumber: String(roomNumber).trim(),
+    name: String(name).trim(),
+    type: normalizedType,
+    capacity: normalizedCapacity,
+    pricePerNight: normalizedPricePerNight,
+    amenities: normalizedAmenities,
+    images: normalizedImages,
+    petTypes: normalizedPetTypes,
     description,
     createdBy: req.user.id
   });
@@ -88,23 +115,39 @@ exports.createRoom = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.updateRoom = catchAsync(async (req, res, next) => {
-  const { roomNumber, name, type, capacity, amenities, images, petTypes, isAvailable, isActive, description } = req.body;
+  const { roomNumber, name, type, capacity, pricePerNight, amenities, images, petTypes, isAvailable, isActive, description } = req.body;
+
+  const updates = {
+    updatedBy: req.user.id
+  };
+
+  if (roomNumber !== undefined) updates.roomNumber = String(roomNumber).trim();
+  if (name !== undefined) updates.name = String(name).trim();
+  if (type !== undefined) updates.type = String(type).toLowerCase();
+  if (capacity !== undefined) {
+    const normalizedCapacity = Number(capacity);
+    if (!Number.isFinite(normalizedCapacity) || normalizedCapacity < 1) {
+      return next(createError.validation('Capacity must be a number greater than or equal to 1'));
+    }
+    updates.capacity = normalizedCapacity;
+  }
+  if (pricePerNight !== undefined) {
+    const normalizedPricePerNight = Number(pricePerNight);
+    if (!Number.isFinite(normalizedPricePerNight) || normalizedPricePerNight < 0) {
+      return next(createError.validation('Price per night must be a number greater than or equal to 0'));
+    }
+    updates.pricePerNight = normalizedPricePerNight;
+  }
+  if (amenities !== undefined) updates.amenities = Array.isArray(amenities) ? amenities : [];
+  if (images !== undefined) updates.images = Array.isArray(images) ? images : [];
+  if (petTypes !== undefined) updates.petTypes = Array.isArray(petTypes) ? petTypes.map((p) => String(p).toLowerCase()) : [];
+  if (isAvailable !== undefined) updates.isAvailable = Boolean(isAvailable);
+  if (isActive !== undefined) updates.isActive = Boolean(isActive);
+  if (description !== undefined) updates.description = description;
 
   const room = await Room.findByIdAndUpdate(
     req.params.id,
-    {
-      roomNumber,
-      name,
-      type,
-      capacity,
-      amenities,
-      images,
-      petTypes,
-      isAvailable,
-      isActive,
-      description,
-      updatedBy: req.user.id
-    },
+    updates,
     { new: true, runValidators: true }
   );
 
