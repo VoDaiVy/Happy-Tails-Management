@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import {
   CalendarDays,
@@ -12,7 +13,11 @@ import {
 } from "lucide-react";
 import TimeSlotPicker from "./TimeSlotPicker";
 import CalendarPicker from "./CalendarPicker";
-import { checkoutBooking, getAvailableSlots } from "../../api/bookingApi";
+import {
+  checkoutBooking,
+  getAvailableSlots,
+  getMyBookings,
+} from "../../api/bookingApi";
 import { addServiceToCart } from "../../api/cartApi";
 import { getMyPets } from "../../api/petApi";
 import { getWallet } from "../../api/walletApi";
@@ -48,15 +53,23 @@ export default function ServiceBookingPanel({ service }) {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [cartMessage, setCartMessage] = useState("");
-  const [bookedSlots, setBookedSlots] = useState([]);
+  const [serviceDisabledSlots, setServiceDisabledSlots] = useState([]);
+  const [petConflictSlots, setPetConflictSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotHint, setSlotHint] = useState("");
   const [confirmedData, setConfirmedData] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
   const hasToken = Boolean(localStorage.getItem("accessToken"));
+  const navigate = useNavigate();
   const servicePrice = Number(service.price) || 0;
+  const serviceDurationMinutes = useMemo(() => {
+    const parsed = parseInt(String(service.duration || "").replace(/\D/g, ""), 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    return Math.max(15, Number(service.intervalMinutes) || 15);
+  }, [service.duration, service.intervalMinutes]);
 
   useEffect(() => {
     if (!hasToken) return;
@@ -82,10 +95,10 @@ export default function ServiceBookingPanel({ service }) {
         const result = await getMyPets({ active: "true", limit: 50 });
         const pets = Array.isArray(result?.data?.pets) ? result.data.pets : [];
         const mappedPets = pets.map((pet) => ({
-          id: pet._id,
+          id: String(pet._id || pet.id || ""),
           name: pet.petName || "Unnamed pet",
           breed: pet.breed || pet.petType || "",
-        }));
+        })).filter((pet) => pet.id);
         if (alive) setApiPets(mappedPets);
       } catch {
         if (alive) setApiPets([]);
@@ -110,20 +123,105 @@ export default function ServiceBookingPanel({ service }) {
 
   useEffect(() => {
     let alive = true;
+
+    const slotToMinutes = (slot = "00:00") => {
+      const [h, m] = String(slot).split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const buildPetConflictSlotsFromBookings = (bookings = []) => {
+      if (!selectedPet) return [];
+
+      const activeStatuses = new Set(["pending", "confirmed", "in-progress"]);
+      const ranges = [];
+
+      bookings.forEach((booking) => {
+        if (!activeStatuses.has(String(booking?.status || ""))) return;
+
+        (booking?.items || []).forEach((item) => {
+          const itemPetId = String(item?.pet?._id || item?.pet || "");
+          if (!itemPetId || itemPetId !== String(selectedPet)) return;
+          if (!item?.startTime || !item?.endTime) return;
+
+          const start = new Date(item.startTime);
+          const end = new Date(item.endTime);
+          if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+
+          ranges.push({ start, end });
+        });
+      });
+
+      if (!ranges.length) return [];
+
+      return timeSlots.filter((slot) => {
+        const slotStart = new Date(`${selectedDate}T${slot}:00`);
+        if (Number.isNaN(slotStart.getTime())) return false;
+
+        const slotEnd = new Date(
+          slotStart.getTime() + serviceDurationMinutes * 60 * 1000,
+        );
+
+        return ranges.some(({ start, end }) => start < slotEnd && end > slotStart);
+      });
+    };
+
     const fetchSlots = async () => {
-      if (!selectedDate || !linkedServiceId) {
-        if (alive) setBookedSlots([]);
+      if (!selectedDate || !selectedPet || !linkedServiceId) {
+        if (alive) {
+          setServiceDisabledSlots([]);
+          setPetConflictSlots([]);
+        }
         return;
       }
+
       setSlotsLoading(true);
+
       try {
-        const res = await getAvailableSlots(selectedDate, linkedServiceId);
-        if (alive && res?.data?.disabledSlots) {
-          setBookedSlots(res.data.disabledSlots);
+        const normalizedPetId = selectedPet ? String(selectedPet) : undefined;
+        const res = await getAvailableSlots(
+          selectedDate,
+          linkedServiceId,
+          normalizedPetId,
+        );
+
+        const serviceDisabled = Array.isArray(res?.data?.serviceDisabledSlots)
+          ? res.data.serviceDisabledSlots
+          : Array.isArray(res?.data?.disabledSlots)
+            ? res.data.disabledSlots
+            : [];
+
+        let petConflict = Array.isArray(res?.data?.petConflictSlots)
+          ? res.data.petConflictSlots
+          : [];
+
+        if (normalizedPetId && petConflict.length === 0) {
+          try {
+            const myBookingsRes = await getMyBookings();
+            const myBookings = Array.isArray(myBookingsRes?.data?.bookings)
+              ? myBookingsRes.data.bookings
+              : [];
+            petConflict = buildPetConflictSlotsFromBookings(myBookings);
+          } catch (fallbackErr) {
+            console.error("Fallback pet conflict check failed", fallbackErr);
+          }
+        }
+
+        const normalizedServiceDisabled = [...new Set(serviceDisabled)].sort(
+          (a, b) => slotToMinutes(a) - slotToMinutes(b),
+        );
+
+        const normalizedPetConflict = normalizedPetId
+          ? [...new Set(petConflict)].sort(
+          (a, b) => slotToMinutes(a) - slotToMinutes(b),
+          )
+          : [];
+
+        if (alive) {
+          setServiceDisabledSlots(normalizedServiceDisabled);
+          setPetConflictSlots(normalizedPetConflict);
         }
       } catch (err) {
         console.error("Failed to fetch disabled slots", err);
-        if (alive) setBookedSlots([]);
       } finally {
         if (alive) setSlotsLoading(false);
       }
@@ -132,12 +230,41 @@ export default function ServiceBookingPanel({ service }) {
     return () => {
       alive = false;
     };
-  }, [selectedDate, linkedServiceId]);
+  }, [
+    selectedDate,
+    linkedServiceId,
+    selectedPet,
+    timeSlots,
+    serviceDurationMinutes,
+  ]);
+
+  useEffect(() => {
+    if (!selectedSlot) return;
+
+    const blockedByPetConflict = petConflictSlots.includes(selectedSlot);
+    const blockedByServiceCapacity = serviceDisabledSlots.includes(selectedSlot);
+
+    if (!blockedByPetConflict && !blockedByServiceCapacity) {
+      setSlotHint("");
+      return;
+    }
+
+    setSelectedSlot("");
+
+    if (blockedByPetConflict) {
+      setSlotHint(
+        "The selected time conflicts with your pet's existing booking. Please choose another time.",
+      );
+      return;
+    }
+
+    setSlotHint("The selected time slot is full. Please choose another slot.");
+  }, [petConflictSlots, selectedSlot, serviceDisabledSlots]);
 
   /* lock logic */
-  const step2Locked = !selectedDate;
-  const step3Locked = !selectedSlot;
-  const step4Locked = !selectedPet;
+  const step2Locked = !selectedPet;
+  const step3Locked = !selectedPet || !selectedDate;
+  const step4Locked = !selectedPet || !selectedDate || !selectedSlot;
 
   const canBook =
     selectedDate >= today &&
@@ -171,7 +298,7 @@ export default function ServiceBookingPanel({ service }) {
     setCartMessage("");
 
     if (!linkedServiceId) {
-      setSubmitError("Dịch vụ chưa đồng bộ backend.");
+      setSubmitError("This service is not synced with the backend yet.");
       return;
     }
 
@@ -185,10 +312,12 @@ export default function ServiceBookingPanel({ service }) {
           serviceTitle: service.title,
         },
       });
-      setCartMessage("Đã thêm dịch vụ vào giỏ hàng. Bạn có thể vào giỏ để checkout nhiều dịch vụ cùng lúc.");
+      setCartMessage(
+        "Service added to cart. You can complete checkout in Cart with multiple services.",
+      );
     } catch (error) {
       const errPayload = error?.response?.data?.error || error?.response?.data || {};
-      const errMsg = errPayload.message || error?.message || "Không thể thêm vào giỏ hàng";
+      const errMsg = errPayload.message || error?.message || "Unable to add this service to cart.";
       setSubmitError(errMsg);
     }
   };
@@ -198,13 +327,13 @@ export default function ServiceBookingPanel({ service }) {
     setSubmitSuccess("");
 
     if (!linkedServiceId) {
-      setSubmitError("Service nay chua lien ket voi backend API.");
+      setSubmitError("This service is not linked to the backend API.");
       return;
     }
 
     const token = localStorage.getItem("accessToken");
     if (!token) {
-      setSubmitError("Vui long dang nhap de dat lich.");
+      setSubmitError("Please sign in to continue booking.");
       return;
     }
 
@@ -262,8 +391,8 @@ export default function ServiceBookingPanel({ service }) {
 
       setSubmitSuccess(
         bookingNumber
-          ? `Booking thanh cong (#${bookingNumber}).`
-          : "Booking thanh cong.",
+          ? `Booking completed (#${bookingNumber}).`
+          : "Booking completed.",
       );
 
       setSelectedSlot("");
@@ -281,18 +410,20 @@ export default function ServiceBookingPanel({ service }) {
 
       if (isBookingNumberError) {
         setSubmitError(
-          "Khong the tao booking hien tai vi he thong dang thieu ma booking. Vui long lien he ho tro hoac thu lai sau.",
+          "We could not create your booking because the system failed to generate a booking number. Please try again later or contact support.",
         );
         return;
       }
       if (error?.response?.status === 409 && errMsg.includes("is full")) {
-        setBookedSlots((prev) => [...prev, selectedSlot]);
+        setServiceDisabledSlots((prev) =>
+          prev.includes(selectedSlot) ? prev : [...prev, selectedSlot],
+        );
         setSubmitError(
           "The selected time slot is already full (exceeds 6 pets). Please choose another time.",
         );
         setSelectedSlot("");
       } else {
-        setSubmitError(`Lỗi: ${errMsg}`);
+        setSubmitError(errMsg);
       }
     } finally {
       setIsSubmitting(false);
@@ -412,28 +543,102 @@ export default function ServiceBookingPanel({ service }) {
         </div>
       )}
 
-      {/* ══════════════ STEP 1 — Date ══════════════ */}
-      <SectionLabel icon={CalendarDays} label="Select Date" step={1} />
-      <CalendarPicker
-        selectedDate={selectedDate}
-        onChange={(date) => {
-          setSelectedDate(date);
-          setSelectedSlot("");
-          setSelectedPet("");
-          setSubmitError("");
-          setSubmitSuccess("");
-        }}
+      {/* ══════════════ STEP 1 — Pet ══════════════ */}
+      <SectionLabel icon={PawPrint} label="Select Your Pet" step={1} />
+      {!hasToken ? (
+        <div className="text-xs text-gray-500 py-2">
+          Please sign in to load your pets.
+        </div>
+      ) : petsLoading ? (
+        <div className="text-xs text-gray-400 py-2">Loading pets...</div>
+      ) : pets.length === 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3">
+          <p className="text-xs font-semibold text-amber-700">
+            No pets found in your account.
+          </p>
+          <p className="mt-1 text-xs text-amber-600">
+            Add your pet first to continue booking this service.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/pets")}
+            className="mt-3 inline-flex items-center rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+          >
+            + Add Pet
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {pets.map((pet) => (
+            <button
+              key={pet.id}
+              onClick={() => {
+                setSelectedPet(pet.id);
+                setSelectedSlot("");
+                setSlotHint("");
+                setSubmitError("");
+                setSubmitSuccess("");
+              }}
+              className={`rounded-lg border-2 px-3 py-2 text-left text-xs transition
+              ${
+                selectedPet === pet.id
+                  ? "border-[#E07A5F] bg-[#E07A5F]/5 text-[#E07A5F] shadow-sm"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-[#E07A5F]/40"
+              }`}
+            >
+              <span className="font-semibold block">{pet.name}</span>
+              <span className="text-[11px] text-gray-400">{pet.breed}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Note */}
+      <textarea
+        rows={2}
+        placeholder={
+          selectedPet
+            ? "Special notes for this booking..."
+            : "Select a pet first to add notes"
+        }
+        value={note}
+        disabled={!selectedPet}
+        onChange={(e) => setNote(e.target.value)}
+        className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 outline-none focus:border-[#E07A5F] focus:ring-2 focus:ring-[#E07A5F]/20 transition resize-none disabled:cursor-not-allowed disabled:opacity-60"
       />
 
       <Divider />
 
-      {/* ══════════════ STEP 2 — Time ══════════════ */}
+      {/* ══════════════ STEP 2 — Date ══════════════ */}
       <div className={step2Locked ? "opacity-40 pointer-events-none" : ""}>
+        <SectionLabel
+          icon={CalendarDays}
+          label="Select Date"
+          step={2}
+          locked={step2Locked}
+        />
+        <CalendarPicker
+          selectedDate={selectedDate}
+          disabled={step2Locked}
+          onChange={(date) => {
+            setSelectedDate(date);
+            setSelectedSlot("");
+            setSlotHint("");
+            setSubmitError("");
+            setSubmitSuccess("");
+          }}
+        />
+      </div>
+
+      <Divider />
+
+      {/* ══════════════ STEP 3 — Time ══════════════ */}
+      <div className={step3Locked ? "opacity-40 pointer-events-none" : ""}>
         <SectionLabel
           icon={Clock}
           label="Pick a Time Slot"
-          step={2}
-          locked={step2Locked}
+          step={3}
+          locked={step3Locked}
         />
         {slotsLoading ? (
           <div className="text-xs text-gray-400 py-2 animate-pulse">
@@ -443,68 +648,19 @@ export default function ServiceBookingPanel({ service }) {
           <TimeSlotPicker
             selectedDate={selectedDate}
             slots={timeSlots}
-            bookedSlots={bookedSlots}
+            bookedSlots={serviceDisabledSlots}
+            hiddenSlots={petConflictSlots}
             selectedSlot={selectedSlot}
             onSelect={(slot) => {
+              setSlotHint("");
               setSelectedSlot(slot);
             }}
             intervalMinutes={service.intervalMinutes}
           />
         )}
-      </div>
-
-      <Divider />
-
-      {/* ══════════════ STEP 3 — Pet ══════════════ */}
-      <div className={step3Locked ? "opacity-40 pointer-events-none" : ""}>
-        <SectionLabel
-          icon={PawPrint}
-          label="Select Your Pet"
-          step={3}
-          locked={step3Locked}
-        />
-        {!hasToken ? (
-          <div className="text-xs text-gray-500 py-2">
-            Vui long dang nhap de tai danh sach pet.
-          </div>
-        ) : petsLoading ? (
-          <div className="text-xs text-gray-400 py-2">Loading pets...</div>
-        ) : pets.length === 0 ? (
-          <div className="text-xs text-gray-500 py-2">
-            Khong tim thay pet trong tai khoan. Vui long them pet truoc khi dat
-            lich.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {pets.map((pet) => (
-              <button
-                key={pet.id}
-                onClick={() => {
-                  setSelectedPet(pet.id);
-                  setSubmitError("");
-                }}
-                className={`rounded-lg border-2 px-3 py-2 text-left text-xs transition
-                ${
-                  selectedPet === pet.id
-                    ? "border-[#E07A5F] bg-[#E07A5F]/5 text-[#E07A5F] shadow-sm"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-[#E07A5F]/40"
-                }`}
-              >
-                <span className="font-semibold block">{pet.name}</span>
-                <span className="text-[11px] text-gray-400">{pet.breed}</span>
-              </button>
-            ))}
-          </div>
+        {slotHint && (
+          <p className="mt-2 text-[11px] text-amber-600 font-medium">{slotHint}</p>
         )}
-
-        {/* Note */}
-        <textarea
-          rows={2}
-          placeholder="Special notes for this booking..."
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 outline-none focus:border-[#E07A5F] focus:ring-2 focus:ring-[#E07A5F]/20 transition resize-none"
-        />
       </div>
 
       <Divider />
@@ -522,9 +678,9 @@ export default function ServiceBookingPanel({ service }) {
         {hasToken && (
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs mb-3">
             <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-semibold">💳 Ví của bạn:</span>
+              <span className="text-gray-500 font-semibold">Wallet balance:</span>
               {walletLoading ? (
-                <span className="text-gray-400">Đang tải...</span>
+                <span className="text-gray-400">Loading...</span>
               ) : walletBalance !== null ? (
                 <span
                   className={
@@ -533,24 +689,25 @@ export default function ServiceBookingPanel({ service }) {
                       : "text-red-500 font-bold"
                   }
                 >
-                  {walletBalance.toLocaleString("vi-VN")}đ
+                  {walletBalance.toLocaleString("en-US")} VND
                 </span>
               ) : (
-                <span className="text-gray-400">Không xác địnhđược</span>
+                <span className="text-gray-400">Unavailable</span>
               )}
             </div>
             <div className="flex justify-between items-center mt-1">
-              <span className="text-gray-500">Phí dịch vụ:</span>
+              <span className="text-gray-500">Service fee:</span>
               <span className="font-bold text-[#E07A5F]">
-                {servicePrice.toLocaleString("vi-VN")}đ
+                {servicePrice.toLocaleString("en-US")} VND
               </span>
             </div>
             {walletBalance !== null && walletBalance < servicePrice && (
               <div className="mt-2 rounded bg-red-50 border border-red-100 px-2 py-1 text-red-600">
-                ⚠️ Số dư không đủ. Vui lòng{" "}
+                Insufficient balance. Please{" "}
                 <a href="/wallet" className="underline font-semibold">
-                  nạp thêm tiền
-                </a>.
+                  top up your wallet
+                </a>
+                .
               </div>
             )}
           </div>
@@ -599,7 +756,7 @@ export default function ServiceBookingPanel({ service }) {
 
         {!linkedServiceId && (
           <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            Service nay chua duoc map voi backend API, chua the checkout.
+            This service is not mapped to the backend API yet, so checkout is unavailable.
           </div>
         )}
 

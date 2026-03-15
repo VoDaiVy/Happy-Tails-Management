@@ -17,8 +17,10 @@ export const getMyBookings = async (params = {}) => {
 };
 
 // Get available slots
-export const getAvailableSlots = async (date, serviceId) => {
-  const response = await axiosInstance.get("/bookings/available-slots", { params: { date, serviceId } });
+export const getAvailableSlots = async (date, serviceId, petId) => {
+  const params = { date, serviceId };
+  if (petId) params.petId = String(petId);
+  const response = await axiosInstance.get("/bookings/available-slots", { params });
   return response.data;
 };
 

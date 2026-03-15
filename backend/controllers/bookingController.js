@@ -75,6 +75,11 @@ const isAlignedTo15Minutes = (date) =>
 const formatBookingTime = (date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
+const slotLabelToMinutes = (slot = "00:00") => {
+  const [h, m] = String(slot).split(":").map(Number);
+  return h * 60 + m;
+};
+
 const inferServiceGroup = (service) => {
   if (service.group === "wet" || service.group === "dry") {
     return service.group;
@@ -303,6 +308,60 @@ const getServiceDayDisabledSlots = async (service, date) => {
   }
 
   return slots;
+};
+
+const getPetDayConflictSlots = async ({ petId, date, serviceDurationMin }) => {
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+
+  const bookings = await Booking.find({
+    status: { $in: ACTIVE_STATUSES },
+    items: {
+      $elemMatch: {
+        pet: petId,
+        startTime: { $lt: dayEnd },
+        endTime: { $gt: dayStart },
+      },
+    },
+  })
+    .select("items")
+    .lean();
+
+  const overlapRanges = [];
+  for (const booking of bookings) {
+    for (const item of booking.items || []) {
+      if (!item?.pet || String(item.pet) !== String(petId)) continue;
+      if (!item.startTime || !item.endTime) continue;
+
+      const start = new Date(item.startTime);
+      const end = new Date(item.endTime);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
+      if (start >= dayEnd || end <= dayStart) continue;
+
+      overlapRanges.push({ start, end });
+    }
+  }
+
+  if (overlapRanges.length === 0) return [];
+
+  const conflictSlots = [];
+  for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
+    for (let m = 0; m < 60; m += 15) {
+      const slotStart = new Date(dayStart);
+      slotStart.setHours(h, m, 0, 0);
+      const slotEnd = new Date(slotStart.getTime() + serviceDurationMin * 60 * 1000);
+
+      const hasConflict = overlapRanges.some(
+        ({ start, end }) => start < slotEnd && end > slotStart,
+      );
+
+      if (hasConflict) {
+        conflictSlots.push(formatBookingTime(slotStart));
+      }
+    }
+  }
+
+  return conflictSlots;
 };
 
 const validateCapacityAndAssignRooms = async (scheduledItems) => {
@@ -955,7 +1014,7 @@ const hasRoomOverlapBooking = async (roomId, checkIn, checkOut) => {
  * @access Private (Customer)
  */
 exports.getAvailableSlots = catchAsync(async (req, res, next) => {
-  const { date, serviceId } = req.query;
+  const { date, serviceId, petId } = req.query;
 
   if (!date || !serviceId) {
     return next(new AppError('date và serviceId là bắt buộc', 400, 'MISSING_REQUIRED_FIELDS'));
@@ -971,13 +1030,35 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
     return next(new AppError('Dịch vụ không tồn tại hoặc không còn hoạt động', 404, 'SERVICE_NOT_FOUND'));
   }
 
-  const disabledSlots = await getServiceDayDisabledSlots(service, day);
+  const serviceDisabledSlots = await getServiceDayDisabledSlots(service, day);
+
+  let petConflictSlots = [];
+  if (petId) {
+    const pet = await UserPet.findOne({ _id: petId, userID: req.user.id }).select("_id");
+    if (!pet) {
+      return next(new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"));
+    }
+
+    const serviceDurationMin = Math.max(15, Number(service.duration) || 15);
+    petConflictSlots = await getPetDayConflictSlots({
+      petId,
+      date: day,
+      serviceDurationMin,
+    });
+  }
+
+  const disabledSlots = [...new Set([...serviceDisabledSlots, ...petConflictSlots])].sort(
+    (a, b) => slotLabelToMinutes(a) - slotLabelToMinutes(b),
+  );
 
   return res.status(200).json({
     status: 'success',
     data: {
       disabledSlots,
+      serviceDisabledSlots,
+      petConflictSlots,
       serviceId,
+      petId: petId || null,
       date: startOfDay(day).toISOString(),
       maxCapacity: Math.max(1, Number(service.maxCapacity) || 1),
     },

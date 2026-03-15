@@ -598,7 +598,7 @@ export default function WalletPage() {
               initial={{ opacity: 0, y: 32, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 230, damping: 24, delay: 0.22 }}
-              className="lg:col-span-3 relative rounded-3xl overflow-hidden bg-white border border-[#1C2B33]/8"
+              className="lg:col-span-3 relative rounded-3xl overflow-hidden bg-white border border-[#1C2B33]/8 flex flex-col lg:h-[560px]"
               style={{ boxShadow: '0 8px 32px -4px rgba(28,43,51,0.10)' }}
             >
               {/* Subtle orange radial accent top-right */}
@@ -606,7 +606,7 @@ export default function WalletPage() {
               {/* Paw watermarks */}
               <div className="absolute -right-8 -bottom-8 text-[#D97853]" style={{ width: 160, height: 160, opacity: 0.055 }}><PawPrint /></div>
 
-              <div className="relative z-10 p-6">
+              <div className="relative z-10 p-6 h-full flex flex-col">
                 {/* Header */}
                 <div className="flex items-end justify-between mb-5">
                   <div>
@@ -633,34 +633,36 @@ export default function WalletPage() {
                 </div>
 
                 {txLoading ? (
-                  <div className="h-52 flex items-center justify-center">
+                  <div className="h-52 lg:h-full flex items-center justify-center">
                     <Loader2 size={24} className="animate-spin text-[#D97853]" />
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={215}>
-                    <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                      <defs>
-                        <linearGradient id="gDeposit" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%"   stopColor="#D97853" stopOpacity={0.55} />
-                          <stop offset="45%"  stopColor="#f59e0b" stopOpacity={0.18} />
-                          <stop offset="100%" stopColor="#D97853" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="4 8" stroke="#EDE8E2" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={formatShort} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} width={46} />
-                      <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(217,120,83,0.25)', strokeWidth: 1, strokeDasharray: '5 4' }} />
-                      <Area
-                        type="monotone"
-                        dataKey="Top Up"
-                        stroke="#D97853"
-                        strokeWidth={2.5}
-                        fill="url(#gDeposit)"
-                        dot={false}
-                        activeDot={{ r: 6, fill: '#D97853', stroke: '#fff', strokeWidth: 2.5 }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <div className="h-52 lg:flex-1 lg:min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                        <defs>
+                          <linearGradient id="gDeposit" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"   stopColor="#D97853" stopOpacity={0.55} />
+                            <stop offset="45%"  stopColor="#f59e0b" stopOpacity={0.18} />
+                            <stop offset="100%" stopColor="#D97853" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 8" stroke="#EDE8E2" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={formatShort} tick={{ fontSize: 10, fill: '#94A3B8', fontWeight: 600 }} axisLine={false} tickLine={false} width={46} />
+                        <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(217,120,83,0.25)', strokeWidth: 1, strokeDasharray: '5 4' }} />
+                        <Area
+                          type="monotone"
+                          dataKey="Top Up"
+                          stroke="#D97853"
+                          strokeWidth={2.5}
+                          fill="url(#gDeposit)"
+                          dot={false}
+                          activeDot={{ r: 6, fill: '#D97853', stroke: '#fff', strokeWidth: 2.5 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 )}
               </div>
             </MotionDiv>
@@ -670,7 +672,7 @@ export default function WalletPage() {
               initial={{ opacity: 0, y: 32, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: 'spring', stiffness: 230, damping: 24, delay: 0.30 }}
-              className="lg:col-span-2 bg-white border border-[#1C2B33]/8 rounded-3xl overflow-hidden shadow-sm flex flex-col"
+              className="lg:col-span-2 bg-white border border-[#1C2B33]/8 rounded-3xl overflow-hidden shadow-sm flex flex-col lg:h-[560px] min-h-0"
             >
               {/* Header */}
               <div className="px-5 pt-5 pb-4 border-b border-[#1C2B33]/5">
@@ -697,7 +699,7 @@ export default function WalletPage() {
               </div>
 
               {/* List body */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {txLoading ? (
                   <div className="flex flex-col items-center justify-center py-14 gap-3">
                     <Loader2 size={24} className="animate-spin text-[#D97853]" />

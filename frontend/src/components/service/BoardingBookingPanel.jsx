@@ -392,7 +392,7 @@ export default function BoardingBookingPanel({
     try {
       setIsSubmitting(true);
       if (!selectedRoomId) {
-        setSubmitError("Không có phòng khả dụng cho loại này.");
+        setSubmitError("No rooms are currently available for this room type.");
         return;
       }
 
@@ -408,9 +408,11 @@ export default function BoardingBookingPanel({
           selectedPet,
         },
       });
-      setSubmitSuccess("Đã thêm gói lưu trú vào giỏ hàng. Vào Cart để checkout cùng dịch vụ.");
+      setSubmitSuccess(
+        "Boarding package added to cart. Open Cart to checkout with your other services.",
+      );
     } catch {
-      setSubmitError("Không thể thêm gói lưu trú vào giỏ hàng. Vui lòng thử lại.");
+      setSubmitError("Unable to add the boarding package to cart. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
