@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getAllServices } from "../api/serviceApi";
+import { addServiceToCart, addStayToCart } from "../api/cartApi";
+import { getRoomsList } from "../api/roomApi";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -39,6 +41,7 @@ import {
   Utensils,
   Bed,
   Moon,
+  ShoppingCart,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
@@ -382,6 +385,99 @@ const ServicePage = () => {
   const [searchError, setSearchError] = useState("");
   const [spaServices, setSpaServices] = useState([]);
   const [spaLoading, setSpaLoading] = useState(true);
+  const [cartMessage, setCartMessage] = useState("");
+
+  const showCartMessage = (message) => {
+    setCartMessage(message);
+    setTimeout(() => {
+      setCartMessage("");
+    }, 2800);
+  };
+
+  const isBoardingService = (service = {}) => {
+    const categoryName = (service?.category?.name || service?.apiService?.category?.name || "").toLowerCase();
+    const serviceName = (service?.name || service?.title || service?.apiService?.name || "").toLowerCase();
+    return (
+      categoryName.includes("board") ||
+      serviceName.includes("penthouse") ||
+      serviceName.includes("room") ||
+      serviceName.includes("boarding") ||
+      serviceName.includes("lưu trú") ||
+      serviceName.includes("luu tru")
+    );
+  };
+
+  const openStaySetup = async (service) => {
+    const serviceId = service?._id || service?.apiService?._id;
+    if (!serviceId) {
+      showCartMessage("Không tìm thấy dịch vụ boarding để thiết lập.");
+      return;
+    }
+
+    const roomName = (service?.name || service?.title || "").toLowerCase();
+    const roomType = roomName.includes("vip") || roomName.includes("penthouse") ? "vip" : "standard";
+
+    try {
+      const res = await getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" });
+      const rooms = Array.isArray(res?.data) ? res.data : [];
+      const roomId = rooms[0]?._id;
+      if (!roomId) {
+        showCartMessage("Hiện chưa có phòng khả dụng cho loại lưu trú này.");
+        return;
+      }
+
+      await addStayToCart({
+        roomId,
+        metadata: {
+          source: "service-page",
+          roomType,
+          serviceName: service?.name || service?.title,
+          presetFromService: true,
+          needConfirmInCart: true,
+        },
+      });
+
+      showCartMessage("Đã thêm boarding vào giỏ. Bạn chọn ngày giờ chính thức ở trang Cart.");
+    } catch (error) {
+      const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
+      showCartMessage(message);
+    }
+  };
+
+  const handleAddToCart = async (event, service) => {
+    event.stopPropagation();
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      openLoginModal();
+      return;
+    }
+
+    if (isBoardingService(service)) {
+      await openStaySetup(service);
+      return;
+    }
+
+    const serviceId = service?._id || service?.apiService?._id;
+    if (!serviceId) {
+      showCartMessage("Không tìm thấy thông tin dịch vụ để thêm giỏ hàng.");
+      return;
+    }
+
+    try {
+      await addServiceToCart({
+        serviceId,
+        quantity: 1,
+        metadata: {
+          source: "service-page",
+        },
+      });
+      showCartMessage(`Đã thêm \"${service.name || service.title || "dịch vụ"}\" vào giỏ hàng.`);
+    } catch (error) {
+      const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
+      showCartMessage(message);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -521,6 +617,12 @@ const ServicePage = () => {
       />
 
       <main className="w-full mx-auto px-6 md:px-12 lg:px-[5%] pt-28 pb-20">
+        {cartMessage && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-semibold">
+            {cartMessage}
+          </div>
+        )}
+
         {/* SECTION 1 - HERO CAROUSEL WITH SEARCH */}
         <section className="relative mb-32 z-30">
           <div className="absolute inset-0 z-0 rounded-[28px] overflow-hidden bg-[#1F2A37]">
@@ -702,25 +804,34 @@ const ServicePage = () => {
                       <p className="text-[#1F2A37]/60 text-[13px] leading-relaxed mb-4 line-clamp-2 flex-grow">
                         {service.description}
                       </p>
-                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1F2A37]/5">
+                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1F2A37]/5 gap-2">
                         <span className="text-[#E07A5F] font-black text-[16px]">
                           ${service.price}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const slug = slugifyServiceName(service.name || "");
-                            if (slug) {
-                              navigate(`/service/${slug}`, {
-                                state: { apiService: service },
-                              });
-                            }
-                          }}
-                          className="bg-[#E07A5F] text-white text-[12px] font-bold px-5 py-2 rounded-full hover:bg-[#c56a52] transition-colors shadow-md"
-                        >
-                          Book Now
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleAddToCart(e, service)}
+                            className="bg-white border border-[#E07A5F]/35 text-[#E07A5F] text-[12px] font-bold px-3 py-2 rounded-full hover:bg-[#E07A5F]/10 transition-colors shadow-sm inline-flex items-center gap-1.5"
+                          >
+                            <ShoppingCart size={13} /> {isBoardingService(service) ? "Choose Stay" : "Add to Cart"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const slug = slugifyServiceName(service.name || "");
+                              if (slug) {
+                                navigate(`/service/${slug}`, {
+                                  state: { apiService: service },
+                                });
+                              }
+                            }}
+                            className="bg-[#E07A5F] text-white text-[12px] font-bold px-5 py-2 rounded-full hover:bg-[#c56a52] transition-colors shadow-md"
+                          >
+                            Book Now
+                          </button>
+                        </div>
                       </div>
+
                     </div>
                   </Motion.div>
                 ))}
@@ -1047,17 +1158,25 @@ const ServicePage = () => {
                                 <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
                                   {service.price}
                                 </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/service/${service.slug}`, {
-                                      state: { apiService: service.apiService },
-                                    });
-                                  }}
-                                  className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
-                                >
-                                  Book Now 
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={(e) => handleAddToCart(e, service.apiService || service)}
+                                    className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                  >
+                                    <ShoppingCart size={12} /> Add to Cart
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/service/${service.slug}`, {
+                                        state: { apiService: service.apiService },
+                                      });
+                                    }}
+                                    className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
+                                  >
+                                    Book Now
+                                  </button>
+                                </div>
                               </Motion.div>
                             )}
                           </AnimatePresence>

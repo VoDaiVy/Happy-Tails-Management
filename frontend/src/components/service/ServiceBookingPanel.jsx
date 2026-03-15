@@ -13,6 +13,7 @@ import {
 import TimeSlotPicker from "./TimeSlotPicker";
 import CalendarPicker from "./CalendarPicker";
 import { checkoutBooking, getAvailableSlots } from "../../api/bookingApi";
+import { addServiceToCart } from "../../api/cartApi";
 import { getMyPets } from "../../api/petApi";
 import { getWallet } from "../../api/walletApi";
 import axiosInstance from "../../api/axiosInstance";
@@ -46,6 +47,7 @@ export default function ServiceBookingPanel({ service }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
   const [bookedSlots, setBookedSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [confirmedData, setConfirmedData] = useState(null);
@@ -162,6 +164,34 @@ export default function ServiceBookingPanel({ service }) {
     const endM = String(startObj.getMinutes()).padStart(2, "0");
     return `${endH}:${endM}`;
   }, [selectedDate, selectedSlot, service.duration]);
+
+  const handleAddToCart = async () => {
+    setSubmitError("");
+    setSubmitSuccess("");
+    setCartMessage("");
+
+    if (!linkedServiceId) {
+      setSubmitError("Dịch vụ chưa đồng bộ backend.");
+      return;
+    }
+
+    try {
+      await addServiceToCart({
+        serviceId: linkedServiceId,
+        quantity: 1,
+        note: note || "",
+        metadata: {
+          source: "service-detail",
+          serviceTitle: service.title,
+        },
+      });
+      setCartMessage("Đã thêm dịch vụ vào giỏ hàng. Bạn có thể vào giỏ để checkout nhiều dịch vụ cùng lúc.");
+    } catch (error) {
+      const errPayload = error?.response?.data?.error || error?.response?.data || {};
+      const errMsg = errPayload.message || error?.message || "Không thể thêm vào giỏ hàng";
+      setSubmitError(errMsg);
+    }
+  };
 
   const handleConfirmBooking = async () => {
     setSubmitError("");
@@ -368,6 +398,19 @@ export default function ServiceBookingPanel({ service }) {
       <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
         <Info size={12} /> Fill each step in order to unlock the next one.
       </p>
+
+      <button
+        type="button"
+        onClick={handleAddToCart}
+        className="mb-4 w-full rounded-xl border border-[#E07A5F]/35 bg-[#E07A5F]/10 py-2.5 text-sm font-semibold text-[#E07A5F] hover:bg-[#E07A5F]/15 transition"
+      >
+        + Add Service To Cart
+      </button>
+      {cartMessage && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          {cartMessage}
+        </div>
+      )}
 
       {/* ══════════════ STEP 1 — Date ══════════════ */}
       <SectionLabel icon={CalendarDays} label="Select Date" step={1} />

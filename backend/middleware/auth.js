@@ -8,6 +8,11 @@ const User = require('../models/User');
 const { AppError, AUTH_ERROR_CODES } = require('../utils/AppError');
 const { catchAsync } = require('../utils/catchAsync');
 
+const normalizeRole = (role) => {
+  if (!role || role === 'user') return 'customer';
+  return role;
+};
+
 /**
  * Protect routes - Require authentication
  * Verifies JWT token and attaches user to request
@@ -73,6 +78,7 @@ const protect = catchAsync(async (req, res, next) => {
   }
 
   // 7. Grant access - attach user to request
+  user.role = normalizeRole(user.role);
   req.user = user;
   next();
 });
@@ -116,7 +122,9 @@ const restrictTo = (...roles) => {
       return next(new AppError('Please log in to access this resource', 401, AUTH_ERROR_CODES.TOKEN_MISSING));
     }
 
-    if (!roles.includes(req.user.role)) {
+    const effectiveRole = normalizeRole(req.user.role);
+
+    if (!roles.includes(effectiveRole)) {
       return next(new AppError('You do not have permission to perform this action', 403, 'FORBIDDEN'));
     }
 

@@ -11,6 +11,7 @@ import BoardingDetail from "./components/service/BoardingDetail";
 import News from "./pages/News";
 import AIHealthScan from "./pages/AIHealthScan";
 import Policy from "./pages/Policy";
+import Cart from "./pages/Cart";
 import Wallet from "./pages/Wallet";
 import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
@@ -45,6 +46,7 @@ function App() {
           <Route path="/news" element={<News />} />
           <Route path="/ai-health-scan" element={<AIHealthScan />} />
           <Route path="/policy" element={<Policy />} />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Protected customer routes */}

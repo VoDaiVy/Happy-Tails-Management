@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { getMyPets } from "../../api/petApi";
 import { getMyBookings } from "../../api/bookingApi";
+import { addStayToCart } from "../../api/cartApi";
+import { getRoomsList } from "../../api/roomApi";
 import CalendarPicker from "./CalendarPicker";
 
 const BOARDING_OPEN_MINUTES = 8 * 60; // 08:00
@@ -126,6 +128,8 @@ export default function BoardingBookingPanel({
   const [pets, setPets] = useState([]);
   const [petsLoading, setPetsLoading] = useState(false);
   const [petStays, setPetStays] = useState([]);
+  const [roomChoices, setRoomChoices] = useState([]);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -310,6 +314,28 @@ export default function BoardingBookingPanel({
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" })
+      .then((res) => {
+        if (!alive) return;
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setRoomChoices(rows);
+        if (rows[0]?._id) {
+          setSelectedRoomId(rows[0]._id);
+        }
+      })
+      .catch(() => {
+        if (!alive) return;
+        setRoomChoices([]);
+        setSelectedRoomId("");
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [roomType]);
+
+  useEffect(() => {
     if (checkInTime && !visibleCheckInSlots.includes(checkInTime)) {
       setCheckInTime("");
       setSelectedPet("");
@@ -365,17 +391,33 @@ export default function BoardingBookingPanel({
 
     try {
       setIsSubmitting(true);
-      // TODO: Replace with boarding booking API submit.
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      setSubmitSuccess("Boarding booking submitted successfully.");
+      if (!selectedRoomId) {
+        setSubmitError("Không có phòng khả dụng cho loại này.");
+        return;
+      }
+
+      await addStayToCart({
+        roomId: selectedRoomId,
+        checkInDate,
+        checkOutDate,
+        nights,
+        note: notes,
+        metadata: {
+          roomType,
+          roomTitle,
+          selectedPet,
+        },
+      });
+      setSubmitSuccess("Đã thêm gói lưu trú vào giỏ hàng. Vào Cart để checkout cùng dịch vụ.");
     } catch {
-      setSubmitError("Booking failed. Please try again.");
+      setSubmitError("Không thể thêm gói lưu trú vào giỏ hàng. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const selectedPetData = pets.find((pet) => pet.id === selectedPet);
+  const selectedRoomData = roomChoices.find((room) => room._id === selectedRoomId);
 
   return (
     <div className="bg-white rounded-[24px] shadow-[0_15px_50px_rgba(0,0,0,0.08)] p-6 space-y-5">
@@ -392,6 +434,25 @@ export default function BoardingBookingPanel({
       </div>
 
       <StepLabel icon={Calendar} step={1} label="Select Stay Dates" />
+      {roomChoices.length > 0 && (
+        <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3 mb-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Available room</p>
+          <select
+            value={selectedRoomId}
+            onChange={(e) => setSelectedRoomId(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#1F2A37]"
+          >
+            {roomChoices.map((room) => (
+              <option key={room._id} value={room._id}>
+                {room.roomNumber} - {room.name}
+              </option>
+            ))}
+          </select>
+          {selectedRoomData && (
+            <p className="text-xs text-gray-500 mt-1">{selectedRoomData.type} · Capacity {selectedRoomData.capacity}</p>
+          )}
+        </div>
+      )}
       <div className="rounded-2xl border border-[#E8E3DB] bg-[#F9F7F4] p-3.5">
         <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] gap-2.5 items-center">
           <div className="space-y-1">

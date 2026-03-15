@@ -106,6 +106,51 @@ const bookingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room'
   },
+  stayInfo: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    room: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Room'
+    },
+    roomName: {
+      type: String,
+      trim: true
+    },
+    checkInDate: {
+      type: Date
+    },
+    checkInTime: {
+      type: String,
+      trim: true,
+      default: '00:00'
+    },
+    checkOutDate: {
+      type: Date
+    },
+    checkOutTime: {
+      type: String,
+      trim: true,
+      default: '10:00'
+    },
+    nights: {
+      type: Number,
+      min: [0, 'Nights cannot be negative'],
+      default: 0
+    },
+    pricePerNight: {
+      type: Number,
+      min: [0, 'Price per night cannot be negative'],
+      default: 0
+    },
+    subtotal: {
+      type: Number,
+      min: [0, 'Stay subtotal cannot be negative'],
+      default: 0
+    }
+  },
   assignedStaff: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

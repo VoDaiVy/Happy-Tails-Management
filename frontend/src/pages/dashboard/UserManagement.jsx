@@ -17,10 +17,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Activity,
   Filter,
   X,
   Trash2,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getUsersList, blockUser, unblockUser, updateUserRole, permanentDeleteUser } from "../../api/userApi";
 
 // Role configuration
@@ -279,12 +281,11 @@ const UserManagement = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D3436] flex items-center gap-2">
-            <Users className="text-[#5B8C51]" />
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             User Management
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
-              View and manage user accounts in the system
+          <p className="text-sm text-[#2D3436]/60">
+            View and manage user accounts in the system
           </p>
         </div>
 
@@ -304,72 +305,55 @@ const UserManagement = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-            />
-          </div>
-
-          {/* Role filter */}
-          <div className="flex items-center gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-            >
-              <option value="">All Roles</option>
-              <option value="customer">Customer</option>
-              <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
-            </select>
-
-            {/* Clear filters */}
-            {(searchQuery || activeFilter !== "all" || roleFilter) && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-2.5 text-sm text-gray-600 hover:text-[#5B8C51] transition-colors flex items-center gap-1"
-              >
-                <X size={16} />
-                Clear Filters
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Status Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {FILTER_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeFilter === tab.key;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveFilter(tab.key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${
-                  isActive
-                    ? "bg-[#5B8C51] text-white shadow-lg shadow-[#5B8C51]/25"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <AdminFilterBar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by name, email..."
+        filters={[
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All", "Active", "Blocked"],
+            value:
+              activeFilter === "all"
+                ? "All"
+                : activeFilter === "active"
+                  ? "Active"
+                  : "Blocked",
+            onChange: (opt) =>
+              setActiveFilter(
+                opt === "All"
+                  ? "all"
+                  : opt === "Active"
+                    ? "active"
+                    : "blocked",
+              ),
+          },
+          {
+            label: "ROLE",
+            icon: Shield,
+            options: ["All Roles", "Customer", "Staff", "Admin"],
+            value:
+              roleFilter === ""
+                ? "All Roles"
+                : roleFilter === "customer"
+                  ? "Customer"
+                  : roleFilter === "staff"
+                    ? "Staff"
+                    : "Admin",
+            onChange: (opt) =>
+              setRoleFilter(
+                opt === "All Roles"
+                  ? ""
+                  : opt === "Customer"
+                    ? "customer"
+                    : opt === "Staff"
+                      ? "staff"
+                      : "admin",
+              ),
+          },
+        ]}
+      />
 
       {/* Content */}
       {loading ? (
@@ -395,21 +379,11 @@ const UserManagement = () => {
               </button>
             </div>
           </div>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <Users size={32} className="text-gray-400" />
-            </div>
-            <div>
-              <p className="font-medium text-[#2D3436]">
-                No users found
-              </p>
-              <p className="text-sm text-gray-500 mt-1">
-                Try changing filters or search keywords
-              </p>
-            </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <Users className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No users found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         </div>
       ) : (
@@ -437,8 +411,8 @@ const UserManagement = () => {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {users.map((user) => {
+                <tbody className="text-sm">
+                  {users.map((user, index) => {
                     const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.customer;
                     const RoleIcon = roleConfig.icon;
                     const isBlocked = user.isBlocked;
@@ -515,8 +489,8 @@ const UserManagement = () => {
                         </td>
 
                         {/* Actions */}
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             {/* Block/Unblock — only for non-admin users */}
                             {user.role !== "admin" && (
                               <>
