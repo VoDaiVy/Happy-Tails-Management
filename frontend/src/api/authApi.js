@@ -37,6 +37,19 @@ export const resendVerificationApi = async (email) => {
   return response.data;
 };
 
+export const forgotPasswordApi = async (email) => {
+  const response = await axiosInstance.post("/auth/forgot-password", { email });
+  return response.data;
+};
+
+export const resetPasswordApi = async (resetToken, password, confirmPassword) => {
+  const response = await axiosInstance.post(`/auth/reset-password/${resetToken}`, {
+    password,
+    confirmPassword,
+  });
+  return response.data;
+};
+
 export const logoutApi = async () => {
   const response = await axiosInstance.post("/auth/logout");
   return response.data;

@@ -11,7 +11,14 @@ const axiosInstance = axios.create({
 });
 
 // Auth endpoints that should NOT trigger token refresh on 401
-const AUTH_ENDPOINTS = ["/auth/login", "/auth/google", "/auth/register", "/auth/refresh-token"];
+const AUTH_ENDPOINTS = [
+  "/auth/login",
+  "/auth/google",
+  "/auth/register",
+  "/auth/refresh-token",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+];
 
 // Request interceptor - attach access token
 axiosInstance.interceptors.request.use(

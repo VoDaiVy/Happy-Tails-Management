@@ -23,6 +23,7 @@ import News from "./pages/News";
 import AIHealthScan from "./pages/AIHealthScan";
 import Policy from "./pages/Policy";
 import Wallet from "./pages/Wallet";
+import ResetPassword from "./pages/ResetPassword";
 import FloatingChatBubble from "./components/FloatingChatBubble";
 import PrivateRoute from "./components/PrivateRoute";
 
@@ -34,6 +35,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/service" element={<Service />} />
           <Route path="/news" element={<News />} />
           <Route path="/ai-health-scan" element={<AIHealthScan />} />

@@ -8,6 +8,7 @@ import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
 import { registerApi, verifyEmailApi, resendVerificationApi } from "../api/authApi";
 import { useAuth } from "../context/AuthContext";
+import { ForgotPasswordPanel } from "./ForgotPasswordPanel";
 
 export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSuccess }) {
   const { login, loginWithGoogle } = useAuth();
@@ -23,6 +24,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
   const [loginSuccess, setLoginSuccess] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Register form data
   const [step, setStep] = useState(1);
@@ -77,6 +79,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
       setLoginLoading(false);
       setGoogleLoading(false);
       setShowPassword(false);
+      setShowForgotPassword(false);
     }
   }, [isOpen]);
 
@@ -289,6 +292,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
 
   const switchToRegister = () => {
     setMode("register");
+    setShowForgotPassword(false);
     setStep(1);
     setVerificationCode("");
     setCodeError("");
@@ -300,6 +304,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
 
   const switchToLogin = () => {
     setMode("login");
+    setShowForgotPassword(false);
     setStep(1);
     setVerificationCode("");
     setCodeError("");
@@ -307,6 +312,16 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     setRegisterSuccess("");
     setLoginError("");
     setLoginSuccess("");
+  };
+
+  const openForgotPassword = () => {
+    setShowForgotPassword(true);
+    setLoginError("");
+    setLoginSuccess("");
+  };
+
+  const closeForgotPassword = () => {
+    setShowForgotPassword(false);
   };
 
   return (
@@ -345,6 +360,10 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
             <div className="w-full md:w-1/2 flex items-center justify-center p-6 relative overflow-hidden overflow-y-auto scrollbar-hide">
               <PawPattern />
               <div className="w-full max-w-xs relative z-10">
+                {showForgotPassword ? (
+                  <ForgotPasswordPanel initialEmail={loginEmail} onBackToLogin={closeForgotPassword} />
+                ) : (
+                  <>
                 {/* Logo/Brand */}
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-[#FF8C42] rounded-[16px] mb-2 shadow-lg">
@@ -411,7 +430,11 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                   </div>
 
                   <div className="flex items-center justify-end">
-                    <button type="button" className="text-xs text-[#FF8C42] hover:text-[#E67A35] font-medium">
+                    <button
+                      type="button"
+                      onClick={openForgotPassword}
+                      className="text-xs text-[#FF8C42] hover:text-[#E67A35] font-medium"
+                    >
                       Forgot Password?
                     </button>
                   </div>
@@ -482,6 +505,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                     Sign up
                   </button>
                 </p>
+                  </>
+                )}
               </div>
             </div>
           </>
