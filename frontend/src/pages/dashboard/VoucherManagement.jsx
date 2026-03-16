@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import useScrollLock from '../../hooks/useScrollLock';
+import useScrollLock from "../../hooks/useScrollLock";
 import {
   Search,
   Ticket,
@@ -66,7 +66,9 @@ export default function VoucherManagement() {
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
-  useScrollLock(showDetailModal || showFormModal || showDeleteModal || showAIModal);
+  useScrollLock(
+    showDetailModal || showFormModal || showDeleteModal || showAIModal,
+  );
 
   // Selected item
   const [selectedVoucher, setSelectedVoucher] = useState(null);
@@ -298,7 +300,11 @@ export default function VoucherManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -321,49 +327,49 @@ export default function VoucherManagement() {
 
       {/* Filters */}
       <AdminFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by voucher code or description..."
-          filters={[
-            {
-              label: "STATUS",
-              icon: Activity,
-              options: ["All Types", "Active", "Inactive", "AI Generated"],
-              value:
-                activeTab === "all"
-                  ? "All Types"
-                  : activeTab === "active"
-                    ? "Active"
-                    : activeTab === "inactive"
-                      ? "Inactive"
-                      : "AI Generated",
-              onChange: (opt) =>
-                setActiveTab(
-                  opt === "All Types"
-                    ? "all"
-                    : opt === "Active"
-                      ? "active"
-                      : opt === "Inactive"
-                        ? "inactive"
-                        : "ai",
-                ),
-            },
-          ]}
-          extraActions={
-            <button
-              onClick={handleAISuggest}
-              disabled={aiLoading}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-[0_5px_15px_rgba(139,92,246,0.3)] disabled:opacity-50 font-bold text-sm shrink-0"
-            >
-              {aiLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              AI Suggest
-            </button>
-          }
-        />
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by voucher code or description..."
+        filters={[
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All Types", "Active", "Inactive", "AI Generated"],
+            value:
+              activeTab === "all"
+                ? "All Types"
+                : activeTab === "active"
+                  ? "Active"
+                  : activeTab === "inactive"
+                    ? "Inactive"
+                    : "AI Generated",
+            onChange: (opt) =>
+              setActiveTab(
+                opt === "All Types"
+                  ? "all"
+                  : opt === "Active"
+                    ? "active"
+                    : opt === "Inactive"
+                      ? "inactive"
+                      : "ai",
+              ),
+          },
+        ]}
+        extraActions={
+          <button
+            onClick={handleAISuggest}
+            disabled={aiLoading}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl hover:from-purple-600 hover:to-indigo-600 transition-all shadow-[0_5px_15px_rgba(139,92,246,0.3)] disabled:opacity-50 font-bold text-sm shrink-0"
+          >
+            {aiLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            AI Suggest
+          </button>
+        }
+      />
 
       {/* Error */}
       {error && (
@@ -381,8 +387,12 @@ export default function VoucherManagement() {
         ) : vouchers.length === 0 ? (
           <div className="text-center py-20 text-[#2D3436]/40">
             <Ticket className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
-            <p className="text-lg font-bold text-[#2D3436]">No vouchers found</p>
-            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
+            <p className="text-lg font-bold text-[#2D3436]">
+              No vouchers found
+            </p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">
+              Try adjusting your filters or search query.
+            </p>
           </div>
         ) : (
           <>
@@ -390,12 +400,8 @@ export default function VoucherManagement() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
-                    <th className="px-6 py-4 whitespace-nowrap">
-                      Code
-                    </th>
-                    <th className="px-6 py-4 whitespace-nowrap">
-                      Description
-                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap">Code</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Description</th>
                     <th className="px-6 py-4 whitespace-nowrap text-center">
                       Discount
                     </th>
@@ -749,10 +755,14 @@ export default function VoucherManagement() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
-                      {formMode === "create" ? "Create New Voucher" : "Edit Voucher"}
+                      {formMode === "create"
+                        ? "Create New Voucher"
+                        : "Edit Voucher"}
                     </h2>
                     <p className="text-xs text-[#2D3436]/50 font-medium">
-                      {formMode === "create" ? "Add a new discount code for customers" : "Modify voucher details"}
+                      {formMode === "create"
+                        ? "Add a new discount code for customers"
+                        : "Modify voucher details"}
                     </p>
                   </div>
                 </div>
@@ -765,7 +775,10 @@ export default function VoucherManagement() {
               </div>
 
               {/* Modal Body */}
-              <form onSubmit={handleSubmitForm} className="p-6 md:p-8 flex-1 space-y-6">
+              <form
+                onSubmit={handleSubmitForm}
+                className="p-6 md:p-8 flex-1 space-y-6"
+              >
                 {/* Form Grid */}
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Voucher Code */}
@@ -802,7 +815,9 @@ export default function VoucherManagement() {
                   </div>
 
                   {/* Discount Type */}
-                  <div className={`relative ${isDiscountTypeOpen ? "z-[60]" : "z-10"}`}>
+                  <div
+                    className={`relative ${isDiscountTypeOpen ? "z-[60]" : "z-10"}`}
+                  >
                     <label className="block text-sm font-bold text-[#2D3436] mb-2">
                       Discount Type
                     </label>
@@ -811,7 +826,9 @@ export default function VoucherManagement() {
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 flex items-center justify-between cursor-pointer bg-white"
                     >
                       <span className="text-sm font-medium text-[#2D3436]">
-                        {formData.discountType === "percentage" ? "Percentage (%)" : "Fixed Amount (VND)"}
+                        {formData.discountType === "percentage"
+                          ? "Percentage (%)"
+                          : "Fixed Amount (VND)"}
                       </span>
                       <MoreVertical size={14} className="text-[#D97853]" />
                     </div>
@@ -836,14 +853,20 @@ export default function VoucherManagement() {
                               { value: "percentage", label: "Percentage (%)" },
                               { value: "fixed", label: "Fixed Amount (VND)" },
                             ].map((opt) => {
-                              const isSelected = formData.discountType === opt.value;
+                              const isSelected =
+                                formData.discountType === opt.value;
                               return (
                                 <div
                                   key={opt.value}
                                   className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleFormChange({ target: { name: "discountType", value: opt.value } });
+                                    handleFormChange({
+                                      target: {
+                                        name: "discountType",
+                                        value: opt.value,
+                                      },
+                                    });
                                     setIsDiscountTypeOpen(false);
                                   }}
                                 >
@@ -868,7 +891,9 @@ export default function VoucherManagement() {
                       required
                       min="0"
                       className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
-                      placeholder={formData.discountType === "percentage" ? "10" : "50000"}
+                      placeholder={
+                        formData.discountType === "percentage" ? "10" : "50000"
+                      }
                     />
                   </div>
                 </div>
@@ -905,21 +930,21 @@ export default function VoucherManagement() {
                   </div>
                 </div>
 
-                  {/* Usage Limit */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Usage Limit
-                    </label>
-                    <input
-                      type="number"
-                      name="usageLimit"
-                      value={formData.usageLimit}
-                      onChange={handleFormChange}
-                      min="0"
-                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
-                      placeholder="Leave empty for unlimited usage"
-                    />
-                  </div>
+                {/* Usage Limit */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Usage Limit
+                  </label>
+                  <input
+                    type="number"
+                    name="usageLimit"
+                    value={formData.usageLimit}
+                    onChange={handleFormChange}
+                    min="0"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
+                    placeholder="Leave empty for unlimited usage"
+                  />
+                </div>
 
                 {/* Validity */}
                 <div className="grid grid-cols-2 gap-4">
@@ -943,11 +968,17 @@ export default function VoucherManagement() {
                     </label>
                     <div className="relative">
                       <DatePicker
-                        selected={formData.validUntil ? new Date(formData.validUntil) : null}
+                        selected={
+                          formData.validUntil
+                            ? new Date(formData.validUntil)
+                            : null
+                        }
                         onChange={(date) =>
                           setFormData((prev) => ({
                             ...prev,
-                            validUntil: date ? date.toISOString().split("T")[0] : "",
+                            validUntil: date
+                              ? date.toISOString().split("T")[0]
+                              : "",
                           }))
                         }
                         dateFormat="dd/MM/yyyy"
@@ -1109,6 +1140,6 @@ export default function VoucherManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

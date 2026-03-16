@@ -18,8 +18,8 @@ import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
-import AdminDashboard from "./pages/dashboard/AdminDashboard";
-import AdminNewsManagement from "./pages/dashboard/admin/AdminNewsManagement";
+import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
+import NewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/StaffDashboard";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/UserManagement";
@@ -88,7 +88,6 @@ function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            <Route path="news" element={<AdminNewsManagement />} />
             <Route path="bookings" element={<BookingBoard />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="rooms" element={<RoomManagement />} />
@@ -112,6 +111,14 @@ function App() {
           >
             <Route index element={<StaffDashboard />} />
             <Route path="bookings" element={<BookingBoard />} />
+            <Route
+              path="news"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <NewsManagement />
+                </PrivateRoute>
+              }
+            />
           </Route>
         </Routes>
 

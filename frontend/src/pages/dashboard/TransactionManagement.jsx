@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import useScrollLock from '../../hooks/useScrollLock';
+import useScrollLock from "../../hooks/useScrollLock";
 import {
   Search,
   DollarSign,
@@ -209,7 +209,11 @@ export default function TransactionManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -230,7 +234,9 @@ export default function TransactionManagement() {
               <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Transactions</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">
+                Total Transactions
+              </p>
               <p className="text-2xl font-bold text-[#2D3436]">{stats.total}</p>
             </div>
           </div>
@@ -242,7 +248,9 @@ export default function TransactionManagement() {
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Pending</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">
+                Pending
+              </p>
               <p className="text-2xl font-bold text-yellow-600">
                 {stats.pending}
               </p>
@@ -256,7 +264,9 @@ export default function TransactionManagement() {
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Completed</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">
+                Completed
+              </p>
               <p className="text-2xl font-bold text-[#7FB069]">
                 {stats.completed}
               </p>
@@ -270,7 +280,9 @@ export default function TransactionManagement() {
               <TrendingUp className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Amount</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">
+                Total Amount
+              </p>
               <p className="text-xl font-bold text-[#D97853]">
                 {formatCurrency(stats.totalAmount)}
               </p>
@@ -281,69 +293,69 @@ export default function TransactionManagement() {
 
       {/* Filters */}
       <AdminFilterBar
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by transaction code, name or email..."
-          filters={[
-            {
-              label: "STATUS",
-              icon: Activity,
-              options: ["All Status", "Pending", "Completed", "Failed"],
-              value:
-                statusFilter === "all"
-                  ? "All Status"
-                  : statusFilter === "pending"
-                    ? "Pending"
-                    : statusFilter === "completed"
-                      ? "Completed"
-                      : "Failed",
-              onChange: (opt) =>
-                setStatusFilter(
-                  opt === "All Status"
-                    ? "all"
-                    : opt === "Pending"
-                      ? "pending"
-                      : opt === "Completed"
-                        ? "completed"
-                        : "failed",
-                ),
-            },
-            {
-              label: "TYPE",
-              icon: CreditCard,
-              options: ["All Types", "Deposit", "Payment", "Refund"],
-              value:
-                typeFilter === "all"
-                  ? "All Types"
-                  : typeFilter === "deposit"
-                    ? "Deposit"
-                    : typeFilter === "payment"
-                      ? "Payment"
-                      : "Refund",
-              onChange: (opt) =>
-                setTypeFilter(
-                  opt === "All Types"
-                    ? "all"
-                    : opt === "Deposit"
-                      ? "deposit"
-                      : opt === "Payment"
-                        ? "payment"
-                        : "refund",
-                ),
-            },
-          ]}
-          dateValue={
-            dateRange.start ? new Date(dateRange.start + "T00:00:00") : null
-          }
-          onDateChange={(date) =>
-            setDateRange({
-              start: date
-                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-                : "",
-              end: "",
-            })
-          }
-          dateLabel="FROM DATE"
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by transaction code, name or email..."
+        filters={[
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All Status", "Pending", "Completed", "Failed"],
+            value:
+              statusFilter === "all"
+                ? "All Status"
+                : statusFilter === "pending"
+                  ? "Pending"
+                  : statusFilter === "completed"
+                    ? "Completed"
+                    : "Failed",
+            onChange: (opt) =>
+              setStatusFilter(
+                opt === "All Status"
+                  ? "all"
+                  : opt === "Pending"
+                    ? "pending"
+                    : opt === "Completed"
+                      ? "completed"
+                      : "failed",
+              ),
+          },
+          {
+            label: "TYPE",
+            icon: CreditCard,
+            options: ["All Types", "Deposit", "Payment", "Refund"],
+            value:
+              typeFilter === "all"
+                ? "All Types"
+                : typeFilter === "deposit"
+                  ? "Deposit"
+                  : typeFilter === "payment"
+                    ? "Payment"
+                    : "Refund",
+            onChange: (opt) =>
+              setTypeFilter(
+                opt === "All Types"
+                  ? "all"
+                  : opt === "Deposit"
+                    ? "deposit"
+                    : opt === "Payment"
+                      ? "payment"
+                      : "refund",
+              ),
+          },
+        ]}
+        dateValue={
+          dateRange.start ? new Date(dateRange.start + "T00:00:00") : null
+        }
+        onDateChange={(date) =>
+          setDateRange({
+            start: date
+              ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+              : "",
+            end: "",
+          })
+        }
+        dateLabel="FROM DATE"
       />
 
       {/* Error */}
@@ -362,32 +374,28 @@ export default function TransactionManagement() {
         ) : filteredTransactions.length === 0 ? (
           <div className="text-center py-20 text-[#2D3436]/40">
             <DollarSign className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
-            <p className="text-lg font-bold text-[#2D3436]">No transactions found</p>
-            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
+            <p className="text-lg font-bold text-[#2D3436]">
+              No transactions found
+            </p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">
+              Try adjusting your filters or search query.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
-                  <th className="px-6 py-4 whitespace-nowrap">
-                    Tx Code
-                  </th>
-                  <th className="px-6 py-4 whitespace-nowrap">
-                    User
-                  </th>
-                  <th className="px-6 py-4 whitespace-nowrap">
-                    Type
-                  </th>
+                  <th className="px-6 py-4 whitespace-nowrap">Tx Code</th>
+                  <th className="px-6 py-4 whitespace-nowrap">User</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Type</th>
                   <th className="px-6 py-4 whitespace-nowrap text-right">
                     Amount
                   </th>
                   <th className="px-6 py-4 whitespace-nowrap text-center">
                     Status
                   </th>
-                  <th className="px-6 py-4 whitespace-nowrap">
-                    Created
-                  </th>
+                  <th className="px-6 py-4 whitespace-nowrap">Created</th>
                   <th className="px-6 py-4 whitespace-nowrap text-center">
                     Actions
                   </th>
@@ -632,6 +640,6 @@ export default function TransactionManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
