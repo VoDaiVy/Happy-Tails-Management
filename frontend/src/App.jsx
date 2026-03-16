@@ -23,12 +23,12 @@ import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
 import BookingBoard from "./pages/dashboard/BookingBoard";
-import UserManagement from "./pages/dashboard/UserManagement";
-import RoomManagement from "./pages/dashboard/RoomManagement";
-import MedicalRecordManagement from "./pages/dashboard/MedicalRecordManagement";
-import TransactionManagement from "./pages/dashboard/TransactionManagement";
-import VoucherManagement from "./pages/dashboard/VoucherManagement";
-import ServiceManagement from "./pages/dashboard/ServiceManagement";
+import UserManagement from "./pages/dashboard/admin/AdminUserManagement";
+import RoomManagement from "./pages/dashboard/admin/AdminRoomManagement";
+import MedicalRecordManagement from "./pages/dashboard/admin/AdminMedicalRecordManagement";
+import TransactionManagement from "./pages/dashboard/admin/AdminTransactionManagement";
+import VoucherManagement from "./pages/dashboard/admin/AdminVoucherManagement";
+import ServiceManagement from "./pages/dashboard/admin/AdminServiceManagement";
 import FloatingChatBubble from "./components/FloatingChatBubble";
 
 function App() {

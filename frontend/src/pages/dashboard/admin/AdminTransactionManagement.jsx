@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import useScrollLock from "../../hooks/useScrollLock";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import useScrollLock from "../../../hooks/useScrollLock";
 import {
   Search,
   DollarSign,
@@ -23,8 +23,8 @@ import {
 import {
   getAllTransactions,
   getTransactionById,
-} from "../../api/transactionApi";
-import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
+} from "../../../api/transactionApi";
+import AdminFilterBar from "../../../components/dashboard/AdminFilterBar";
 
 // Transaction type labels
 const TYPE_LABELS = {
@@ -63,6 +63,19 @@ const STATUS_COLORS = {
   cancelled: "bg-gray-100 text-gray-800",
 };
 
+const DETAIL_STATUS_PILL_STYLES = {
+  pending: "border border-[#FDE68A] bg-[#FEF9C3] text-[#92400E]",
+  completed: "border border-[#BBF7D0] bg-[#DCFCE7] text-[#166534]",
+  failed: "border border-[#FECACA] bg-[#FEE2E2] text-[#B91C1C]",
+  cancelled: "border border-[#E2E8F0] bg-[#F1F5F9] text-[#475569]",
+};
+
+const DETAIL_TYPE_PILL_STYLES = {
+  deposit: "border border-[#C7E2FE] bg-[#EAF4FF] text-[#1E5EA8]",
+  payment: "border border-[#C7D7FE] bg-[#EAF0FF] text-[#1E40AF]",
+  refund: "border border-[#FED7AA] bg-[#FFF1E7] text-[#9A3412]",
+};
+
 export default function TransactionManagement() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,11 +92,7 @@ export default function TransactionManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Process modal
-  const [showProcessModal, setShowProcessModal] = useState(false);
-  const [processData, setProcessData] = useState({ status: "", notes: "" });
-  const [processing, setProcessing] = useState(false);
-  useScrollLock(showDetailModal || showProcessModal);
+  useScrollLock(showDetailModal);
 
   // Statistics
   const [stats, setStats] = useState({
@@ -165,29 +174,6 @@ export default function TransactionManagement() {
     }
   };
 
-  // Open process modal
-  const handleOpenProcess = (transaction) => {
-    setSelectedTransaction(transaction);
-    setProcessData({ status: "", notes: "" });
-    setShowProcessModal(true);
-  };
-
-  // Process transaction
-  const handleProcess = async () => {
-    if (!processData.status) return;
-
-    try {
-      setProcessing(true);
-      await processTransaction(selectedTransaction._id, processData);
-      setShowProcessModal(false);
-      fetchTransactions();
-    } catch (err) {
-      setError(err.response?.data?.message || "Không thể xử lý giao dịch");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   // Format currency
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -208,8 +194,22 @@ export default function TransactionManagement() {
     });
   };
 
+  const formatPaymentMethod = (method) => {
+    if (!method) return "Not available";
+
+    const normalized = String(method).trim().toLowerCase();
+    if (normalized === "system" || normalized === "internal") {
+      return "System";
+    }
+
+    return String(method)
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       className="max-w-[1400px] mx-auto space-y-6 pb-10"
@@ -405,7 +405,7 @@ export default function TransactionManagement() {
                 {filteredTransactions.map((transaction) => {
                   const TypeIcon = TYPE_ICONS[transaction.type] || CreditCard;
                   return (
-                    <motion.tr
+                    <Motion.tr
                       key={transaction._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -481,7 +481,7 @@ export default function TransactionManagement() {
                           </button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </Motion.tr>
                   );
                 })}
               </tbody>
@@ -493,153 +493,228 @@ export default function TransactionManagement() {
       {/* Detail Modal */}
       <AnimatePresence>
         {showDetailModal && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/55 p-4 backdrop-blur-[2px]"
             onClick={() => setShowDetailModal(false)}
           >
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              className="max-h-[92vh] w-full max-w-[660px] overflow-y-auto rounded-[24px] border border-[#E2E8F0] bg-[#FEFFFD] shadow-[0_22px_60px_-32px_rgba(15,23,42,0.45)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-amber-600" />
-                  Transaction Details
-                </h2>
+              <div className="sticky top-0 z-20 border-b border-[#E2E8F0] bg-gradient-to-r from-white via-[#FFF7F0] to-white px-4 py-3.5 md:px-5">
+                <div className="relative flex items-start gap-3 pr-12">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[#FBDDCB] bg-[#FFF1E6] shadow-sm">
+                    <DollarSign className="h-4 w-4 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-[22px] font-extrabold leading-[1.08] tracking-[-0.01em] text-[#1F2933]">
+                      Transaction Details
+                    </h2>
+                    <p className="mt-0.5 text-[11px] font-medium text-[#486581]">
+                      Transaction summary and payment metadata
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="absolute right-4 top-3.5 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-[#64748B] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:text-[#1E293B]"
+                  aria-label="Close transaction details"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="p-6">
+              <div className="space-y-5 p-4 md:p-5">
                 {detailLoading ? (
                   <div className="flex items-center justify-center py-16">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
                   </div>
                 ) : selectedTransaction ? (
-                  <div className="space-y-4">
-                    {/* Transaction Code */}
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500 mb-1">
-                        Transaction Code
-                      </p>
-                      <p className="font-mono font-bold text-lg text-gray-800">
-                        {selectedTransaction.transactionCode || "-"}
-                      </p>
-                    </div>
-
-                    {/* Amount & Status */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-amber-50 rounded-xl p-4">
-                        <p className="text-sm text-amber-700 mb-1">Amount</p>
-                        <p className="font-bold text-xl text-amber-800">
-                          {formatCurrency(selectedTransaction.amount)}
+                  <div className="space-y-5">
+                    {/* Transaction Overview */}
+                    <section className="space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#7B8794]">
+                        Transaction Overview
+                      </h3>
+                      <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B8794]">
+                          Transaction Code
+                        </p>
+                        <p className="mt-1.5 break-all font-mono text-[17px] md:text-lg font-extrabold tracking-[0.01em] leading-tight text-[#27364A]">
+                          {selectedTransaction.transactionCode ||
+                            "Not available"}
                         </p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Status</p>
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                            STATUS_COLORS[selectedTransaction.status]
-                          }`}
-                        >
-                          {STATUS_LABELS[selectedTransaction.status]}
-                        </span>
-                      </div>
-                    </div>
+                    </section>
 
-                    {/* Type & Method */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Type</p>
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                            TYPE_COLORS[selectedTransaction.type]
-                          }`}
-                        >
-                          {TYPE_LABELS[selectedTransaction.type]}
-                        </span>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">
-                          Payment Method
-                        </p>
-                        <p className="font-medium text-gray-800">
-                          {selectedTransaction.method || "-"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* User Info */}
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm text-blue-700 mb-2">User</p>
-                      <p className="font-medium text-gray-800">
-                        {selectedTransaction.user?.name || "-"}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {selectedTransaction.user?.email || "-"}
-                      </p>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Created</p>
-                        <p className="font-medium text-gray-800">
-                          {formatDate(selectedTransaction.createdAt)}
-                        </p>
-                      </div>
-                      {selectedTransaction.processedAt && (
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-500 mb-1">
-                            Processed At
+                    {/* Payment Summary */}
+                    <section className="space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#7B8794]">
+                        Payment Summary
+                      </h3>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="rounded-2xl border border-[#F6DEC2] bg-[#FFF8EF] p-3.5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#A16207]">
+                            Amount
                           </p>
-                          <p className="font-medium text-gray-800">
-                            {formatDate(selectedTransaction.processedAt)}
+                          <p className="mt-1 text-2xl font-extrabold tracking-[-0.015em] text-[#9A3412]">
+                            {formatCurrency(selectedTransaction.amount)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B8794]">
+                            Status
+                          </p>
+                          <span
+                            className={`mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
+                              DETAIL_STATUS_PILL_STYLES[
+                                selectedTransaction.status
+                              ] ||
+                              "border border-[#D9E2EC] bg-[#F1F5F9] text-[#334E68]"
+                            }`}
+                          >
+                            {STATUS_LABELS[selectedTransaction.status] ||
+                              selectedTransaction.status ||
+                              "Unknown"}
+                          </span>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B8794]">
+                            Type
+                          </p>
+                          <span
+                            className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${
+                              DETAIL_TYPE_PILL_STYLES[
+                                selectedTransaction.type
+                              ] ||
+                              "border border-[#D9E2EC] bg-[#F1F5F9] text-[#334E68]"
+                            }`}
+                          >
+                            {selectedTransaction.type === "deposit" ? (
+                              <TrendingUp className="h-4 w-4" />
+                            ) : selectedTransaction.type === "refund" ? (
+                              <RefreshCw className="h-4 w-4" />
+                            ) : (
+                              <CreditCard className="h-4 w-4" />
+                            )}
+                            {TYPE_LABELS[selectedTransaction.type] ||
+                              selectedTransaction.type ||
+                              "Unknown"}
+                          </span>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B8794]">
+                            Payment Method
+                          </p>
+                          <p className="mt-1.5 inline-flex items-center gap-1.5 text-base md:text-lg font-bold tracking-[-0.01em] text-[#243B53]">
+                            <CreditCard className="h-4 w-4 text-[#5F6C7B]" />
+                            {formatPaymentMethod(selectedTransaction.method)}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* User Information */}
+                    <section className="space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#7B8794]">
+                        User Information
+                      </h3>
+                      <div className="rounded-2xl border border-[#D6E4FF] bg-[#EDF3FF] p-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#C4D7FF] bg-white text-sm font-bold text-[#2F6CC5]">
+                            {(selectedTransaction.user?.name || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#486581]">
+                              User
+                            </p>
+                            <p className="mt-0.5 text-lg md:text-xl font-extrabold leading-none tracking-[-0.015em] text-[#1F2933] truncate">
+                              {selectedTransaction.user?.name ||
+                                "Not available"}
+                            </p>
+                            <p className="mt-1 text-sm md:text-base font-medium text-[#52606D] truncate">
+                              {selectedTransaction.user?.email ||
+                                "Not available"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Timeline / Metadata */}
+                    <section className="space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-[#7B8794]">
+                        Timeline / Metadata
+                      </h3>
+                      <div className="rounded-2xl border border-[#E2E8F0] bg-[#FAFBFC] p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7B8794]">
+                            <Calendar className="h-4 w-4 text-[#7B8794]" />
+                            Created
+                          </span>
+                          <span className="text-sm font-semibold text-[#334E68]">
+                            {formatDate(selectedTransaction.createdAt)}
+                          </span>
+                        </div>
+
+                        {selectedTransaction.processedAt && (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7B8794]">
+                              <Clock className="h-4 w-4 text-[#7B8794]" />
+                              Processed At
+                            </span>
+                            <span className="text-sm font-semibold text-[#334E68]">
+                              {formatDate(selectedTransaction.processedAt)}
+                            </span>
+                          </div>
+                        )}
+
+                        {selectedTransaction.processedBy?.name && (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7B8794]">
+                              <User className="h-4 w-4 text-[#7B8794]" />
+                              Processed By
+                            </span>
+                            <span className="text-sm font-semibold text-[#334E68]">
+                              {selectedTransaction.processedBy.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedTransaction.notes && (
+                        <div className="rounded-2xl border border-[#E2E8F0] bg-[#FCFDFE] p-3.5">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7B8794]">
+                            Notes
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-[#334E68] whitespace-pre-wrap">
+                            {selectedTransaction.notes}
                           </p>
                         </div>
                       )}
-                    </div>
-
-                    {/* Notes */}
-                    {selectedTransaction.notes && (
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Notes</p>
-                        <p className="text-gray-800">
-                          {selectedTransaction.notes}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Processed By */}
-                    {selectedTransaction.processedBy && (
-                      <div className="text-sm text-gray-500 pt-2 border-t">
-                        Processed by:{" "}
-                        <span className="font-medium">
-                          {selectedTransaction.processedBy.name}
-                        </span>
-                      </div>
-                    )}
+                    </section>
                   </div>
                 ) : (
                   <p className="text-gray-500 text-center py-8">Not found</p>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </Motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import useScrollLock from '../../hooks/useScrollLock';
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import useScrollLock from "../../../hooks/useScrollLock";
 import {
   Search,
   Briefcase,
@@ -28,15 +28,15 @@ import {
   UploadCloud,
   AlertCircle,
 } from "lucide-react";
-import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
+import AdminFilterBar from "../../../components/dashboard/AdminFilterBar";
 import {
   getAllServices,
   getServiceById,
   createService,
   updateService,
   deleteService,
-} from "../../api/serviceApi";
-import { getAllCategories } from "../../api/categoryApi";
+} from "../../../api/serviceApi";
+import { getAllCategories } from "../../../api/categoryApi";
 
 // Pet type labels
 const PET_TYPE_LABELS = {
@@ -106,7 +106,13 @@ export default function ServiceManagement() {
   const [featureInput, setFeatureInput] = useState("");
   const [imageInput, setImageInput] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+
+  const closeFormModal = () => {
+    setShowFormModal(false);
+    setIsCategoryOpen(false);
+  };
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
@@ -213,6 +219,7 @@ export default function ServiceManagement() {
     });
     setFeatureInput("");
     setImageInput("");
+    setIsCategoryOpen(false);
     setShowFormModal(true);
   };
 
@@ -234,6 +241,7 @@ export default function ServiceManagement() {
     });
     setFeatureInput("");
     setImageInput("");
+    setIsCategoryOpen(false);
     setShowFormModal(true);
   };
 
@@ -320,7 +328,7 @@ export default function ServiceManagement() {
         await updateService(selectedService._id, payload);
       }
 
-      setShowFormModal(false);
+      closeFormModal();
       fetchServices();
     } catch (err) {
       setError(err.response?.data?.message || "Không thể lưu dịch vụ");
@@ -332,17 +340,21 @@ export default function ServiceManagement() {
   // Open delete modal
   const handleOpenDelete = (service) => {
     setSelectedService(service);
+    setDeleteLoading(false);
     setShowDeleteModal(true);
   };
 
   // Confirm delete
   const handleConfirmDelete = async () => {
     try {
+      setDeleteLoading(true);
       await deleteService(selectedService._id);
       setShowDeleteModal(false);
       fetchServices();
     } catch (err) {
       setError(err.response?.data?.message || "Không thể xóa dịch vụ");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -374,8 +386,20 @@ export default function ServiceManagement() {
     return cat?.name || "-";
   };
 
+  const isEditMode = formMode === "edit";
+  const formTitle = isEditMode ? "Edit Service" : "Add New Service";
+  const formSubtitle = isEditMode
+    ? "Update service information"
+    : "Create a new pet care service";
+  const isFormSubmittable =
+    formData.name.trim() &&
+    formData.category &&
+    Number(formData.price) >= 0 &&
+    Number(formData.duration) >= 1 &&
+    formData.petTypes.length > 0;
+
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       className="max-w-[1400px] mx-auto space-y-6 pb-10"
@@ -386,10 +410,16 @@ export default function ServiceManagement() {
           <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             Service Management
           </h1>
-          <p className="text-[#2D3436]/60 text-sm">
-            Manage pet care services
-          </p>
+          <p className="text-[#2D3436]/60 text-sm">Manage pet care services</p>
         </div>
+        <Motion.button
+          onClick={handleOpenCreate}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+        >
+          <Plus size={18} /> Add Service
+        </Motion.button>
       </div>
 
       {/* Filters */}
@@ -452,8 +482,12 @@ export default function ServiceManagement() {
         ) : services.length === 0 ? (
           <div className="text-center py-20 text-[#2D3436]/40">
             <Briefcase className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
-            <p className="text-lg font-bold text-[#2D3436]">No services found</p>
-            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
+            <p className="text-lg font-bold text-[#2D3436]">
+              No services found
+            </p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">
+              Try adjusting your filters or search query.
+            </p>
           </div>
         ) : (
           <>
@@ -461,12 +495,8 @@ export default function ServiceManagement() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
-                    <th className="px-6 py-4 whitespace-nowrap">
-                      Service
-                    </th>
-                    <th className="px-6 py-4 whitespace-nowrap">
-                      Category
-                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap">Service</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Category</th>
                     <th className="px-6 py-4 whitespace-nowrap text-right">
                       Price
                     </th>
@@ -486,7 +516,7 @@ export default function ServiceManagement() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {services.map((service) => (
-                    <motion.tr
+                    <Motion.tr
                       key={service._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -565,9 +595,7 @@ export default function ServiceManagement() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleViewDetail(service)}
-                          />
+                          <button onClick={() => handleViewDetail(service)} />
                           <Edit2
                             size={16}
                             className="hover:text-[#7FB069] transition-colors cursor-pointer"
@@ -580,7 +608,7 @@ export default function ServiceManagement() {
                           />
                         </div>
                       </td>
-                    </motion.tr>
+                    </Motion.tr>
                   ))}
                 </tbody>
               </table>
@@ -622,14 +650,14 @@ export default function ServiceManagement() {
       {/* Detail Modal */}
       <AnimatePresence>
         {showDetailModal && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={() => setShowDetailModal(false)}
           >
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -796,367 +824,547 @@ export default function ServiceManagement() {
                   </p>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </Motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {/* Form Modal */}
       <AnimatePresence>
         {showFormModal && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowFormModal(false)}
+            className="fixed inset-0 bg-[#121315]/55 backdrop-blur-[2px] flex items-center justify-center z-50 p-4"
+            onClick={closeFormModal}
           >
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-[860px] rounded-[28px] border border-[#EFDCD2] bg-[#FFFEFD] shadow-[0_24px_70px_rgba(17,24,39,0.32)] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
-                    <Edit2 className="w-5 h-5 text-[#D97853]" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
-                      {formMode === "create" ? "Add New Service" : "Edit Service"}
-                    </h2>
-                    <p className="text-xs text-[#2D3436]/50 font-medium">
-                      {formMode === "create" ? "Create a new pet care service" : "Update service information"}
-                    </p>
+              <form
+                onSubmit={handleSubmitForm}
+                className="flex flex-col max-h-[90vh]"
+              >
+                {/* Header */}
+                <div className="sticky top-0 z-30 border-b border-[#EFDCD2] px-5 md:px-6 py-4 bg-gradient-to-r from-[#FFF1E8] via-[#FFF7F1] to-[#FFFCFA]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-2xl bg-white/90 border border-[#F4D6C7] shadow-sm flex items-center justify-center shrink-0">
+                        <Edit2 className="w-5 h-5 text-[#D97853]" />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="text-[27px] leading-[1.1] font-extrabold tracking-[-0.01em] text-[#1F2933]">
+                          {formTitle}
+                        </h2>
+                        <p className="mt-1 text-[13px] font-medium text-[#9D725F]">
+                          {formSubtitle}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeFormModal}
+                      className="p-2 rounded-xl text-[#7C6A6F] hover:text-[#2D3436] hover:bg-white/90 transition-colors"
+                      aria-label="Close service modal"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowFormModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Service Name <span className="text-[#D97853]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30"
-                    placeholder="E.g. Spa bath for dogs"
-                  />
-                </div>
-
-                {/* Category */}
-                <div className={`relative ${isCategoryOpen ? "z-[60]" : "z-10"}`}>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Category <span className="text-[#D97853]">*</span>
-                  </label>
-                  <div
-                    onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 flex items-center justify-between cursor-pointer bg-white"
-                  >
-                    <span className={`text-sm font-medium ${formData.category ? "text-[#2D3436]" : "text-gray-500"}`}>
-                      {formData.category
-                        ? categories.find((c) => c._id === formData.category)?.name || "Select category"
-                        : "Select category"}
-                    </span>
-                    <MoreVertical size={14} className="text-[#D97853]" />
-                  </div>
-                  <AnimatePresence>
-                    {isCategoryOpen && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsCategoryOpen(false);
-                          }}
+                {/* Body */}
+                <div className="px-5 md:px-6 py-4 overflow-y-auto space-y-3.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  <section className="bg-[#FFFFFF] border border-[#2D3436]/10 rounded-2xl p-4 md:p-5 space-y-3.5">
+                    <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
+                      Basic Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Service Name <span className="text-[#D97853]">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleFormChange}
+                          required
+                          className="w-full h-11 px-3.5 bg-white border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 placeholder:text-[#2D3436]/35"
+                          placeholder="E.g. Spa bath for dogs"
                         />
-                        <motion.div
-                          initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5 max-h-60 overflow-y-auto"
+                      </div>
+
+                      <div
+                        className={`relative ${isCategoryOpen ? "z-[70]" : "z-10"}`}
+                      >
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Category <span className="text-[#D97853]">*</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsCategoryOpen((prev) => !prev)}
+                          className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl bg-white text-left flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
                         >
-                          {categories.map((cat) => {
-                            const isSelected = formData.category === cat._id;
-                            return (
+                          <span
+                            className={`text-sm font-medium ${formData.category ? "text-[#2D3436]" : "text-[#2D3436]/40"}`}
+                          >
+                            {formData.category
+                              ? categories.find(
+                                  (c) => c._id === formData.category,
+                                )?.name || "Select category"
+                              : "Select category"}
+                          </span>
+                          <ChevronDown
+                            size={15}
+                            className={`text-[#D97853] transition-transform ${
+                              isCategoryOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+
+                        <AnimatePresence>
+                          {isCategoryOpen && (
+                            <>
                               <div
-                                key={cat._id}
-                                className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                className="fixed inset-0 z-40"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleFormChange({ target: { name: "category", value: cat._id } });
                                   setIsCategoryOpen(false);
                                 }}
+                              />
+                              <Motion.div
+                                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5 max-h-60 overflow-y-auto"
                               >
-                                {cat.name}
-                              </div>
-                            );
-                          })}
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
+                                {categories.map((cat) => {
+                                  const isSelected =
+                                    formData.category === cat._id;
+                                  return (
+                                    <button
+                                      key={cat._id}
+                                      type="button"
+                                      className={`w-full text-left px-4 py-2.5 text-[14px] transition-colors ${
+                                        !isSelected
+                                          ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium"
+                                          : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"
+                                      }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFormChange({
+                                          target: {
+                                            name: "category",
+                                            value: cat._id,
+                                          },
+                                        });
+                                        setIsCategoryOpen(false);
+                                      }}
+                                    >
+                                      {cat.name}
+                                    </button>
+                                  );
+                                })}
+                              </Motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleFormChange}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 resize-none"
-                    placeholder="Describe the service in detail..."
-                  />
-                </div>
+                    <div>
+                      <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleFormChange}
+                        rows={2}
+                        className="w-full min-h-[84px] px-3.5 py-2.5 bg-white border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 placeholder:text-[#2D3436]/35 resize-none"
+                        placeholder="Describe the service in detail..."
+                      />
+                    </div>
+                  </section>
 
-                {/* Price & Duration */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Price (VND) <span className="text-[#D97853]">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleFormChange}
-                      required
-                      min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                      placeholder="100000"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Duration (min) <span className="text-[#D97853]">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      name="duration"
-                      value={formData.duration}
-                      onChange={handleFormChange}
-                      required
-                      min="1"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                      placeholder="60"
-                    />
-                  </div>
-                </div>
+                  <section className="bg-[#FFFFFF] border border-[#2D3436]/10 rounded-2xl p-4 md:p-5 space-y-3.5">
+                    <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
+                      Pricing & Capacity
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Price (VND) <span className="text-[#D97853]">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="price"
+                          value={formData.price}
+                          onChange={handleFormChange}
+                          required
+                          min="0"
+                          className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                          placeholder="100000"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Duration (min){" "}
+                          <span className="text-[#D97853]">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="duration"
+                          value={formData.duration}
+                          onChange={handleFormChange}
+                          required
+                          min="1"
+                          className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                          placeholder="60"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Max Capacity
+                        </label>
+                        <input
+                          type="number"
+                          name="maxCapacity"
+                          value={formData.maxCapacity}
+                          onChange={handleFormChange}
+                          min="1"
+                          className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                          placeholder="1"
+                        />
+                      </div>
+                    </div>
+                  </section>
 
-                {/* Max Capacity */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Max Capacity
-                  </label>
-                  <input
-                    type="number"
-                    name="maxCapacity"
-                    value={formData.maxCapacity}
-                    onChange={handleFormChange}
-                    min="1"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    placeholder="1"
-                  />
-                </div>
+                  <section className="bg-[#FFFFFF] border border-[#2D3436]/10 rounded-2xl p-4 md:p-5 space-y-3.5">
+                    <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
+                      Applicable Pet Types
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {PET_TYPE_OPTIONS.map((opt) => {
+                        const isSelected = formData.petTypes.includes(
+                          opt.value,
+                        );
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handlePetTypeToggle(opt.value)}
+                            className={`h-9 inline-flex items-center gap-1.5 px-3.5 rounded-xl border text-sm font-semibold transition-colors ${
+                              isSelected
+                                ? "bg-[#FFF4ED] border-[#F0BFAC] text-[#B45F40]"
+                                : "bg-[#F8FAFC] border-[#E4E9EE] text-[#5E6872] hover:bg-[#EEF2F5]"
+                            }`}
+                          >
+                            <PawPrint size={13} className="shrink-0" />
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
 
-                {/* Pet Types */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Applicable Pet Types
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {PET_TYPE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => handlePetTypeToggle(opt.value)}
-                        className={`px-3 py-2 rounded-lg border-2 transition-all ${
-                          formData.petTypes.includes(opt.value)
-                            ? "border-amber-500 bg-amber-50 text-amber-700"
-                            : "border-gray-200 hover:border-gray-300"
+                  <section className="bg-[#FFFFFF] border border-[#2D3436]/10 rounded-2xl p-4 md:p-5 space-y-3.5">
+                    <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
+                      Features & Images
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2.5">
+                        <label className="block text-[13px] font-semibold text-[#2D3436]">
+                          Features
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={featureInput}
+                            onChange={(e) => setFeatureInput(e.target.value)}
+                            className="flex-1 h-11 px-3.5 bg-white border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 placeholder:text-[#2D3436]/35"
+                            placeholder="Add a feature"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddFeature();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddFeature}
+                            className="h-11 px-4 inline-flex items-center gap-1.5 bg-[#D97853] text-white rounded-xl hover:bg-[#C66A47] transition-colors text-sm font-semibold"
+                          >
+                            <Plus size={14} /> Add
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 min-h-[40px]">
+                          {formData.features.map((feat, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#EAF8EE] text-[#2E7D4B] border border-[#CDEED8] rounded-full text-xs font-semibold"
+                            >
+                              {feat}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFeature(idx)}
+                                className="text-[#2E7D4B] hover:text-[#C92E46]"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <label className="block text-[13px] font-semibold text-[#2D3436]">
+                          Images (URL)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={imageInput}
+                            onChange={(e) => setImageInput(e.target.value)}
+                            className="flex-1 h-11 px-3.5 bg-white border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 placeholder:text-[#2D3436]/35"
+                            placeholder="Paste image URL"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddImage();
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddImage}
+                            className="h-11 px-4 inline-flex items-center gap-1.5 bg-[#F3F6F9] border border-[#DCE3EA] text-[#475565] rounded-xl hover:bg-[#EAEFF5] transition-colors text-sm font-semibold"
+                          >
+                            <UploadCloud size={14} /> Add
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 min-h-[40px]">
+                          {formData.images.map((img, idx) => (
+                            <div key={idx} className="relative group">
+                              <img
+                                src={img}
+                                alt={`Preview ${idx + 1}`}
+                                className="w-14 h-14 object-cover rounded-xl border border-[#E3E8ED]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveImage(idx)}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#C92E46] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="bg-[#FFFFFF] border border-[#2D3436]/10 rounded-2xl p-4 md:p-5 space-y-3.5">
+                    <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
+                      Status
+                    </h3>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={formData.isActive}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          isActive: !prev.isActive,
+                        }))
+                      }
+                      className={`h-11 w-full max-w-[260px] px-3.5 rounded-2xl border flex items-center justify-between transition-all ${
+                        formData.isActive
+                          ? "bg-[#FFF4ED] border-[#F5CCB9]"
+                          : "bg-white border-[#E6EAED] hover:bg-[#F8FAFB]"
+                      }`}
+                    >
+                      <span
+                        className={`text-sm font-semibold ${
+                          formData.isActive
+                            ? "text-[#AF6242]"
+                            : "text-[#4F575D]"
                         }`}
                       >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Features */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Features
-                  </label>
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={featureInput}
-                      onChange={(e) => setFeatureInput(e.target.value)}
-                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
-                      placeholder="Enter feature..."
-                      onKeyPress={(e) =>
-                        e.key === "Enter" &&
-                        (e.preventDefault(), handleAddFeature())
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddFeature}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.features.map((feat, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
-                      >
-                        {feat}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFeature(idx)}
-                          className="hover:text-red-600"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        Active service
                       </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Images */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Images (URL)
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="url"
-                      value={imageInput}
-                      onChange={(e) => setImageInput(e.target.value)}
-                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
-                      placeholder="Enter image URL..."
-                      onKeyPress={(e) =>
-                        e.key === "Enter" &&
-                        (e.preventDefault(), handleAddImage())
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddImage}
-                      className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.images.map((img, idx) => (
-                      <div key={idx} className="relative group">
-                        <img
-                          src={img}
-                          alt={`Preview ${idx + 1}`}
-                          className="w-16 h-16 object-cover rounded-lg"
+                      <span
+                        className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${
+                          formData.isActive ? "bg-[#D97853]" : "bg-[#D0D6DB]"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                            formData.isActive ? "translate-x-4" : ""
+                          }`}
                         />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                      </span>
+                    </button>
+                  </section>
                 </div>
 
-                {/* Active Status */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    name="isActive"
-                    checked={formData.isActive}
-                    onChange={handleFormChange}
-                    className="w-5 h-5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
-                  />
-                  <label htmlFor="isActive" className="text-[#2D3436] font-medium">
-                    Active service
-                  </label>
+                {/* Footer */}
+                <div className="border-t border-[#E7E0DB] bg-white px-5 md:px-6 py-3.5 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={closeFormModal}
+                    className="h-11 px-5 text-sm font-semibold text-[#5D656B] hover:bg-[#F2F5F7] rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={formLoading || !isFormSubmittable}
+                    className={`h-11 min-w-[152px] inline-flex items-center justify-center gap-2 px-5 text-sm font-bold rounded-xl transition-all ${
+                      formLoading || !isFormSubmittable
+                        ? "bg-[#F2C9B8] text-white/90 cursor-not-allowed"
+                        : "bg-[#D97853] text-white hover:bg-[#C66A47] active:scale-[0.99] shadow-[0_10px_24px_rgba(217,120,83,0.28)]"
+                    }`}
+                  >
+                    {formLoading ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    {isEditMode ? "Update Service" : "Create Service"}
+                  </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
+            </Motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {/* Delete Modal */}
       <AnimatePresence>
         {showDeleteModal && selectedService && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-[#121315]/55 backdrop-blur-[2px] flex items-center justify-center z-50 p-4"
             onClick={() => setShowDeleteModal(false)}
           >
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md"
+              className="w-full max-w-[560px] bg-[#FFFEFD] rounded-[26px] border border-[#F3DDE0] shadow-[0_24px_60px_rgba(17,24,39,0.35)] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                <Trash2 className="w-8 h-8 text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-[#2D3436] mb-2">
-                Delete Service?
-              </h3>
-              <p className="text-[#2D3436]/60 mb-6 font-medium">
-                Are you sure you want to delete{" "}
-                <strong className="text-[#2D3436]">{selectedService.name}</strong>? This action cannot be
-                undone.
-              </p>
-              <div className="flex gap-3">
+              <div className="px-6 py-5 bg-gradient-to-r from-white via-[#FFF9F9] to-[#FFF1F3] border-b border-[#F3E3E6] flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#FDEDEE] border border-[#F8D4D8] shadow-sm flex items-center justify-center shrink-0">
+                    <Trash2 size={19} className="text-[#D73A4F]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-[24px] leading-[1.1] font-extrabold tracking-[-0.01em] text-[#1F2933]">
+                      Delete Service?
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-[#7A6368]">
+                      This action permanently removes the selected service.
+                    </p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setShowDeleteModal(false)}
-                  className="flex-1 py-3 px-4 bg-white border border-[#2D3436]/10 rounded-xl font-bold text-[#2D3436]/70 hover:border-[#2D3436]/30 transition-colors"
+                  className="p-2 rounded-xl text-[#7C6A6F] hover:text-[#2D3436] hover:bg-white/90 transition-colors"
+                  aria-label="Close delete service modal"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg"
-                >
-                  Delete
+                  <X size={18} />
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+
+              <div className="p-6 space-y-4">
+                <div className="flex gap-3 p-3.5 bg-[#FFF5F6] border border-[#F6D5D9] rounded-2xl">
+                  <div className="w-8 h-8 rounded-full bg-white border border-[#F4CCD2] flex items-center justify-center shrink-0">
+                    <AlertCircle size={16} className="text-[#CE3047]" />
+                  </div>
+                  <div className="text-sm leading-relaxed text-[#7A4048]">
+                    <p className="font-semibold text-[#B8273F]">
+                      This action cannot be undone.
+                    </p>
+                    <p className="mt-0.5">
+                      Deleting this service may affect related bookings and
+                      historical references.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3.5 p-3.5 bg-[#F8FAFC] border border-[#E8ECF0] rounded-2xl">
+                  <div className="w-11 h-11 rounded-full bg-[#FFF0EA] border border-[#F5D5C8] flex items-center justify-center shrink-0">
+                    <Briefcase className="w-5 h-5 text-[#B66342]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[16px] font-bold text-[#1F2933] truncate leading-tight">
+                      {selectedService.name}
+                    </p>
+                    <p className="text-sm font-medium text-[#66727F] truncate mt-0.5">
+                      {getCategoryName(selectedService)}
+                    </p>
+                  </div>
+                  <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border bg-[#FFF0EA] text-[#B66342] border-[#F5D5C8]">
+                    {selectedService.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+
+                <p className="text-sm text-[#5E6B75] leading-relaxed">
+                  You are about to permanently delete service{" "}
+                  <span className="font-semibold text-[#1F2933]">
+                    {selectedService.name}
+                  </span>
+                  . This action cannot be undone.
+                </p>
+
+                <div className="flex items-center justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className="h-11 px-5 border border-[#D8E0E7] bg-white text-[#435261] text-sm font-semibold rounded-2xl hover:bg-[#F4F7FA] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={deleteLoading}
+                    className={`h-11 min-w-[140px] px-5 text-sm font-semibold rounded-2xl transition-all flex items-center justify-center gap-1.5 ${
+                      deleteLoading
+                        ? "bg-[#F3C1C9] text-white/90 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-[#E15065] to-[#C92E46] text-white hover:brightness-105 shadow-[0_10px_24px_rgba(201,46,70,0.35)]"
+                    }`}
+                  >
+                    {deleteLoading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={14} /> Delete
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </Motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 }
