@@ -386,6 +386,31 @@ const ServicePage = () => {
   const [spaServices, setSpaServices] = useState([]);
   const [spaLoading, setSpaLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
+  const [flyToCartItems, setFlyToCartItems] = useState([]);
+
+  const triggerFlyToCart = (sourceElement) => {
+    const sourceRect = sourceElement?.getBoundingClientRect?.();
+    const targetRect = document
+      .getElementById("navbar-cart-button")
+      ?.getBoundingClientRect?.();
+    if (!sourceRect || !targetRect) return;
+
+    const id = `${Date.now()}-${Math.random()}`;
+    setFlyToCartItems((prev) => [
+      ...prev,
+      {
+        id,
+        startX: sourceRect.left + sourceRect.width / 2,
+        startY: sourceRect.top + sourceRect.height / 2,
+        endX: targetRect.left + targetRect.width / 2,
+        endY: targetRect.top + targetRect.height / 2,
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setFlyToCartItems((prev) => prev.filter((item) => item.id !== id));
+    }, 720);
+  };
 
   const showCartMessage = (message) => {
     setCartMessage(message);
@@ -407,7 +432,7 @@ const ServicePage = () => {
     );
   };
 
-  const openStaySetup = async (service) => {
+  const openStaySetup = async (service, sourceElement) => {
     const serviceId = service?._id || service?.apiService?._id;
     if (!serviceId) {
       showCartMessage("Không tìm thấy dịch vụ boarding để thiết lập.");
@@ -437,6 +462,9 @@ const ServicePage = () => {
         },
       });
 
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
+
       showCartMessage("Đã thêm boarding vào giỏ. Bạn chọn ngày giờ chính thức ở trang Cart.");
     } catch (error) {
       const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
@@ -446,6 +474,7 @@ const ServicePage = () => {
 
   const handleAddToCart = async (event, service) => {
     event.stopPropagation();
+    const sourceElement = event.currentTarget;
 
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -454,7 +483,7 @@ const ServicePage = () => {
     }
 
     if (isBoardingService(service)) {
-      await openStaySetup(service);
+      await openStaySetup(service, sourceElement);
       return;
     }
 
@@ -472,6 +501,8 @@ const ServicePage = () => {
           source: "service-page",
         },
       });
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
       showCartMessage(`Đã thêm \"${service.name || service.title || "dịch vụ"}\" vào giỏ hàng.`);
     } catch (error) {
       const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
@@ -615,6 +646,33 @@ const ServicePage = () => {
         initialMode={authModalMode}
         onLoginSuccess={handleLoginSuccess}
       />
+
+      <AnimatePresence>
+        {flyToCartItems.map((item) => (
+          <Motion.div
+            key={item.id}
+            className="fixed left-0 top-0 z-[70] pointer-events-none"
+            initial={{
+              x: item.startX - 18,
+              y: item.startY - 18,
+              scale: 1.15,
+              opacity: 1,
+            }}
+            animate={{
+              x: [item.startX - 18, item.startX + 30, item.endX - 18],
+              y: [item.startY - 18, item.startY - 36, item.endY - 18],
+              scale: [1.15, 1, 0.68],
+              opacity: [1, 0.95, 0.3],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.15, ease: "easeInOut" }}
+          >
+            <div className="w-9 h-9 rounded-full bg-[#E07A5F] text-white flex items-center justify-center shadow-[0_10px_22px_rgba(224,122,95,0.45)] ring-2 ring-white/70">
+              <ShoppingCart size={17} />
+            </div>
+          </Motion.div>
+        ))}
+      </AnimatePresence>
 
       <main className="w-full mx-auto px-6 md:px-12 lg:px-[5%] pt-28 pb-20">
         {cartMessage && (

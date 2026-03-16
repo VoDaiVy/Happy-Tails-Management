@@ -61,6 +61,16 @@ const PET_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const SERVICE_GROUP_OPTIONS = [
+  { value: "dry", label: "Dry" },
+  { value: "wet", label: "Wet" },
+];
+
+const SERVICE_GROUP_LABELS = {
+  dry: "Dry",
+  wet: "Wet",
+};
+
 export default function ServiceManagement() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -104,6 +114,7 @@ export default function ServiceManagement() {
     name: "",
     description: "",
     category: "",
+    group: "dry",
     price: "",
     duration: "",
     petTypes: ["dog", "cat"],
@@ -213,6 +224,7 @@ export default function ServiceManagement() {
       name: "",
       description: "",
       category: categories[0]?._id || "",
+      group: "dry",
       price: "",
       duration: "",
       petTypes: ["dog", "cat"],
@@ -234,6 +246,7 @@ export default function ServiceManagement() {
       name: service.name,
       description: service.description || "",
       category: service.category?._id || service.category || "",
+      group: service.group || "dry",
       price: service.price,
       duration: service.duration,
       petTypes: service.petTypes || ["dog", "cat"],
@@ -355,6 +368,7 @@ export default function ServiceManagement() {
         name: formData.name,
         description: formData.description,
         category: formData.category,
+        group: formData.group,
         price: Number(formData.price),
         duration: Number(formData.duration),
         petTypes: formData.petTypes,
@@ -538,6 +552,9 @@ export default function ServiceManagement() {
                     <th className="px-6 py-4 whitespace-nowrap">
                       Category
                     </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Group
+                    </th>
                     <th className="px-6 py-4 whitespace-nowrap text-right">
                       Price
                     </th>
@@ -602,6 +619,17 @@ export default function ServiceManagement() {
                       <td className="px-6 py-4">
                         <span className="px-3 py-1 text-xs font-bold rounded-full shadow-sm border bg-purple-50 text-purple-700 border-purple-100">
                           {getCategoryName(service)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`px-3 py-1 text-xs font-bold rounded-full border ${
+                            service.group === "wet"
+                              ? "bg-blue-50 text-blue-700 border-blue-100"
+                              : "bg-amber-50 text-amber-700 border-amber-100"
+                          }`}
+                        >
+                          {SERVICE_GROUP_LABELS[service.group] || "Dry"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -760,9 +788,20 @@ export default function ServiceManagement() {
                       <h3 className="text-xl font-bold text-gray-800">
                         {selectedService.name}
                       </h3>
-                      <span className="inline-block mt-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
-                        {getCategoryName(selectedService)}
-                      </span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-block px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                          {getCategoryName(selectedService)}
+                        </span>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm ${
+                            selectedService.group === "wet"
+                              ? "bg-blue-50 text-blue-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {SERVICE_GROUP_LABELS[selectedService.group] || "Dry"} Service
+                        </span>
+                      </div>
                     </div>
 
                     {/* Price, Duration, Rating */}
@@ -1038,6 +1077,36 @@ export default function ServiceManagement() {
                       placeholder="60"
                     />
                   </div>
+                </div>
+
+                {/* Service Group */}
+                <div>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Service Group <span className="text-[#D97853]">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {SERVICE_GROUP_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          handleFormChange({
+                            target: { name: "group", value: opt.value },
+                          })
+                        }
+                        className={`px-4 py-3 rounded-xl border text-sm font-bold transition-all ${
+                          formData.group === opt.value
+                            ? "border-[#D97853] bg-[#D97853]/10 text-[#D97853]"
+                            : "border-[#2D3436]/10 bg-white text-[#2D3436]/70 hover:border-[#D97853]/60"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-[#2D3436]/50">
+                    Dry: Cắt tỉa/Cắt móng... | Wet: Tắm/Sấy/Massage...
+                  </p>
                 </div>
 
                 {/* Max Capacity */}
