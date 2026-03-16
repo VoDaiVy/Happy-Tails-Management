@@ -1,8 +1,18 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PrivateRoute from "./components/PrivateRoute";
 import Home from "./pages/Home";
 import { Login } from "./pages/Login";
+import Register from "./pages/Register";
+import Service from "./pages/Service";
+import ServiceDetail from "./components/service/ServiceDetail";
+import BoardingDetail from "./components/service/BoardingDetail";
+import News from "./pages/News";
+import AIHealthScan from "./pages/AIHealthScan";
+import Policy from "./pages/Policy";
+import Cart from "./pages/Cart";
+import Wallet from "./pages/Wallet";
 import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
@@ -18,15 +28,7 @@ import MedicalRecordManagement from "./pages/dashboard/MedicalRecordManagement";
 import TransactionManagement from "./pages/dashboard/TransactionManagement";
 import VoucherManagement from "./pages/dashboard/VoucherManagement";
 import ServiceManagement from "./pages/dashboard/ServiceManagement";
-import Register from "./pages/Register";
-import Service from "./pages/Service";
-import News from "./pages/News";
-import NewsDetail from "./pages/NewsDetail";
-import AIHealthScan from "./pages/AIHealthScan";
-import Policy from "./pages/Policy";
-import Wallet from "./pages/Wallet";
 import FloatingChatBubble from "./components/FloatingChatBubble";
-import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
   return (
@@ -37,10 +39,16 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/service" element={<Service />} />
+          <Route path="/service/:serviceSlug" element={<ServiceDetail />} />
+          <Route path="/service-detail" element={<ServiceDetail />} />
+          <Route path="/service-detail/:id" element={<ServiceDetail />} />
+          <Route path="/boarding/:roomType" element={<BoardingDetail />} />
           <Route path="/news" element={<News />} />
           <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/ai-health-scan" element={<AIHealthScan />} />
           <Route path="/policy" element={<Policy />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Protected customer routes */}
           <Route
@@ -71,7 +79,7 @@ function App() {
           {/* Wallet */}
           <Route path="/wallet" element={<Wallet />} />
 
-          {/* Admin Dashboard — requires admin role */}
+          {/* Admin Dashboard - requires admin role */}
           <Route
             path="/admin"
             element={
@@ -93,7 +101,7 @@ function App() {
             <Route path="vouchers" element={<VoucherManagement />} />
           </Route>
 
-          {/* Staff Dashboard — requires staff or admin role */}
+          {/* Staff Dashboard - requires staff or admin role */}
           <Route
             path="/staff"
             element={

@@ -7,7 +7,7 @@
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const Order = require('../models/Order');
+const Booking = require('../models/Booking');
 const Transaction = require('../models/Transaction');
 const Wallet = require('../models/Wallet');
 const { createError } = require('../utils/AppError');
@@ -277,17 +277,17 @@ const getOverview = async () => {
     User.countDocuments({ role: { $in: ['customer', 'staff'] }, isDeleted: false }),
     User.countDocuments({ role: 'admin', isDeleted: false }),
     User.countDocuments({ isBlocked: true, isDeleted: false }),
-    Order.countDocuments(),
-    Order.countDocuments({ status: 'pending' }),
-    Order.aggregate([
+    Booking.countDocuments(),
+    Booking.countDocuments({ status: 'pending' }),
+    Booking.aggregate([
       { $match: { status: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$totalPrice' }, count: { $sum: 1 } } }
+      { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } }
     ]),
     User.countDocuments({
       createdAt: { $gte: startOfToday, $lte: endOfToday },
       isDeleted: false
     }),
-    Order.countDocuments({
+    Booking.countDocuments({
       createdAt: { $gte: startOfToday, $lte: endOfToday }
     })
   ]);
@@ -312,8 +312,8 @@ const getOverview = async () => {
 
 /**
  * Get revenue statistics with chart data
- * Note: This aggregation can be slow on large datasets.
- * Recommend adding index { status: 1, createdAt: -1 } on Order model.
+ * Revenue is based on completed bookings within the selected period.
+ * Uses completedAt when available, falls back to updatedAt.
  * @param {Object} params - Query parameters
  * @param {string|Date} params.from - Start date
  * @param {string|Date} params.to - End date
@@ -332,40 +332,45 @@ const getRevenueStats = async ({ from, to, groupBy = 'day' }) => {
     case 'week':
       dateExpression = {
         $concat: [
-          { $toString: { $isoWeekYear: '$createdAt' } },
+          { $toString: { $isoWeekYear: '$revenueDate' } },
           '-W',
           {
             $cond: {
-              if: { $lt: [{ $isoWeek: '$createdAt' }, 10] },
-              then: { $concat: ['0', { $toString: { $isoWeek: '$createdAt' } }] },
-              else: { $toString: { $isoWeek: '$createdAt' } }
+              if: { $lt: [{ $isoWeek: '$revenueDate' }, 10] },
+              then: { $concat: ['0', { $toString: { $isoWeek: '$revenueDate' } }] },
+              else: { $toString: { $isoWeek: '$revenueDate' } }
             }
           }
         ]
       };
       break;
     case 'month':
-      dateExpression = { $dateToString: { format: '%Y-%m', date: '$createdAt' } };
+      dateExpression = { $dateToString: { format: '%Y-%m', date: '$revenueDate' } };
       break;
     case 'day':
     default:
-      dateExpression = { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } };
+      dateExpression = { $dateToString: { format: '%Y-%m-%d', date: '$revenueDate' } };
   }
   
   // Aggregation pipeline
-  const chart = await Order.aggregate([
+  const chart = await Booking.aggregate([
+    { $match: { status: 'completed' } },
+    {
+      $addFields: {
+        revenueDate: { $ifNull: ['$completedAt', '$updatedAt'] }
+      }
+    },
     {
       $match: {
-        status: 'completed',
-        createdAt: { $gte: fromDate, $lte: toDate }
+        revenueDate: { $gte: fromDate, $lte: toDate }
       }
     },
     {
       $group: {
         _id: dateExpression,
-        revenue: { $sum: '$totalPrice' },
+        revenue: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
-        avgValue: { $avg: '$totalPrice' }
+        avgValue: { $avg: '$totalAmount' }
       }
     },
     { $sort: { _id: 1 } },
@@ -399,46 +404,68 @@ const getRevenueStats = async ({ from, to, groupBy = 'day' }) => {
 };
 
 /**
- * Get top services by revenue
- * Note: $unwind on items[] can be expensive on large datasets.
- * Consider caching result for 5-10 minutes in production.
+ * Get top services by number of completed booking orders.
  * @param {Object} params - Query parameters
  * @param {string|Date} params.from - Start date
  * @param {string|Date} params.to - End date
- * @param {number} [params.limit=10] - Number of top services to return
+ * @param {number} [params.limit=3] - Number of top services to return
  * @returns {Promise<{ summary: Object, data: Array }>}
  */
-const getTopServices = async ({ from, to, limit = 10 }) => {
+const getTopServices = async ({ from, to, limit = 3 }) => {
   // Use defaults if not provided
   const defaults = getDefaultDateRange();
   const { fromDate, toDate } = normalizeDateRange(from || defaults.from, to || defaults.to);
   
   // Aggregation pipeline
-  const result = await Order.aggregate([
+  const result = await Booking.aggregate([
+    { $match: { status: 'completed' } },
+    {
+      $addFields: {
+        revenueDate: { $ifNull: ['$completedAt', '$updatedAt'] }
+      }
+    },
     {
       $match: {
-        status: 'completed',
-        createdAt: { $gte: fromDate, $lte: toDate }
+        revenueDate: { $gte: fromDate, $lte: toDate }
       }
     },
     { $unwind: '$items' },
     {
       $group: {
-        _id: '$items.serviceId',
-        serviceName: { $first: '$items.name' },
-        totalRevenue: { $sum: '$items.subtotal' },
+        _id: '$items.service',
+        totalRevenue: {
+          $sum: {
+            $multiply: [
+              { $ifNull: ['$items.price', 0] },
+              { $ifNull: ['$items.quantity', 1] },
+            ],
+          },
+        },
         totalOrders: { $sum: 1 },
-        totalQuantity: { $sum: '$items.quantity' },
+        totalQuantity: { $sum: { $ifNull: ['$items.quantity', 1] } },
         avgPrice: { $avg: '$items.price' }
       }
     },
-    { $sort: { totalRevenue: -1 } },
+    {
+      $lookup: {
+        from: 'services',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'serviceDoc',
+      }
+    },
+    { $sort: { totalOrders: -1, totalRevenue: -1 } },
     { $limit: limit },
     {
       $project: {
         _id: 0,
         serviceId: '$_id',
-        serviceName: 1,
+        serviceName: {
+          $ifNull: [
+            { $arrayElemAt: ['$serviceDoc.name', 0] },
+            'Unknown service',
+          ],
+        },
         totalRevenue: 1,
         totalOrders: 1,
         totalQuantity: 1,
@@ -447,12 +474,16 @@ const getTopServices = async ({ from, to, limit = 10 }) => {
     }
   ]);
   
-  // Calculate grand total and revenue share
+  // Calculate totals and order share
   const grandTotal = result.reduce((sum, item) => sum + item.totalRevenue, 0);
+  const grandOrders = result.reduce((sum, item) => sum + item.totalOrders, 0);
   
   const data = result.map((item, index) => ({
     rank: index + 1,
     ...item,
+    orderShare: grandOrders > 0
+      ? ((item.totalOrders / grandOrders) * 100).toFixed(2) + '%'
+      : '0.00%',
     revenueShare: grandTotal > 0 
       ? ((item.totalRevenue / grandTotal) * 100).toFixed(2) + '%'
       : '0.00%'

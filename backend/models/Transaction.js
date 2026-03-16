@@ -162,10 +162,14 @@ transactionSchema.index({ createdAt: -1 });
 
 // ==================== PRE-SAVE HOOKS ====================
 
-// Generate transaction code before saving
-transactionSchema.pre('save', function() {
+// Generate transaction code before validation (must run before Mongoose validates required fields)
+transactionSchema.pre('validate', function() {
   if (!this.transactionCode) {
     this.transactionCode = `TXN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
+  // Sync legacy 'user' field into 'userId'
+  if (!this.userId && this.user) {
+    this.userId = this.user;
   }
 
   // Ensure `orderId` is never null for new documents because some deployments
