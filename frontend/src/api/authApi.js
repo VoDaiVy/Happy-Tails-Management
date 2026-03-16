@@ -1,12 +1,24 @@
 import axiosInstance from "./axiosInstance";
 
+export const extractAuthData = (responseData) => {
+  const payload = responseData?.data || {};
+  const tokens = payload.tokens || {};
+
+  return {
+    user: payload.user || null,
+    accessToken: tokens.accessToken || payload.accessToken || null,
+    refreshToken: tokens.refreshToken || payload.refreshToken || null,
+    expiresIn: tokens.expiresIn || payload.expiresIn || null,
+  };
+};
+
 export const loginApi = async (email, password) => {
   const response = await axiosInstance.post("/auth/login", { email, password });
-  // Save accessToken to localStorage on successful login
-  const { tokens } = response.data.data;
-  if (tokens?.accessToken) {
-    localStorage.setItem("accessToken", tokens.accessToken);
-  }
+  return response.data;
+};
+
+export const googleLoginApi = async (idToken, device = {}) => {
+  const response = await axiosInstance.post("/auth/google", { idToken, device });
   return response.data;
 };
 

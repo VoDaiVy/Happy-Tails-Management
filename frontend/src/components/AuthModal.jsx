@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 import { Eye, EyeOff, Mail, RefreshCw, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { PawPattern } from "./PawPattern";
 import { Button } from "./ui/button";
@@ -9,7 +10,8 @@ import { registerApi, verifyEmailApi, resendVerificationApi } from "../api/authA
 import { useAuth } from "../context/AuthContext";
 
 export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSuccess }) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const [mode, setMode] = useState(initialMode); // "login" or "register"
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -20,6 +22,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
   const [loginError, setLoginError] = useState("");
   const [loginSuccess, setLoginSuccess] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Register form data
   const [step, setStep] = useState(1);
@@ -72,6 +75,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
       setLoginError("");
       setLoginSuccess("");
       setLoginLoading(false);
+      setGoogleLoading(false);
       setShowPassword(false);
     }
   }, [isOpen]);
@@ -121,12 +125,68 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     }
   };
 
-  const handleGoogleLogin = () => {
-    console.log("Login with Google");
+  const getGoogleErrorMessage = (err) => {
+    const code = err.response?.data?.error?.code;
+    const message = err.response?.data?.error?.message;
+    const details = err.response?.data?.error?.details;
+
+    switch (code) {
+      case "INVALID_GOOGLE_TOKEN":
+        return "Google login failed. Please try again.";
+      case "VALIDATION_ERROR":
+        if (Array.isArray(details) && details.length > 0) {
+          return details.map((d) => d.message).join(" | ");
+        }
+        return "Google login request is invalid.";
+      case "GOOGLE_EMAIL_NOT_VERIFIED":
+        return "Your Google email is not verified.";
+      case "ACCOUNT_BLOCKED":
+        return "Your account has been blocked. Please contact support.";
+      case "ACCOUNT_DISABLED":
+        return "Account has been disabled.";
+      default:
+        if (!err.response) return "Unable to connect to server.";
+        return message || "Google login failed.";
+    }
   };
 
-  const handleAppleLogin = () => {
-    console.log("Login with Apple");
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const idToken = credentialResponse?.credential;
+
+    if (!idToken) {
+      setLoginError("Google did not return a valid credential.");
+      return;
+    }
+
+    setLoginError("");
+    setLoginSuccess("");
+    setGoogleLoading(true);
+
+    try {
+      const result = await loginWithGoogle(idToken, {
+        platform: "web",
+        name: navigator.userAgent || "Web Browser",
+      });
+
+      setLoginSuccess(`Login successful! Welcome ${result.data.user.name || "back"} 🎉`);
+
+      setTimeout(() => {
+        onLoginSuccess?.(result.data.user);
+      }, 1000);
+    } catch (err) {
+      setLoginError(getGoogleErrorMessage(err));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setLoginError("Google sign-in was cancelled or failed.");
+  };
+
+  const handleMissingGoogleConfig = () => {
+    setLoginSuccess("");
+    setLoginError("Google login is not configured. Please set VITE_GOOGLE_CLIENT_ID.");
   };
 
   const getRegisterErrorMessage = (err) => {
@@ -186,19 +246,35 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
     setCodeError("");
     try {
       await verifyEmailApi(email, verificationCode);
-      setRegisterSuccess("Email verified successfully! You can now log in.");
-      // Reset form and switch to login after 1.5s
-      setTimeout(() => {
-        setName("");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-        setVerificationCode("");
-        setIsCodeSent(false);
-        setRegisterSuccess("");
+      setRegisterSuccess("Email verified successfully! Logging you in...");
+
+      try {
+        const loginResult = await login(email, password);
+
+        setTimeout(() => {
+          onLoginSuccess?.(loginResult.data.user);
+          onClose?.();
+
+          // Reset register flow after successful auto-login
+          setName("");
+          setEmail("");
+          setPassword("");
+          setConfirmPassword("");
+          setVerificationCode("");
+          setIsCodeSent(false);
+          setRegisterSuccess("");
+          setStep(1);
+          setMode("login");
+        }, 800);
+      } catch (loginErr) {
+        // Fallback: keep verified state and move to login with prefilled email
+        setRegisterSuccess("Email verified successfully. Please log in to continue.");
         setStep(1);
         setMode("login");
-      }, 1500);
+        setLoginEmail(email);
+        setLoginPassword("");
+        setLoginError(getLoginErrorMessage(loginErr));
+      }
     } catch (err) {
       const code = err.response?.data?.error?.code;
       if (code === "INVALID_OTP") {
@@ -364,33 +440,36 @@ export function AuthModal({ isOpen, onClose, initialMode = "login", onLoginSucce
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      onClick={handleGoogleLogin}
-                      variant="outline"
-                      className="h-9 border-gray-200 bg-white hover:bg-gray-50 rounded-[12px] shadow-sm text-xs"
-                    >
-                      <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                      </svg>
-                      Google
-                    </Button>
-
-                    <Button
-                      type="button"
-                      onClick={handleAppleLogin}
-                      variant="outline"
-                      className="h-9 border-gray-200 bg-white hover:bg-gray-50 rounded-[12px] shadow-sm text-xs"
-                    >
-                      <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                      </svg>
-                      Apple
-                    </Button>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="h-11 flex items-center justify-center overflow-hidden">
+                      {googleClientId ? (
+                        <GoogleLogin
+                          onSuccess={handleGoogleSuccess}
+                          onError={handleGoogleError}
+                          text="signin_with"
+                          shape="pill"
+                          theme="outline"
+                          size="large"
+                          width="280"
+                          useOneTap={false}
+                        />
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleMissingGoogleConfig}
+                          variant="outline"
+                          className="w-full h-10 border-none bg-transparent hover:bg-gray-50 rounded-[12px] shadow-none text-sm font-medium"
+                        >
+                          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                          </svg>
+                          Google
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </form>
 

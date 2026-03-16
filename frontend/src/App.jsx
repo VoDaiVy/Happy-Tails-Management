@@ -1,8 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
-import { Login } from "./pages/Login";
 import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
@@ -33,7 +32,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/register" element={<Register />} />
           <Route path="/service" element={<Service />} />
           <Route path="/news" element={<News />} />
