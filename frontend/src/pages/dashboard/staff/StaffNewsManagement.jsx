@@ -150,6 +150,8 @@ const CATEGORY_TAGS_BY_VALUE = {
   general: ["pet-care", "happytails"],
 };
 
+const FIXED_AUDIENCE_LABEL = "All Customers";
+
 const AUDIENCE_LABEL_CANONICAL = {
   allcustomers: "All Customers",
   dogowners: "Dog Owners",
@@ -368,7 +370,6 @@ const StaffNewsManagement = () => {
     });
     setModalCat("Select Category");
     setModalStat("Publish Now");
-    setModalAud("All Customers");
     setPublishDate(new Date());
     if (createImageInputRef.current) {
       createImageInputRef.current.value = "";
@@ -515,11 +516,9 @@ const StaffNewsManagement = () => {
 
   // Modal Form States
   const [modalCat, setModalCat] = useState("Select Category");
-  const [modalAud, setModalAud] = useState("All Customers");
   const [modalStat, setModalStat] = useState("Publish Now");
   const [publishDate, setPublishDate] = useState(new Date());
   const [isModalCatOpen, setIsModalCatOpen] = useState(false);
-  const [isModalAudOpen, setIsModalAudOpen] = useState(false);
   const [isModalStatOpen, setIsModalStatOpen] = useState(false);
 
   const modalCatOpts = [
@@ -529,12 +528,6 @@ const StaffNewsManagement = () => {
     "Promotion",
     "Event",
     "General",
-  ];
-  const modalAudOpts = [
-    "All Customers",
-    "Dog Owners",
-    "Cat Owners",
-    "VIP Members",
   ];
   const modalStatOpts = ["Publish Now", "Save as Draft", "Schedule Later"];
   const createActionLabel =
@@ -561,7 +554,7 @@ const StaffNewsManagement = () => {
       const title = createForm.title.trim();
       const content = createForm.content.trim();
       const categoryValue = normalizeCategoryValue(modalCat);
-      const audienceLabel = normalizeAudienceLabel(modalAud);
+      const audienceLabel = FIXED_AUDIENCE_LABEL;
       const isPublishNow = modalStat === "Publish Now";
 
       const payload = {
@@ -1343,16 +1336,12 @@ const StaffNewsManagement = () => {
 
                   {/* Target Audience */}
                   <div className="relative">
-                    <CustomSelect
-                      label="Target Audience"
-                      isModal={true}
-                      rightIcon={MoreVertical}
-                      options={modalAudOpts}
-                      value={modalAud}
-                      onChange={setModalAud}
-                      isOpen={isModalAudOpen}
-                      setIsOpen={setIsModalAudOpen}
-                    />
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Target Audience
+                    </label>
+                    <div className="w-full px-4 py-3 bg-[#F7F3EC] border border-[#D97853]/20 rounded-2xl text-sm font-bold text-[#2D3436]">
+                      {FIXED_AUDIENCE_LABEL}
+                    </div>
                   </div>
 
                   {/* Content Editor Preview (Dummy Textarea) */}

@@ -9,6 +9,7 @@ import Service from "./pages/Service";
 import ServiceDetail from "./components/service/ServiceDetail";
 import BoardingDetail from "./components/service/BoardingDetail";
 import News from "./pages/News";
+import NewsDetail from "./pages/NewsDetail";
 import AIHealthScan from "./pages/AIHealthScan";
 import Policy from "./pages/Policy";
 import Cart from "./pages/Cart";

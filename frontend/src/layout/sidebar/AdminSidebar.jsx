@@ -9,7 +9,6 @@ import {
   DollarSign,
   Ticket,
   Briefcase,
-  Newspaper,
 } from "lucide-react";
 
 const adminMenuItems = [
@@ -21,7 +20,6 @@ const adminMenuItems = [
   { path: "/admin/medical-records", icon: FileText, label: "Medical Records" },
   { path: "/admin/transactions", icon: DollarSign, label: "Transactions" },
   { path: "/admin/vouchers", icon: Ticket, label: "Vouchers" },
-  { path: "/admin/news", icon: Newspaper, label: "News" },
 ];
 
 const AdminSidebar = ({ collapsed }) => {
