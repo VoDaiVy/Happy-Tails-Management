@@ -9,6 +9,7 @@ import Service from "./pages/Service";
 import ServiceDetail from "./components/service/ServiceDetail";
 import BoardingDetail from "./components/service/BoardingDetail";
 import News from "./pages/News";
+import NewsDetail from "./pages/NewsDetail";
 import AIHealthScan from "./pages/AIHealthScan";
 import Policy from "./pages/Policy";
 import Cart from "./pages/Cart";
@@ -19,8 +20,8 @@ import MyPetsPage from "./pages/MyPetsPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
-import NewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
-import StaffDashboard from "./pages/dashboard/StaffDashboard";
+import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
+import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/UserManagement";
 import RoomManagement from "./pages/dashboard/RoomManagement";
@@ -44,6 +45,7 @@ function App() {
           <Route path="/service-detail/:id" element={<ServiceDetail />} />
           <Route path="/boarding/:roomType" element={<BoardingDetail />} />
           <Route path="/news" element={<News />} />
+          <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/ai-health-scan" element={<AIHealthScan />} />
           <Route path="/policy" element={<Policy />} />
           <Route path="/cart" element={<Cart />} />
@@ -115,7 +117,7 @@ function App() {
               path="news"
               element={
                 <PrivateRoute allowedRoles={["staff"]}>
-                  <NewsManagement />
+                  <StaffNewsManagement />
                 </PrivateRoute>
               }
             />

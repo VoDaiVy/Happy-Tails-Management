@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { LayoutDashboard, CalendarCheck, Newspaper } from "lucide-react";
 
 const staffMenuItems = [
@@ -32,13 +32,13 @@ const StaffSidebar = ({ collapsed }) => {
         >
           <item.icon size={20} className="shrink-0" />
           {!collapsed && (
-            <motion.span
+            <Motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
             >
               {item.label}
-            </motion.span>
+            </Motion.span>
           )}
         </NavLink>
       ))}
