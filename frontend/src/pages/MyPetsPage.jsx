@@ -14,6 +14,7 @@ import {
   getPetById, addMedicalRecord, addVaccination,
   getVaccinationReminders, getPetStatistics
 } from '../api/profileApi';
+import { uploadSingleImage } from '../api/uploadApi';
 
 const PET_TYPES = [
   { value: 'dog', label: 'Dog' },
@@ -43,6 +44,7 @@ const MyPetsPage = () => {
     specialNeeds: '', notes: '', avatar: ''
   });
   const [petSaving, setPetSaving] = useState(false);
+  const [petImageUploading, setPetImageUploading] = useState(false);
   const [petError, setPetError] = useState('');
   const [deletingPetId, setDeletingPetId] = useState(null);
 
@@ -130,6 +132,7 @@ const MyPetsPage = () => {
       weight: '', dateOfBirth: '', color: '', petID: '',
       specialNeeds: '', notes: '', avatar: ''
     });
+    setPetImageUploading(false);
     setPetError('');
     setPetModalOpen(true);
   };
@@ -149,6 +152,7 @@ const MyPetsPage = () => {
       notes: pet.notes || '',
       avatar: pet.avatar || ''
     });
+    setPetImageUploading(false);
     setPetError('');
     setPetModalOpen(true);
   };
@@ -156,6 +160,49 @@ const MyPetsPage = () => {
   const handlePetChange = (e) => {
     const { name, value } = e.target;
     setPetForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePetImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const maxSize = 5 * 1024 * 1024;
+
+    setPetError('');
+
+    if (!allowedTypes.includes(file.type)) {
+      setPetError('Invalid image type. Please upload JPG, PNG, WEBP, or GIF.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setPetError('Image is too large. Maximum size is 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setPetImageUploading(true);
+      const imageUrl = await uploadSingleImage(file);
+
+      if (!imageUrl) {
+        throw new Error('Upload failed');
+      }
+
+      setPetForm(prev => ({ ...prev, avatar: imageUrl }));
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to upload image';
+      setPetError(msg);
+    } finally {
+      setPetImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePetImage = () => {
+    setPetForm(prev => ({ ...prev, avatar: '' }));
   };
 
   const handlePetSave = async () => {
@@ -592,28 +639,56 @@ const MyPetsPage = () => {
                 )}
 
                 <div className="space-y-4">
-                  {/* Avatar preview & URL input */}
+                  {/* Avatar preview & file upload */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Pet Photo</label>
                     <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFE8D9] to-[#FFF4EC] border-2 border-dashed border-orange-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFE8D9] to-[#FFF4EC] border-2 border-dashed border-orange-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {petForm.avatar ? (
                           <img src={petForm.avatar} alt="Pet preview" className="w-full h-full object-cover rounded-2xl" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
                         ) : (
                           <Camera size={24} className="text-slate-300" />
                         )}
                         {petForm.avatar && <div className="w-full h-full items-center justify-center hidden"><Camera size={24} className="text-slate-300" /></div>}
+                        {petImageUploading && (
+                          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                            <Loader2 size={18} className="animate-spin text-[#D97853]" />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          name="avatar"
-                          value={petForm.avatar}
-                          onChange={handlePetChange}
-                          placeholder="Paste image URL (https://...)"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-[#D97853]/40 focus:border-transparent outline-none transition-all"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-1">Paste a direct link to your pet's photo</p>
+                      <div className="flex-1 space-y-2">
+                        <label className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                          petImageUploading
+                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'border-orange-200 bg-orange-50 text-[#D97853] hover:bg-orange-100 cursor-pointer'
+                        }`}>
+                          <Image size={14} />
+                          {petImageUploading
+                            ? 'Uploading...'
+                            : petForm.avatar
+                              ? 'Change Photo'
+                              : 'Upload Photo'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handlePetImageFileChange}
+                            disabled={petImageUploading}
+                          />
+                        </label>
+
+                        {petForm.avatar && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePetImage}
+                            disabled={petImageUploading}
+                            className="block text-[11px] font-semibold text-slate-500 hover:text-red-500 transition-colors disabled:opacity-60"
+                          >
+                            Remove photo
+                          </button>
+                        )}
+
+                        <p className="text-[10px] text-slate-400">Upload from your device (JPG, PNG, WEBP, GIF. Max 5MB).</p>
                       </div>
                     </div>
                   </div>
@@ -669,11 +744,11 @@ const MyPetsPage = () => {
                   </button>
                   <button
                     onClick={handlePetSave}
-                    disabled={petSaving}
+                    disabled={petSaving || petImageUploading}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#D97853] hover:bg-[#c46a47] text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
                   >
-                    {petSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {editingPet ? 'Update Pet' : 'Add Pet'}
+                    {petSaving || petImageUploading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {petImageUploading ? 'Uploading Photo...' : editingPet ? 'Update Pet' : 'Add Pet'}
                   </button>
                 </div>
               </div>
