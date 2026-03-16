@@ -29,13 +29,34 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ChevronDown, X, Plus, Calendar } from "lucide-react";
+import { Search, ChevronDown, X, Plus, Calendar, Edit2, Trash2 } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 /* ── Inline CustomSelect ── */
-const CustomSelect = ({ label, icon: Icon, options, value, onChange }) => {
+const normalizeOption = (option) => {
+  if (typeof option === "string") {
+    return { label: option, value: option, raw: option };
+  }
+
+  return {
+    label: option?.label ?? String(option?.value ?? ""),
+    value: option?.value ?? option?.label,
+    raw: option,
+  };
+};
+
+const CustomSelect = ({
+  label,
+  icon: Icon,
+  options,
+  value,
+  onChange,
+  optionActions,
+}) => {
   const [open, setOpen] = useState(false);
+  const selectedOptionLabel =
+    options.map(normalizeOption).find((opt) => opt.value === value)?.label || value;
 
   return (
     <div
@@ -64,7 +85,7 @@ const CustomSelect = ({ label, icon: Icon, options, value, onChange }) => {
             />
           )}
           <span className="text-sm font-bold text-[#2D3436] truncate max-w-[110px]">
-            {value}
+            {selectedOptionLabel}
           </span>
         </div>
         <ChevronDown
@@ -93,11 +114,16 @@ const CustomSelect = ({ label, icon: Icon, options, value, onChange }) => {
                 shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5"
             >
               {options.map((opt, idx) => {
-                const isSelected = value === opt;
+                const normalized = normalizeOption(opt);
+                const isSelected = value === normalized.value;
+                const canShowActions =
+                  Boolean(optionActions) &&
+                  !(optionActions?.hideForValues || []).includes(normalized.value);
+
                 return (
                   <div
                     key={idx}
-                    className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors
+                    className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors flex items-center justify-between gap-3
                       ${
                         isSelected
                           ? "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"
@@ -105,11 +131,44 @@ const CustomSelect = ({ label, icon: Icon, options, value, onChange }) => {
                       }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onChange(opt);
+                      onChange(normalized.value);
                       setOpen(false);
                     }}
                   >
-                    {opt}
+                    <span className="truncate">{normalized.label}</span>
+
+                    {canShowActions && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {optionActions?.onEdit && (
+                          <button
+                            type="button"
+                            className="w-6 h-6 rounded-md border border-[#7FB069]/30 text-[#7FB069] hover:bg-[#7FB069]/10 transition-colors flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              optionActions.onEdit(normalized);
+                              setOpen(false);
+                            }}
+                            title="Edit"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                        )}
+                        {optionActions?.onDelete && (
+                          <button
+                            type="button"
+                            className="w-6 h-6 rounded-md border border-red-300 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              optionActions.onDelete(normalized);
+                              setOpen(false);
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -181,6 +240,7 @@ const AdminFilterBar = ({
         options={f.options}
         value={f.value}
         onChange={f.onChange}
+        optionActions={f.optionActions}
       />
     ))}
 

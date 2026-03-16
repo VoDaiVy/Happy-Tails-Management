@@ -36,7 +36,12 @@ import {
   updateService,
   deleteService,
 } from "../../api/serviceApi";
-import { getAllCategories } from "../../api/categoryApi";
+import {
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../../api/categoryApi";
 import { uploadMultipleImages } from "../../api/uploadApi";
 
 // Pet type labels
@@ -102,7 +107,9 @@ export default function ServiceManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  useScrollLock(showDetailModal || showFormModal || showDeleteModal);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showCategoryDeleteModal, setShowCategoryDeleteModal] = useState(false);
+  useScrollLock(showDetailModal || showFormModal || showDeleteModal || showCategoryModal || showCategoryDeleteModal);
 
   // Selected item
   const [selectedService, setSelectedService] = useState(null);
@@ -128,6 +135,15 @@ export default function ServiceManagement() {
   const [imageUploading, setImageUploading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categoryFormMode, setCategoryFormMode] = useState("create");
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    description: "",
+    isActive: true,
+  });
+  const [categoryEditingId, setCategoryEditingId] = useState("");
+  const [categoryFormLoading, setCategoryFormLoading] = useState(false);
+  const [selectedCategoryToDelete, setSelectedCategoryToDelete] = useState(null);
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
@@ -358,6 +374,132 @@ export default function ServiceManagement() {
     event.target.value = "";
   };
 
+  const handleOpenCategoryCreate = () => {
+    setCategoryFormMode("create");
+    setCategoryEditingId("");
+    setCategoryFormData({
+      name: "",
+      description: "",
+      isActive: true,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleOpenCategoryEdit = () => {
+    const categoryId = formData.category || categories[0]?._id || "";
+    const targetCategory = categories.find((cat) => cat._id === categoryId);
+
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Vui lòng chọn category để chỉnh sửa" });
+      return;
+    }
+
+    setCategoryFormMode("edit");
+    setCategoryEditingId(targetCategory._id);
+    setCategoryFormData({
+      name: targetCategory.name || "",
+      description: targetCategory.description || "",
+      isActive: targetCategory.isActive !== false,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleCategoryFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setCategoryFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmitCategory = async (e) => {
+    e.preventDefault();
+    const trimmedName = categoryFormData.name.trim();
+    if (!trimmedName) {
+      setToast({ type: "error", message: "Tên category không được để trống" });
+      return;
+    }
+
+    try {
+      setCategoryFormLoading(true);
+      const payload = {
+        name: trimmedName,
+        description: categoryFormData.description.trim(),
+        isActive: categoryFormData.isActive,
+      };
+
+      if (categoryFormMode === "create") {
+        const created = await createCategory(payload);
+        await fetchCategories();
+        if (created?.data?._id) {
+          setFormData((prev) => ({ ...prev, category: created.data._id }));
+        }
+        setToast({ type: "success", message: "Tạo category thành công" });
+      } else {
+        await updateCategory(categoryEditingId, payload);
+        await fetchCategories();
+        setToast({ type: "success", message: "Cập nhật category thành công" });
+      }
+
+      setShowCategoryModal(false);
+    } catch (err) {
+      const message = err.response?.data?.message || "Không thể lưu category";
+      setToast({ type: "error", message });
+    } finally {
+      setCategoryFormLoading(false);
+    }
+  };
+
+  const handleOpenCategoryEditByFilter = (option) => {
+    const targetCategory = categories.find((cat) => cat._id === option.value);
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Không tìm thấy category để chỉnh sửa" });
+      return;
+    }
+
+    setCategoryFormMode("edit");
+    setCategoryEditingId(targetCategory._id);
+    setCategoryFormData({
+      name: targetCategory.name || "",
+      description: targetCategory.description || "",
+      isActive: targetCategory.isActive !== false,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategoryByFilter = async (option) => {
+    const targetCategory = categories.find((cat) => cat._id === option.value);
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Không tìm thấy category để xóa" });
+      return;
+    }
+
+    setSelectedCategoryToDelete(targetCategory);
+    setShowCategoryDeleteModal(true);
+  };
+
+  const handleConfirmCategoryDelete = async () => {
+    if (!selectedCategoryToDelete?._id) return;
+
+    try {
+      await deleteCategory(selectedCategoryToDelete._id);
+      await fetchCategories();
+      if (categoryFilter === selectedCategoryToDelete._id) {
+        setCategoryFilter("all");
+      }
+      if (formData.category === selectedCategoryToDelete._id) {
+        setFormData((prev) => ({ ...prev, category: "" }));
+      }
+      setShowCategoryDeleteModal(false);
+      setSelectedCategoryToDelete(null);
+      setToast({ type: "success", message: "Xóa category thành công" });
+      fetchServices();
+    } catch (err) {
+      const message = err.response?.data?.message || "Không thể xóa category";
+      setToast({ type: "error", message });
+    }
+  };
+
   // Submit form
   const handleSubmitForm = async (e) => {
     e.preventDefault();
@@ -454,14 +596,26 @@ export default function ServiceManagement() {
             Manage pet care services
           </p>
         </div>
-        <motion.button
-          onClick={handleOpenCreate}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
-        >
-          <Plus size={18} /> Add Service
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            type="button"
+            onClick={handleOpenCategoryCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-white border border-[#2D3436]/10 text-[#2D3436] px-4 py-2.5 rounded-xl font-bold text-sm hover:border-[#D97853] hover:text-[#D97853] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Tag size={16} /> Add Category
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={handleOpenCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Plus size={18} /> Add Service
+          </motion.button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -473,18 +627,17 @@ export default function ServiceManagement() {
           {
             label: "CATEGORY",
             icon: Tag,
-            options: ["All Categories", ...categories.map((c) => c.name)],
-            value:
-              categoryFilter === "all"
-                ? "All Categories"
-                : categories.find((c) => c._id === categoryFilter)?.name ||
-                  "All Categories",
-            onChange: (opt) =>
-              setCategoryFilter(
-                opt === "All Categories"
-                  ? "all"
-                  : categories.find((c) => c.name === opt)?._id || "all",
-              ),
+            options: [
+              { label: "All Categories", value: "all" },
+              ...categories.map((c) => ({ label: c.name, value: c._id })),
+            ],
+            value: categoryFilter,
+            onChange: (opt) => setCategoryFilter(opt || "all"),
+            optionActions: {
+              hideForValues: ["all"],
+              onEdit: handleOpenCategoryEditByFilter,
+              onDelete: handleDeleteCategoryByFilter,
+            },
           },
           {
             label: "STATUS",
@@ -974,9 +1127,27 @@ export default function ServiceManagement() {
 
                 {/* Category */}
                 <div className={`relative ${isCategoryOpen ? "z-[60]" : "z-10"}`}>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Category <span className="text-[#D97853]">*</span>
-                  </label>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-bold text-[#2D3436]">
+                      Category <span className="text-[#D97853]">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenCategoryCreate}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#7FB069]/40 bg-[#7FB069]/10 px-2 py-1 text-[11px] font-bold text-[#5f8e4e] hover:bg-[#7FB069]/20 transition-colors"
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenCategoryEdit}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#D97853]/40 bg-[#D97853]/10 px-2 py-1 text-[11px] font-bold text-[#D97853] hover:bg-[#D97853]/20 transition-colors"
+                      >
+                        <Edit2 size={12} /> Edit
+                      </button>
+                    </div>
+                  </div>
                   <div
                     className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isCategoryOpen ? "border-[#D97853] ring-1 ring-[#D97853]/20" : "border-[#D97853]"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all`}
                     onClick={(e) => {
@@ -1350,6 +1521,163 @@ export default function ServiceManagement() {
                   Delete
                 </button>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Category Delete Modal */}
+      <AnimatePresence>
+        {showCategoryDeleteModal && selectedCategoryToDelete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowCategoryDeleteModal(false);
+                setSelectedCategoryToDelete(null);
+              }}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[400px] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-[#2D3436] mb-2">
+                Delete Category?
+              </h3>
+              <p className="text-[#2D3436]/60 mb-6 font-medium">
+                Are you sure you want to delete{" "}
+                <strong className="text-[#2D3436]">{selectedCategoryToDelete.name}</strong>? This action cannot be
+                undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCategoryDeleteModal(false);
+                    setSelectedCategoryToDelete(null);
+                  }}
+                  className="flex-1 py-3 px-4 bg-white border border-[#2D3436]/10 rounded-xl font-bold text-[#2D3436]/70 hover:border-[#2D3436]/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCategoryDelete}
+                  className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Category Modal */}
+      <AnimatePresence>
+        {showCategoryModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCategoryModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[520px] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 overflow-hidden"
+            >
+              <div className="bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3436]">
+                    {categoryFormMode === "create" ? "Add Category" : "Edit Category"}
+                  </h3>
+                  <p className="text-xs text-[#2D3436]/50 font-medium mt-0.5">
+                    {categoryFormMode === "create"
+                      ? "Create a new category from backend"
+                      : "Update selected category"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(false)}
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitCategory} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Category Name <span className="text-[#D97853]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    value={categoryFormData.name}
+                    onChange={handleCategoryFormChange}
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all"
+                    placeholder="E.g. Grooming"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    rows={3}
+                    value={categoryFormData.description}
+                    onChange={handleCategoryFormChange}
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all resize-none"
+                    placeholder="Describe this category..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
+                  <input
+                    type="checkbox"
+                    id="categoryIsActive"
+                    name="isActive"
+                    checked={categoryFormData.isActive}
+                    onChange={handleCategoryFormChange}
+                    className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]"
+                  />
+                  <label htmlFor="categoryIsActive" className="text-[#2D3436] font-medium">
+                    Active category
+                  </label>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(false)}
+                    className="px-5 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={categoryFormLoading}
+                    className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {categoryFormLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                    {categoryFormMode === "create" ? "Create Category" : "Update Category"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </>
         )}
