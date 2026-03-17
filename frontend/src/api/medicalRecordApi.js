@@ -11,6 +11,12 @@ export const getAllMedicalRecords = async (params = {}) => {
   return response;
 };
 
+// Get current customer's pets medical records
+export const getMyPetsMedicalRecords = async (params = {}) => {
+  const response = await axiosInstance.get("/medical-records/my-pets", { params });
+  return response;
+};
+
 // Get medical record by ID
 export const getMedicalRecordById = async (id) => {
   const response = await axiosInstance.get(`/medical-records/${id}`);

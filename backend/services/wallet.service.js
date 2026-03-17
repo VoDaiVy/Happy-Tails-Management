@@ -442,7 +442,7 @@ const getTransactions = async (userId, query = {}) => {
   // Step 4: Execute queries in parallel
   const [transactions, total] = await Promise.all([
     Transaction.find(filter)
-      .select('transactionCode type method amount balanceBefore balanceAfter status referenceId note failureReason createdAt')
+      .select('transactionCode type method amount balanceBefore balanceAfter status referenceId note failureReason createdAt payosCheckoutUrl payosOrderCode expiredAt')
       .sort(sort)
       .skip(skip)
       .limit(limit)

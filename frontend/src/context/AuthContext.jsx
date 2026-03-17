@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { loginApi, logoutApi } from '../api/authApi';
+import { extractAuthData, googleLoginApi, loginApi, logoutApi } from '../api/authApi';
 
 const AuthContext = createContext(null);
 
@@ -21,17 +21,32 @@ export const AuthProvider = ({ children }) => {
 
   const isAuthenticated = !!token && !!user;
 
+  const persistAuthSession = useCallback((result) => {
+    const { user: userData, accessToken } = extractAuthData(result);
+
+    if (!userData || !accessToken) {
+      throw new Error('Invalid authentication response from server');
+    }
+
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(accessToken);
+    setUser(userData);
+  }, []);
+
   const login = useCallback(async (email, password) => {
     const result = await loginApi(email, password);
-    const { user: userData, tokens } = result.data;
-
-    localStorage.setItem('accessToken', tokens.accessToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setToken(tokens.accessToken);
-    setUser(userData);
+    persistAuthSession(result);
 
     return result;
-  }, []);
+  }, [persistAuthSession]);
+
+  const loginWithGoogle = useCallback(async (idToken, device = {}) => {
+    const result = await googleLoginApi(idToken, device);
+    persistAuthSession(result);
+
+    return result;
+  }, [persistAuthSession]);
 
   const logout = useCallback(async () => {
     try {
@@ -66,7 +81,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, login, logout, updateUser, setUser }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, login, loginWithGoogle, logout, updateUser, setUser }}>
       {children}
     </AuthContext.Provider>
   );

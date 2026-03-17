@@ -231,7 +231,11 @@ input::-webkit-password-reveal-button {
   width: 100%;
 }
 .react-datepicker-popper {
-  z-index: 60 !important;
+  z-index: 9999 !important;
+}
+#datepicker-portal {
+  position: relative;
+  z-index: 9999;
 }
 .react-datepicker {
   font-family: inherit !important;

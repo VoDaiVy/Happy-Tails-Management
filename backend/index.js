@@ -46,6 +46,7 @@ const userRoutes = require("./routes/user");
 const voucherRoutes = require("./routes/voucher");
 const cameraRoutes = require("./routes/camera");
 const uploadRoutes = require("./routes/upload");
+const groupCapacityRoutes = require("./routes/groupCapacity");
 
 // Handle uncaught exceptions
 handleUncaughtException();
@@ -177,6 +178,8 @@ app.use("/api/feedback", feedbackRoutes);
 // Admin routes
 app.use("/api/admin", adminRoutes);
 
+// Group Capacity Management routes (under admin)
+app.use("/api/admin/group-capacity", groupCapacityRoutes);
 
 // Wallet routes (PayOS payment integration)
 app.use("/api/wallet", walletRoutes);

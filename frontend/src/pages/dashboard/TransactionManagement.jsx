@@ -18,14 +18,19 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  Activity,
 } from "lucide-react";
-import { getAllTransactions, getTransactionById, processTransaction } from "../../api/transactionApi";
+import {
+  getAllTransactions,
+  getTransactionById,
+} from "../../api/transactionApi";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 
 // Transaction type labels
 const TYPE_LABELS = {
-  deposit: "Nạp tiền",
-  payment: "Thanh toán",
-  refund: "Hoàn tiền",
+  deposit: "Deposit",
+  payment: "Payment",
+  refund: "Refund",
 };
 
 // Transaction type icons
@@ -44,10 +49,10 @@ const TYPE_COLORS = {
 
 // Status labels
 const STATUS_LABELS = {
-  pending: "Chờ xử lý",
-  completed: "Hoàn thành",
-  failed: "Thất bại",
-  cancelled: "Đã hủy",
+  pending: "Pending",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 // Status colors
@@ -57,22 +62,6 @@ const STATUS_COLORS = {
   failed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800",
 };
-
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "Tất cả" },
-  { key: "pending", label: "Chờ xử lý" },
-  { key: "completed", label: "Hoàn thành" },
-  { key: "failed", label: "Thất bại" },
-];
-
-// Type filter options
-const TYPE_OPTIONS = [
-  { key: "all", label: "Tất cả loại" },
-  { key: "deposit", label: "Nạp tiền" },
-  { key: "payment", label: "Thanh toán" },
-  { key: "refund", label: "Hoàn tiền" },
-];
 
 export default function TransactionManagement() {
   const [transactions, setTransactions] = useState([]);
@@ -134,7 +123,9 @@ export default function TransactionManagement() {
         totalAmount,
       });
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách giao dịch");
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách giao dịch",
+      );
     } finally {
       setLoading(false);
     }
@@ -151,7 +142,11 @@ export default function TransactionManagement() {
     const userName = t.user?.name?.toLowerCase() || "";
     const userEmail = t.user?.email?.toLowerCase() || "";
     const code = t.transactionCode?.toLowerCase() || "";
-    return userName.includes(search) || userEmail.includes(search) || code.includes(search);
+    return (
+      userName.includes(search) ||
+      userEmail.includes(search) ||
+      code.includes(search)
+    );
   });
 
   // View detail
@@ -216,12 +211,15 @@ export default function TransactionManagement() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <DollarSign className="w-7 h-7 text-amber-600" />
-          Quản lý Dòng tiền
-        </h1>
-        <p className="text-gray-600 mt-1">Theo dõi và xử lý các giao dịch hệ thống</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Transaction Management
+          </h1>
+          <p className="text-sm text-[#2D3436]/60">
+            Track and manage system transactions
+          </p>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -232,8 +230,8 @@ export default function TransactionManagement() {
               <CreditCard className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Tổng giao dịch</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Transactions</p>
+              <p className="text-2xl font-bold text-[#2D3436]">{stats.total}</p>
             </div>
           </div>
         </div>
@@ -244,8 +242,10 @@ export default function TransactionManagement() {
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Chờ xử lý</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {stats.pending}
+              </p>
             </div>
           </div>
         </div>
@@ -256,8 +256,10 @@ export default function TransactionManagement() {
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Hoàn thành</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Completed</p>
+              <p className="text-2xl font-bold text-[#7FB069]">
+                {stats.completed}
+              </p>
             </div>
           </div>
         </div>
@@ -268,85 +270,81 @@ export default function TransactionManagement() {
               <TrendingUp className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Tổng tiền (Hoàn thành)</p>
-              <p className="text-xl font-bold text-amber-600">{formatCurrency(stats.totalAmount)}</p>
+              <p className="text-xs font-bold text-[#2D3436]/40 uppercase tracking-wide">Total Amount</p>
+              <p className="text-xl font-bold text-[#D97853]">
+                {formatCurrency(stats.totalAmount)}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                statusFilter === tab.key
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Type filter & Date range */}
-        <div className="flex flex-wrap gap-4 items-end">
-          {/* Type filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-            >
-              {TYPE_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date range */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Từ ngày</label>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Đến ngày</label>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo mã giao dịch, tên hoặc email người dùng..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-      </div>
+      {/* Filters */}
+      <AdminFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by transaction code, name or email..."
+          filters={[
+            {
+              label: "STATUS",
+              icon: Activity,
+              options: ["All Status", "Pending", "Completed", "Failed"],
+              value:
+                statusFilter === "all"
+                  ? "All Status"
+                  : statusFilter === "pending"
+                    ? "Pending"
+                    : statusFilter === "completed"
+                      ? "Completed"
+                      : "Failed",
+              onChange: (opt) =>
+                setStatusFilter(
+                  opt === "All Status"
+                    ? "all"
+                    : opt === "Pending"
+                      ? "pending"
+                      : opt === "Completed"
+                        ? "completed"
+                        : "failed",
+                ),
+            },
+            {
+              label: "TYPE",
+              icon: CreditCard,
+              options: ["All Types", "Deposit", "Payment", "Refund"],
+              value:
+                typeFilter === "all"
+                  ? "All Types"
+                  : typeFilter === "deposit"
+                    ? "Deposit"
+                    : typeFilter === "payment"
+                      ? "Payment"
+                      : "Refund",
+              onChange: (opt) =>
+                setTypeFilter(
+                  opt === "All Types"
+                    ? "all"
+                    : opt === "Deposit"
+                      ? "deposit"
+                      : opt === "Payment"
+                        ? "payment"
+                        : "refund",
+                ),
+            },
+          ]}
+          dateValue={
+            dateRange.start ? new Date(dateRange.start + "T00:00:00") : null
+          }
+          onDateChange={(date) =>
+            setDateRange({
+              start: date
+                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+                : "",
+              end: "",
+            })
+          }
+          dateLabel="FROM DATE"
+      />
 
       {/* Error */}
       {error && (
@@ -362,35 +360,36 @@ export default function TransactionManagement() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <DollarSign className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Không có giao dịch nào</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <DollarSign className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No transactions found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Mã GD
+          <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                  <th className="px-6 py-4 whitespace-nowrap">
+                    Tx Code
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Người dùng
+                  <th className="px-6 py-4 whitespace-nowrap">
+                    User
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Loại
+                  <th className="px-6 py-4 whitespace-nowrap">
+                    Type
                   </th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
-                    Số tiền
+                  <th className="px-6 py-4 whitespace-nowrap text-right">
+                    Amount
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                    Trạng thái
+                  <th className="px-6 py-4 whitespace-nowrap text-center">
+                    Status
                   </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                    Ngày tạo
+                  <th className="px-6 py-4 whitespace-nowrap">
+                    Created
                   </th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                    Hành động
+                  <th className="px-6 py-4 whitespace-nowrap text-center">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -427,7 +426,8 @@ export default function TransactionManagement() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
-                            TYPE_COLORS[transaction.type] || "bg-gray-100 text-gray-800"
+                            TYPE_COLORS[transaction.type] ||
+                            "bg-gray-100 text-gray-800"
                           }`}
                         >
                           <TypeIcon className="w-4 h-4" />
@@ -440,8 +440,8 @@ export default function TransactionManagement() {
                             transaction.type === "refund"
                               ? "text-orange-600"
                               : transaction.type === "deposit"
-                              ? "text-green-600"
-                              : "text-gray-800"
+                                ? "text-green-600"
+                                : "text-gray-800"
                           }`}
                         >
                           {transaction.type === "deposit" ? "+" : ""}
@@ -451,10 +451,12 @@ export default function TransactionManagement() {
                       <td className="px-6 py-4 text-center">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                            STATUS_COLORS[transaction.status] || "bg-gray-100 text-gray-800"
+                            STATUS_COLORS[transaction.status] ||
+                            "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {STATUS_LABELS[transaction.status] || transaction.status}
+                          {STATUS_LABELS[transaction.status] ||
+                            transaction.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-600">
@@ -465,19 +467,10 @@ export default function TransactionManagement() {
                           <button
                             onClick={() => handleViewDetail(transaction)}
                             className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
-                            title="Xem chi tiết"
+                            title="View details"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          {transaction.status === "pending" && (
-                            <button
-                              onClick={() => handleOpenProcess(transaction)}
-                              className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                              title="Xử lý"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </motion.tr>
@@ -510,7 +503,7 @@ export default function TransactionManagement() {
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                   <DollarSign className="w-6 h-6 text-amber-600" />
-                  Chi tiết Giao dịch
+                  Transaction Details
                 </h2>
                 <button
                   onClick={() => setShowDetailModal(false)}
@@ -530,7 +523,9 @@ export default function TransactionManagement() {
                   <div className="space-y-4">
                     {/* Transaction Code */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500 mb-1">Mã giao dịch</p>
+                      <p className="text-sm text-gray-500 mb-1">
+                        Transaction Code
+                      </p>
                       <p className="font-mono font-bold text-lg text-gray-800">
                         {selectedTransaction.transactionCode || "-"}
                       </p>
@@ -539,13 +534,13 @@ export default function TransactionManagement() {
                     {/* Amount & Status */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-amber-50 rounded-xl p-4">
-                        <p className="text-sm text-amber-700 mb-1">Số tiền</p>
+                        <p className="text-sm text-amber-700 mb-1">Amount</p>
                         <p className="font-bold text-xl text-amber-800">
                           {formatCurrency(selectedTransaction.amount)}
                         </p>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Trạng thái</p>
+                        <p className="text-sm text-gray-500 mb-1">Status</p>
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                             STATUS_COLORS[selectedTransaction.status]
@@ -559,7 +554,7 @@ export default function TransactionManagement() {
                     {/* Type & Method */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Loại</p>
+                        <p className="text-sm text-gray-500 mb-1">Type</p>
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                             TYPE_COLORS[selectedTransaction.type]
@@ -569,7 +564,9 @@ export default function TransactionManagement() {
                         </span>
                       </div>
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Phương thức</p>
+                        <p className="text-sm text-gray-500 mb-1">
+                          Payment Method
+                        </p>
                         <p className="font-medium text-gray-800">
                           {selectedTransaction.method || "-"}
                         </p>
@@ -578,7 +575,7 @@ export default function TransactionManagement() {
 
                     {/* User Info */}
                     <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm text-blue-700 mb-2">Người dùng</p>
+                      <p className="text-sm text-blue-700 mb-2">User</p>
                       <p className="font-medium text-gray-800">
                         {selectedTransaction.user?.name || "-"}
                       </p>
@@ -590,14 +587,16 @@ export default function TransactionManagement() {
                     {/* Dates */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Ngày tạo</p>
+                        <p className="text-sm text-gray-500 mb-1">Created</p>
                         <p className="font-medium text-gray-800">
                           {formatDate(selectedTransaction.createdAt)}
                         </p>
                       </div>
                       {selectedTransaction.processedAt && (
                         <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-500 mb-1">Ngày xử lý</p>
+                          <p className="text-sm text-gray-500 mb-1">
+                            Processed At
+                          </p>
                           <p className="font-medium text-gray-800">
                             {formatDate(selectedTransaction.processedAt)}
                           </p>
@@ -608,124 +607,26 @@ export default function TransactionManagement() {
                     {/* Notes */}
                     {selectedTransaction.notes && (
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-sm text-gray-500 mb-1">Ghi chú</p>
-                        <p className="text-gray-800">{selectedTransaction.notes}</p>
+                        <p className="text-sm text-gray-500 mb-1">Notes</p>
+                        <p className="text-gray-800">
+                          {selectedTransaction.notes}
+                        </p>
                       </div>
                     )}
 
                     {/* Processed By */}
                     {selectedTransaction.processedBy && (
                       <div className="text-sm text-gray-500 pt-2 border-t">
-                        Xử lý bởi: <span className="font-medium">{selectedTransaction.processedBy.name}</span>
+                        Processed by:{" "}
+                        <span className="font-medium">
+                          {selectedTransaction.processedBy.name}
+                        </span>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Không tìm thấy thông tin</p>
+                  <p className="text-gray-500 text-center py-8">Not found</p>
                 )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Process Modal */}
-      <AnimatePresence>
-        {showProcessModal && selectedTransaction && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowProcessModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800">Xử lý Giao dịch</h2>
-                <button
-                  onClick={() => setShowProcessModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-6 space-y-4">
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-500">Mã giao dịch</p>
-                  <p className="font-mono font-bold">{selectedTransaction.transactionCode}</p>
-                  <p className="text-amber-600 font-semibold mt-2">
-                    {formatCurrency(selectedTransaction.amount)}
-                  </p>
-                </div>
-
-                {/* Status Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Chọn trạng thái
-                  </label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setProcessData((prev) => ({ ...prev, status: "completed" }))}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
-                        processData.status === "completed"
-                          ? "border-green-500 bg-green-50 text-green-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      Hoàn thành
-                    </button>
-                    <button
-                      onClick={() => setProcessData((prev) => ({ ...prev, status: "failed" }))}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
-                        processData.status === "failed"
-                          ? "border-red-500 bg-red-50 text-red-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <XCircle className="w-5 h-5" />
-                      Thất bại
-                    </button>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
-                  <textarea
-                    value={processData.notes}
-                    onChange={(e) => setProcessData((prev) => ({ ...prev, notes: e.target.value }))}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Nhập ghi chú (không bắt buộc)..."
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setShowProcessModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleProcess}
-                    disabled={!processData.status || processing}
-                    className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processing ? "Đang xử lý..." : "Xác nhận"}
-                  </button>
-                </div>
               </div>
             </motion.div>
           </motion.div>

@@ -24,10 +24,37 @@ const roomSchema = new mongoose.Schema({
     enum: ['standard', 'deluxe', 'suite', 'vip'],
     default: 'standard'
   },
+  /**
+   * Service type classification:
+   * - 'service': used for grooming/spa services (rooms 101/102 for dry, 201/202 for wet)
+   * - 'boarding': used for pet boarding/hotel services
+   */
+  serviceType: {
+    type: String,
+    enum: ['service', 'boarding'],
+    required: [true, 'Service type is required'],
+    help: 'Distinguish between service rooms and boarding rooms'
+  },
+  /**
+   * Service group (only relevant for service-type rooms):
+   * - 'wet': Tắm, Sấy, Massage, Trị liệu (rooms 201/202, 3 slots each, total 6)
+   * - 'dry': Cắt tỉa, Cắt móng, Nhuộm (rooms 101/102, 3 slots each, total 6)
+   */
+  group: {
+    type: String,
+    enum: ['wet', 'dry'],
+    help: 'Group assignment for service rooms (not applicable to boarding rooms)'
+  },
   capacity: {
     type: Number,
     required: [true, 'Capacity is required'],
     min: [1, 'Capacity must be at least 1']
+  },
+  pricePerNight: {
+    type: Number,
+    required: [true, 'Price per night is required'],
+    min: [0, 'Price per night cannot be negative'],
+    default: 0
   },
   amenities: [{
     type: String,

@@ -3,17 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import {
   PawPrint, Save, X, Plus, Edit3, Trash2,
-  Calendar, ChevronLeft, Loader2, Palette,
+  Calendar, ChevronLeft, ChevronDown, Loader2, Palette,
   Stethoscope, Syringe, Activity, Eye, ClipboardList, Bell,
   Weight, Image, Camera, Search, SlidersHorizontal, Heart, Sparkles, MoreVertical
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
+import MedicalRecordShowcase from '../components/medical/MedicalRecordShowcase';
 import { useAuth } from '../context/AuthContext';
 import {
   getMyPets, createPet, updatePet, deletePet,
   getPetById, addMedicalRecord, addVaccination,
   getVaccinationReminders, getPetStatistics
 } from '../api/profileApi';
+import { uploadSingleImage } from '../api/uploadApi';
+import { getMyPetsMedicalRecords } from '../api/medicalRecordApi';
 
 const PET_TYPES = [
   { value: 'dog', label: 'Dog' },
@@ -27,6 +30,27 @@ const GENDERS = [
   { value: 'female', label: 'Female' },
   { value: 'unknown', label: 'Unknown' },
 ];
+
+const MEDICAL_RECORD_TYPE_LABELS = {
+  checkup: 'Checkup',
+  vaccination: 'Vaccination',
+  treatment: 'Treatment',
+  surgery: 'Surgery',
+  emergency: 'Emergency',
+  grooming: 'Grooming',
+  other: 'Other'
+};
+
+const getMedicalRecordType = (record) => record?.recordType || record?.type || 'other';
+
+const getMedicalRecordDate = (record) => record?.createdAt || record?.date || null;
+
+const getMedicalDoctorName = (record) => {
+  if (record?.veterinarian) return record.veterinarian;
+  if (record?.createdBy?.name) return record.createdBy.name;
+  if (record?.updatedBy?.name) return record.updatedBy.name;
+  return '';
+};
 
 const MyPetsPage = () => {
   const navigate = useNavigate();
@@ -43,6 +67,7 @@ const MyPetsPage = () => {
     specialNeeds: '', notes: '', avatar: ''
   });
   const [petSaving, setPetSaving] = useState(false);
+  const [petImageUploading, setPetImageUploading] = useState(false);
   const [petError, setPetError] = useState('');
   const [deletingPetId, setDeletingPetId] = useState(null);
 
@@ -50,6 +75,10 @@ const MyPetsPage = () => {
   const [selectedPet, setSelectedPet] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [expandedHealthSection, setExpandedHealthSection] = useState('medical');
+  const [selectedHealthEntry, setSelectedHealthEntry] = useState(null);
+  const [selectedPetMedicalRecords, setSelectedPetMedicalRecords] = useState([]);
+  const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(false);
 
   // Medical Record state
   const [medRecordModalOpen, setMedRecordModalOpen] = useState(false);
@@ -130,6 +159,7 @@ const MyPetsPage = () => {
       weight: '', dateOfBirth: '', color: '', petID: '',
       specialNeeds: '', notes: '', avatar: ''
     });
+    setPetImageUploading(false);
     setPetError('');
     setPetModalOpen(true);
   };
@@ -149,6 +179,7 @@ const MyPetsPage = () => {
       notes: pet.notes || '',
       avatar: pet.avatar || ''
     });
+    setPetImageUploading(false);
     setPetError('');
     setPetModalOpen(true);
   };
@@ -156,6 +187,49 @@ const MyPetsPage = () => {
   const handlePetChange = (e) => {
     const { name, value } = e.target;
     setPetForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePetImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const maxSize = 5 * 1024 * 1024;
+
+    setPetError('');
+
+    if (!allowedTypes.includes(file.type)) {
+      setPetError('Invalid image type. Please upload JPG, PNG, WEBP, or GIF.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setPetError('Image is too large. Maximum size is 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setPetImageUploading(true);
+      const imageUrl = await uploadSingleImage(file);
+
+      if (!imageUrl) {
+        throw new Error('Upload failed');
+      }
+
+      setPetForm(prev => ({ ...prev, avatar: imageUrl }));
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to upload image';
+      setPetError(msg);
+    } finally {
+      setPetImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePetImage = () => {
+    setPetForm(prev => ({ ...prev, avatar: '' }));
   };
 
   const handlePetSave = async () => {
@@ -193,17 +267,8 @@ const MyPetsPage = () => {
   };
 
   // View pet detail
-  const openPetDetail = async (pet) => {
-    setDetailLoading(true);
-    setDetailModalOpen(true);
-    try {
-      const res = await getPetById(pet._id);
-      setSelectedPet(res.data);
-    } catch {
-      setSelectedPet({ pet });
-    } finally {
-      setDetailLoading(false);
-    }
+  const openPetDetail = (pet) => {
+    navigate(`/pets/${pet._id}`);
   };
 
 
@@ -289,6 +354,10 @@ const MyPetsPage = () => {
     return () => { document.body.style.overflow = ''; };
   }, [petModalOpen, detailModalOpen, medRecordModalOpen, vaccModalOpen]);
 
+  const selectedPetMedicalRecordsForView = selectedPetMedicalRecords.length > 0
+    ? selectedPetMedicalRecords
+    : (selectedPet?.pet?.medicalRecords || []);
+
   if (!user) {
     return (
       <div className="bg-[#FDFBF7] min-h-screen flex items-center justify-center">
@@ -308,7 +377,7 @@ const MyPetsPage = () => {
           <div className="absolute -bottom-8 -right-8 w-56 h-56 bg-[#D97853]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => navigate(-1)} className="p-2.5 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/80 shadow-sm hover:bg-white transition-all">
+              <button onClick={() => navigate('/')} className="p-2.5 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/80 shadow-sm hover:bg-white transition-all">
                 <ChevronLeft size={20} className="text-slate-600" />
               </button>
               <div>
@@ -592,28 +661,56 @@ const MyPetsPage = () => {
                 )}
 
                 <div className="space-y-4">
-                  {/* Avatar preview & URL input */}
+                  {/* Avatar preview & file upload */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Pet Photo</label>
                     <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFE8D9] to-[#FFF4EC] border-2 border-dashed border-orange-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFE8D9] to-[#FFF4EC] border-2 border-dashed border-orange-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {petForm.avatar ? (
                           <img src={petForm.avatar} alt="Pet preview" className="w-full h-full object-cover rounded-2xl" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
                         ) : (
                           <Camera size={24} className="text-slate-300" />
                         )}
                         {petForm.avatar && <div className="w-full h-full items-center justify-center hidden"><Camera size={24} className="text-slate-300" /></div>}
+                        {petImageUploading && (
+                          <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                            <Loader2 size={18} className="animate-spin text-[#D97853]" />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          name="avatar"
-                          value={petForm.avatar}
-                          onChange={handlePetChange}
-                          placeholder="Paste image URL (https://...)"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-[#D97853]/40 focus:border-transparent outline-none transition-all"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-1">Paste a direct link to your pet's photo</p>
+                      <div className="flex-1 space-y-2">
+                        <label className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                          petImageUploading
+                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'border-orange-200 bg-orange-50 text-[#D97853] hover:bg-orange-100 cursor-pointer'
+                        }`}>
+                          <Image size={14} />
+                          {petImageUploading
+                            ? 'Uploading...'
+                            : petForm.avatar
+                              ? 'Change Photo'
+                              : 'Upload Photo'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            onChange={handlePetImageFileChange}
+                            disabled={petImageUploading}
+                          />
+                        </label>
+
+                        {petForm.avatar && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePetImage}
+                            disabled={petImageUploading}
+                            className="block text-[11px] font-semibold text-slate-500 hover:text-red-500 transition-colors disabled:opacity-60"
+                          >
+                            Remove photo
+                          </button>
+                        )}
+
+                        <p className="text-[10px] text-slate-400">Upload from your device (JPG, PNG, WEBP, GIF. Max 5MB).</p>
                       </div>
                     </div>
                   </div>
@@ -669,11 +766,11 @@ const MyPetsPage = () => {
                   </button>
                   <button
                     onClick={handlePetSave}
-                    disabled={petSaving}
+                    disabled={petSaving || petImageUploading}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#D97853] hover:bg-[#c46a47] text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
                   >
-                    {petSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {editingPet ? 'Update Pet' : 'Add Pet'}
+                    {petSaving || petImageUploading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {petImageUploading ? 'Uploading Photo...' : editingPet ? 'Update Pet' : 'Add Pet'}
                   </button>
                 </div>
               </div>
@@ -741,7 +838,7 @@ const MyPetsPage = () => {
                           <Activity size={16} /> Health Summary
                         </h4>
                         <div className="grid grid-cols-3 gap-3 text-center">
-                          <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.totalMedicalRecords ?? 0}</div><div className="text-xs text-emerald-600">Records</div></div>
+                          <div><div className="text-lg font-black text-emerald-700">{selectedPetMedicalRecordsForView.length}</div><div className="text-xs text-emerald-600">Records</div></div>
                           <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.totalVaccinations ?? 0}</div><div className="text-xs text-emerald-600">Vaccines</div></div>
                           <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.upcomingVaccinations ?? 0}</div><div className="text-xs text-emerald-600">Upcoming</div></div>
                         </div>
@@ -750,59 +847,165 @@ const MyPetsPage = () => {
 
                     {/* Medical Records */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <Stethoscope size={16} className="text-blue-500" /> Medical Records
-                      </h4>
-                      {selectedPet.pet.medicalRecords && selectedPet.pet.medicalRecords.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {selectedPet.pet.medicalRecords.map((rec, i) => (
-                            <div key={i} className="p-3 bg-slate-50 rounded-xl text-sm">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-slate-700">{rec.diagnosis}</span>
-                                <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize">{rec.type}</span>
-                              </div>
-                              {rec.treatment && <p className="text-xs text-slate-500">Treatment: {rec.treatment}</p>}
-                              <div className="flex gap-4 mt-1 text-xs text-slate-400">
-                                {rec.veterinarian && <span>Dr. {rec.veterinarian}</span>}
-                                {rec.clinic && <span>{rec.clinic}</span>}
-                                <span>{new Date(rec.date).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">No medical records yet</p>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHealthSection(prev => (prev === 'medical' ? null : 'medical'))}
+                        className="w-full text-left mb-3 flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50 transition-colors"
+                      >
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Stethoscope size={16} className="text-blue-500" />
+                          Medical Records
+                          <span className="text-[11px] font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                            {selectedPetMedicalRecordsForView.length}
+                          </span>
+                        </h4>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expandedHealthSection === 'medical' ? 'rotate-180' : ''}`} />
+                      </button>
+                      {expandedHealthSection === 'medical' && (
+                        medicalRecordsLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                            <Loader2 size={14} className="animate-spin" />
+                            Loading medical records...
+                          </div>
+                        ) : selectedPetMedicalRecordsForView.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {selectedPetMedicalRecordsForView.map((rec, i) => (
+                              <button
+                                key={rec._id || i}
+                                type="button"
+                                onClick={() => setSelectedHealthEntry({ kind: 'medical', data: rec })}
+                                className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm transition-colors"
+                              >
+                                {(() => {
+                                  const checkInCount = Array.isArray(rec?.receivedPhotos) ? rec.receivedPhotos.length : 0;
+                                  const checkOutCount = Array.isArray(rec?.completedPhotos) ? rec.completedPhotos.length : 0;
+
+                                  return (
+                                    <>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-slate-700 truncate pr-2">{rec.diagnosis}</span>
+                                  <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize flex-shrink-0">
+                                    {MEDICAL_RECORD_TYPE_LABELS[getMedicalRecordType(rec)] || getMedicalRecordType(rec)}
+                                  </span>
+                                </div>
+                                {(rec.treatment || rec.condition) && (
+                                  <p className="text-xs text-slate-500 truncate">Treatment: {rec.treatment || rec.condition}</p>
+                                )}
+                                <div className="flex gap-4 mt-1 text-xs text-slate-400">
+                                  {getMedicalDoctorName(rec) && <span>Dr. {getMedicalDoctorName(rec)}</span>}
+                                  <span>{getMedicalRecordDate(rec) ? new Date(getMedicalRecordDate(rec)).toLocaleDateString() : 'No date'}</span>
+                                </div>
+                                      {(checkInCount > 0 || checkOutCount > 0) && (
+                                        <div className="flex gap-2 mt-2 text-[11px]">
+                                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                                            Check-in: {checkInCount} image(s)
+                                          </span>
+                                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">
+                                            Check-out: {checkOutCount} image(s)
+                                          </span>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic">No medical records yet</p>
+                        )
                       )}
                     </div>
 
                     {/* Vaccinations */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <Syringe size={16} className="text-green-500" /> Vaccinations
-                      </h4>
-                      {selectedPet.pet.vaccinations && selectedPet.pet.vaccinations.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {selectedPet.pet.vaccinations.map((vacc, i) => (
-                            <div key={i} className="p-3 bg-slate-50 rounded-xl text-sm flex items-center justify-between">
-                              <div>
-                                <span className="font-bold text-slate-700">{vacc.name}</span>
-                                <div className="text-xs text-slate-400 mt-0.5">
-                                  {new Date(vacc.date).toLocaleDateString()}
-                                  {vacc.veterinarian && <span> · Dr. {vacc.veterinarian}</span>}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHealthSection(prev => (prev === 'vaccination' ? null : 'vaccination'))}
+                        className="w-full text-left mb-3 flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50 transition-colors"
+                      >
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Syringe size={16} className="text-green-500" />
+                          Vaccinations
+                          <span className="text-[11px] font-bold px-2 py-0.5 bg-green-50 text-green-600 rounded-full">
+                            {selectedPet.pet.vaccinations?.length || 0}
+                          </span>
+                        </h4>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expandedHealthSection === 'vaccination' ? 'rotate-180' : ''}`} />
+                      </button>
+                      {expandedHealthSection === 'vaccination' && (
+                        selectedPet.pet.vaccinations && selectedPet.pet.vaccinations.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {selectedPet.pet.vaccinations.map((vacc, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setSelectedHealthEntry({ kind: 'vaccination', data: vacc })}
+                                className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm flex items-center justify-between transition-colors"
+                              >
+                                <div>
+                                  <span className="font-bold text-slate-700">{vacc.name}</span>
+                                  <div className="text-xs text-slate-400 mt-0.5">
+                                    {new Date(vacc.date).toLocaleDateString()}
+                                    {vacc.veterinarian && <span> · Dr. {vacc.veterinarian}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                              {vacc.nextDueDate && (
-                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${new Date(vacc.nextDueDate) < new Date() ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
-                                  Next: {new Date(vacc.nextDueDate).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">No vaccination records yet</p>
+                                {vacc.nextDueDate && (
+                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${new Date(vacc.nextDueDate) < new Date() ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                    Next: {new Date(vacc.nextDueDate).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic">No vaccination records yet</p>
+                        )
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ====== HEALTH ENTRY DETAIL MODAL ====== */}
+      <AnimatePresence>
+        {selectedHealthEntry && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm"
+            onClick={() => setSelectedHealthEntry(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black flex items-center gap-2">
+                    {selectedHealthEntry.kind === 'medical' ? (
+                      <><Stethoscope size={18} className="text-blue-500" /> Medical Record Detail</>
+                    ) : (
+                      <><Syringe size={18} className="text-green-500" /> Vaccination Detail</>
+                    )}
+                  </h2>
+                  <button onClick={() => setSelectedHealthEntry(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {selectedHealthEntry.kind === 'medical' ? (
+                  <MedicalRecordShowcase record={selectedHealthEntry.data} />
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <InfoRow label="Vaccine" value={selectedHealthEntry.data?.name} />
+                    <InfoRow label="Date" value={selectedHealthEntry.data?.date ? new Date(selectedHealthEntry.data.date).toLocaleDateString() : null} />
+                    <InfoRow label="Next Due" value={selectedHealthEntry.data?.nextDueDate ? new Date(selectedHealthEntry.data.nextDueDate).toLocaleDateString() : null} />
+                    <InfoRow label="Veterinarian" value={selectedHealthEntry.data?.veterinarian ? `Dr. ${selectedHealthEntry.data.veterinarian}` : null} />
                   </div>
                 )}
               </div>
@@ -951,5 +1154,17 @@ const Field = ({ label, icon, name, value, onChange, disabled, placeholder, type
     />
   </div>
 );
+
+const InfoRow = ({ label, value, multiline = false, capitalize = false }) => {
+  const content = value && `${value}`.trim() ? `${value}` : 'No information';
+  return (
+    <div className="p-3 bg-slate-50 rounded-xl">
+      <p className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wide">{label}</p>
+      <p className={`text-slate-700 ${multiline ? 'whitespace-pre-wrap leading-relaxed' : ''} ${capitalize ? 'capitalize' : ''}`}>
+        {content}
+      </p>
+    </div>
+  );
+};
 
 export default MyPetsPage;

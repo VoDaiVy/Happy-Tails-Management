@@ -13,20 +13,25 @@ import {
   Stethoscope,
   Pill,
   Activity,
+  Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { getAllMedicalRecords, getMedicalRecordById } from "../../api/medicalRecordApi";
+import {
+  getAllMedicalRecords,
+  getMedicalRecordById,
+} from "../../api/medicalRecordApi";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 
-// Record type labels in Vietnamese
+// Record type labels
 const RECORD_TYPE_LABELS = {
-  checkup: "Khám tổng quát",
-  vaccination: "Tiêm phòng",
-  treatment: "Điều trị",
-  surgery: "Phẫu thuật",
-  emergency: "Cấp cứu",
-  grooming: "Chăm sóc",
-  other: "Khác",
+  checkup: "Checkup",
+  vaccination: "Vaccination",
+  treatment: "Treatment",
+  surgery: "Surgery",
+  emergency: "Emergency",
+  grooming: "Grooming",
+  other: "Other",
 };
 
 // Record type colors
@@ -40,16 +45,17 @@ const RECORD_TYPE_COLORS = {
   other: "bg-gray-100 text-gray-800",
 };
 
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "Tất cả" },
-  { key: "checkup", label: "Khám tổng quát" },
-  { key: "vaccination", label: "Tiêm phòng" },
-  { key: "treatment", label: "Điều trị" },
-  { key: "surgery", label: "Phẫu thuật" },
-  { key: "emergency", label: "Cấp cứu" },
-  { key: "grooming", label: "Chăm sóc" },
-];
+const WORKFLOW_STAGE_LABELS = {
+  received: "Check-in",
+  processing: "Processing",
+  completed: "Checkout",
+};
+
+const WORKFLOW_STAGE_COLORS = {
+  received: "bg-blue-100 text-blue-800",
+  processing: "bg-purple-100 text-purple-800",
+  completed: "bg-green-100 text-green-800",
+};
 
 export default function MedicalRecordManagement() {
   const [records, setRecords] = useState([]);
@@ -96,7 +102,9 @@ export default function MedicalRecordManagement() {
         ...response.data.data.pagination,
       }));
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách bệnh án");
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách bệnh án",
+      );
     } finally {
       setLoading(false);
     }
@@ -162,48 +170,74 @@ export default function MedicalRecordManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <FileText className="w-7 h-7 text-amber-600" />
-          Quản lý Bệnh án
-        </h1>
-        <p className="text-gray-600 mt-1">Xem và tìm kiếm hồ sơ bệnh án thú cưng</p>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-2">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Medical Records
+          </h1>
+          <p className="text-sm text-[#2D3436]/60">
+            View and search pet medical records
+          </p>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên thú cưng, chủ, tình trạng hoặc chẩn đoán..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-      </div>
+      {/* Filters */}
+      <AdminFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by pet name, owner, condition or diagnosis..."
+          filters={[
+            {
+              label: "RECORD TYPE",
+              icon: Activity,
+              options: [
+                "All Types",
+                "Checkup",
+                "Vaccination",
+                "Treatment",
+                "Surgery",
+                "Emergency",
+                "Grooming",
+              ],
+              value:
+                activeTab === "all"
+                  ? "All Types"
+                  : activeTab === "checkup"
+                    ? "Checkup"
+                    : activeTab === "vaccination"
+                      ? "Vaccination"
+                      : activeTab === "treatment"
+                        ? "Treatment"
+                        : activeTab === "surgery"
+                          ? "Surgery"
+                          : activeTab === "emergency"
+                            ? "Emergency"
+                            : "Grooming",
+              onChange: (opt) =>
+                setActiveTab(
+                  opt === "All Types"
+                    ? "all"
+                    : opt === "Checkup"
+                      ? "checkup"
+                      : opt === "Vaccination"
+                        ? "vaccination"
+                        : opt === "Treatment"
+                          ? "treatment"
+                          : opt === "Surgery"
+                            ? "surgery"
+                            : opt === "Emergency"
+                              ? "emergency"
+                              : "grooming",
+                ),
+            },
+          ]}
+        />
 
       {/* Error */}
       {error && (
@@ -219,33 +253,34 @@ export default function MedicalRecordManagement() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
           </div>
         ) : filteredRecords.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Không có bệnh án nào</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <FileText className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No records found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Thú cưng
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Pet
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Chủ nhân
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Owner
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Loại
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Type
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Tình trạng
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Condition
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Ngày tạo
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Created
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Hành động
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -267,7 +302,8 @@ export default function MedicalRecordManagement() {
                               {record.userPet?.petName || "-"}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {record.userPet?.petType} - {record.userPet?.breed || "N/A"}
+                              {record.userPet?.petType} -{" "}
+                              {record.userPet?.breed || "N/A"}
                             </p>
                           </div>
                         </div>
@@ -277,16 +313,20 @@ export default function MedicalRecordManagement() {
                           <p className="font-medium text-gray-800">
                             {record.user?.name || "-"}
                           </p>
-                          <p className="text-sm text-gray-500">{record.user?.email || "-"}</p>
+                          <p className="text-sm text-gray-500">
+                            {record.user?.email || "-"}
+                          </p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                            RECORD_TYPE_COLORS[record.recordType] || RECORD_TYPE_COLORS.other
+                            RECORD_TYPE_COLORS[record.recordType] ||
+                            RECORD_TYPE_COLORS.other
                           }`}
                         >
-                          {RECORD_TYPE_LABELS[record.recordType] || record.recordType}
+                          {RECORD_TYPE_LABELS[record.recordType] ||
+                            record.recordType}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -303,7 +343,7 @@ export default function MedicalRecordManagement() {
                           className="inline-flex items-center gap-1 px-3 py-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
                         >
                           <Eye className="w-4 h-4" />
-                          Xem
+                          View
                         </button>
                       </td>
                     </motion.tr>
@@ -315,7 +355,7 @@ export default function MedicalRecordManagement() {
             {/* Pagination */}
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Hiển thị {filteredRecords.length} / {pagination.total} bệnh án
+                Showing {filteredRecords.length} of {pagination.total} records
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -366,7 +406,7 @@ export default function MedicalRecordManagement() {
               <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                   <Stethoscope className="w-6 h-6 text-amber-600" />
-                  Chi tiết Bệnh án
+                  Medical Record Details
                 </h2>
                 <button
                   onClick={closeDetailModal}
@@ -390,23 +430,23 @@ export default function MedicalRecordManagement() {
                       <div className="bg-amber-50 rounded-xl p-4">
                         <h3 className="font-semibold text-amber-800 flex items-center gap-2 mb-3">
                           <PawPrint className="w-5 h-5" />
-                          Thông tin thú cưng
+                          Pet Info
                         </h3>
                         <div className="space-y-2 text-sm">
                           <p>
-                            <span className="text-gray-600">Tên:</span>{" "}
+                            <span className="text-gray-600">Name:</span>{" "}
                             <span className="font-medium">
                               {selectedRecord.userPet?.petName || "-"}
                             </span>
                           </p>
                           <p>
-                            <span className="text-gray-600">Loài:</span>{" "}
+                            <span className="text-gray-600">Species:</span>{" "}
                             <span className="font-medium">
                               {selectedRecord.userPet?.petType || "-"}
                             </span>
                           </p>
                           <p>
-                            <span className="text-gray-600">Giống:</span>{" "}
+                            <span className="text-gray-600">Breed:</span>{" "}
                             <span className="font-medium">
                               {selectedRecord.userPet?.breed || "N/A"}
                             </span>
@@ -418,11 +458,11 @@ export default function MedicalRecordManagement() {
                       <div className="bg-blue-50 rounded-xl p-4">
                         <h3 className="font-semibold text-blue-800 flex items-center gap-2 mb-3">
                           <User className="w-5 h-5" />
-                          Thông tin chủ nhân
+                          Owner Info
                         </h3>
                         <div className="space-y-2 text-sm">
                           <p>
-                            <span className="text-gray-600">Họ tên:</span>{" "}
+                            <span className="text-gray-600">Full Name:</span>{" "}
                             <span className="font-medium">
                               {selectedRecord.user?.name || "-"}
                             </span>
@@ -434,7 +474,7 @@ export default function MedicalRecordManagement() {
                             </span>
                           </p>
                           <p>
-                            <span className="text-gray-600">SĐT:</span>{" "}
+                            <span className="text-gray-600">Phone:</span>{" "}
                             <span className="font-medium">
                               {selectedRecord.user?.phone || "-"}
                             </span>
@@ -464,19 +504,29 @@ export default function MedicalRecordManagement() {
                     <div className="space-y-4">
                       {/* Condition */}
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Tình trạng</h4>
-                        <p className="text-gray-800">{selectedRecord.condition || "-"}</p>
+                        <h4 className="font-semibold text-gray-700 mb-2">
+                          Condition
+                        </h4>
+                        <p className="text-gray-800">
+                          {selectedRecord.condition || "-"}
+                        </p>
                       </div>
 
                       {/* Diagnosis */}
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Chẩn đoán</h4>
-                        <p className="text-gray-800">{selectedRecord.diagnosis || "-"}</p>
+                        <h4 className="font-semibold text-gray-700 mb-2">
+                          Diagnosis
+                        </h4>
+                        <p className="text-gray-800">
+                          {selectedRecord.diagnosis || "-"}
+                        </p>
                       </div>
 
                       {/* Treatment */}
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Điều trị</h4>
+                        <h4 className="font-semibold text-gray-700 mb-2">
+                          Treatment
+                        </h4>
                         <p className="text-gray-800 whitespace-pre-wrap">
                           {selectedRecord.treatment || "-"}
                         </p>
@@ -487,7 +537,7 @@ export default function MedicalRecordManagement() {
                         <div className="bg-green-50 rounded-xl p-4">
                           <h4 className="font-semibold text-green-800 flex items-center gap-2 mb-3">
                             <Pill className="w-5 h-5" />
-                            Thuốc
+                            Medications
                           </h4>
                           <div className="space-y-2">
                             {selectedRecord.medications.map((med, idx) => (
@@ -495,10 +545,13 @@ export default function MedicalRecordManagement() {
                                 key={idx}
                                 className="bg-white rounded-lg p-3 border border-green-100"
                               >
-                                <p className="font-medium text-gray-800">{med.name}</p>
+                                <p className="font-medium text-gray-800">
+                                  {med.name}
+                                </p>
                                 <p className="text-sm text-gray-600">
-                                  Liều lượng: {med.dosage || "-"} | Tần suất:{" "}
-                                  {med.frequency || "-"} | Thời gian: {med.duration || "-"}
+                                  Dosage: {med.dosage || "-"} | Frequency:{" "}
+                                  {med.frequency || "-"} | Duration:{" "}
+                                  {med.duration || "-"}
                                 </p>
                               </div>
                             ))}
@@ -512,12 +565,14 @@ export default function MedicalRecordManagement() {
                           <div className="bg-purple-50 rounded-xl p-4">
                             <h4 className="font-semibold text-purple-800 flex items-center gap-2 mb-3">
                               <Activity className="w-5 h-5" />
-                              Chỉ số sinh tồn
+                              Vitals
                             </h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {selectedRecord.vitals.weight && (
                                 <div className="bg-white rounded-lg p-3 text-center">
-                                  <p className="text-sm text-gray-600">Cân nặng</p>
+                                  <p className="text-sm text-gray-600">
+                                    Weight
+                                  </p>
                                   <p className="text-lg font-bold text-gray-800">
                                     {selectedRecord.vitals.weight} kg
                                   </p>
@@ -525,7 +580,9 @@ export default function MedicalRecordManagement() {
                               )}
                               {selectedRecord.vitals.temperature && (
                                 <div className="bg-white rounded-lg p-3 text-center">
-                                  <p className="text-sm text-gray-600">Nhiệt độ</p>
+                                  <p className="text-sm text-gray-600">
+                                    Temperature
+                                  </p>
                                   <p className="text-lg font-bold text-gray-800">
                                     {selectedRecord.vitals.temperature}°C
                                   </p>
@@ -533,7 +590,9 @@ export default function MedicalRecordManagement() {
                               )}
                               {selectedRecord.vitals.heartRate && (
                                 <div className="bg-white rounded-lg p-3 text-center">
-                                  <p className="text-sm text-gray-600">Nhịp tim</p>
+                                  <p className="text-sm text-gray-600">
+                                    Heart Rate
+                                  </p>
                                   <p className="text-lg font-bold text-gray-800">
                                     {selectedRecord.vitals.heartRate} bpm
                                   </p>
@@ -541,9 +600,11 @@ export default function MedicalRecordManagement() {
                               )}
                               {selectedRecord.vitals.respiratoryRate && (
                                 <div className="bg-white rounded-lg p-3 text-center">
-                                  <p className="text-sm text-gray-600">Nhịp thở</p>
+                                  <p className="text-sm text-gray-600">
+                                    Resp. Rate
+                                  </p>
                                   <p className="text-lg font-bold text-gray-800">
-                                    {selectedRecord.vitals.respiratoryRate} /phút
+                                    {selectedRecord.vitals.respiratoryRate} /min
                                   </p>
                                 </div>
                               )}
@@ -554,10 +615,95 @@ export default function MedicalRecordManagement() {
                       {/* Notes */}
                       {selectedRecord.notes && (
                         <div className="bg-gray-50 rounded-xl p-4">
-                          <h4 className="font-semibold text-gray-700 mb-2">Ghi chú</h4>
+                          <h4 className="font-semibold text-gray-700 mb-2">
+                            Notes
+                          </h4>
                           <p className="text-gray-800 whitespace-pre-wrap">
                             {selectedRecord.notes}
                           </p>
+                        </div>
+                      )}
+
+                      {/* Workflow Stage */}
+                      {selectedRecord.workflowStage && (
+                        <div className="bg-indigo-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-indigo-800 mb-2">
+                            Workflow Stage
+                          </h4>
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-sm font-semibold ${WORKFLOW_STAGE_COLORS[selectedRecord.workflowStage] || "bg-gray-100 text-gray-800"}`}
+                          >
+                            {WORKFLOW_STAGE_LABELS[selectedRecord.workflowStage] || selectedRecord.workflowStage}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Stage Photos */}
+                      {[
+                        {
+                          key: "receivedPhotos",
+                          title: "Check-in Photos",
+                          photos: selectedRecord.receivedPhotos || [],
+                        },
+                        {
+                          key: "processingPhotos",
+                          title: "Processing Photos",
+                          photos: selectedRecord.processingPhotos || [],
+                        },
+                        {
+                          key: "completedPhotos",
+                          title: "Checkout Photos",
+                          photos: selectedRecord.completedPhotos || [],
+                        },
+                      ].map((section) =>
+                        Array.isArray(section.photos) && section.photos.length > 0 ? (
+                          <div key={section.key} className="bg-gray-50 rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <ImageIcon className="w-5 h-5" />
+                              {section.title}
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {section.photos.map((url, idx) => (
+                                <a
+                                  key={`${section.key}-${idx}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-lg overflow-hidden border border-gray-200 bg-white"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${section.title} ${idx + 1}`}
+                                    className="w-full h-28 object-cover"
+                                    loading="lazy"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null,
+                      )}
+
+                      {/* Stage History */}
+                      {Array.isArray(selectedRecord.stageHistory) && selectedRecord.stageHistory.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-gray-700 mb-3">Stage History</h4>
+                          <div className="space-y-2">
+                            {selectedRecord.stageHistory
+                              .slice()
+                              .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+                              .map((entry, idx) => (
+                                <div key={`stage-history-${idx}`} className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                  <p className="text-sm font-semibold text-gray-800">
+                                    {WORKFLOW_STAGE_LABELS[entry.stage] || entry.stage}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{formatDate(entry.updatedAt)}</p>
+                                  {entry.notes && (
+                                    <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{entry.notes}</p>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       )}
 
@@ -566,7 +712,7 @@ export default function MedicalRecordManagement() {
                         <div className="bg-orange-50 rounded-xl p-4">
                           <h4 className="font-semibold text-orange-800 flex items-center gap-2 mb-2">
                             <Calendar className="w-5 h-5" />
-                            Ngày tái khám
+                            Follow-up Date
                           </h4>
                           <p className="text-orange-700 font-medium">
                             {formatDate(selectedRecord.followUpDate)}
@@ -577,14 +723,14 @@ export default function MedicalRecordManagement() {
                       {/* Created By */}
                       <div className="text-sm text-gray-500 pt-4 border-t border-gray-100">
                         <p>
-                          Tạo bởi:{" "}
+                          Created by:{" "}
                           <span className="font-medium">
                             {selectedRecord.createdBy?.name || "-"}
                           </span>
                         </p>
                         {selectedRecord.updatedBy && (
                           <p>
-                            Cập nhật bởi:{" "}
+                            Updated by:{" "}
                             <span className="font-medium">
                               {selectedRecord.updatedBy?.name || "-"}
                             </span>
@@ -595,7 +741,7 @@ export default function MedicalRecordManagement() {
                   </div>
                 ) : (
                   <p className="text-gray-500 text-center py-8">
-                    Không tìm thấy thông tin bệnh án
+                    Medical record not found
                   </p>
                 )}
               </div>
@@ -603,6 +749,6 @@ export default function MedicalRecordManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

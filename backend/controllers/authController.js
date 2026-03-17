@@ -476,7 +476,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
       devOnly: {
         resetToken,
         resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`,
-        expiresIn: '10 minutes'
+        expiresIn: '1 hour'
       }
     });
   }

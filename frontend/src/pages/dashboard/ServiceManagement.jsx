@@ -20,7 +20,15 @@ import {
   PawPrint,
   Image as ImageIcon,
   ListChecks,
+  Activity,
+  Loader2,
+  CheckCircle2,
+  ChevronDown,
+  MoreVertical,
+  UploadCloud,
+  AlertCircle,
 } from "lucide-react";
+import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import {
   getAllServices,
   getServiceById,
@@ -28,36 +36,45 @@ import {
   updateService,
   deleteService,
 } from "../../api/serviceApi";
-import { getAllCategories } from "../../api/categoryApi";
+import {
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../../api/categoryApi";
+import { uploadMultipleImages } from "../../api/uploadApi";
 
 // Pet type labels
 const PET_TYPE_LABELS = {
-  dog: "Chó",
-  cat: "Mèo",
-  bird: "Chim",
-  fish: "Cá",
-  rabbit: "Thỏ",
+  dog: "Dog",
+  cat: "Cat",
+  bird: "Bird",
+  fish: "Fish",
+  rabbit: "Rabbit",
   hamster: "Hamster",
-  other: "Khác",
+  other: "Other",
 };
 
 // Pet type options
 const PET_TYPE_OPTIONS = [
-  { value: "dog", label: "Chó" },
-  { value: "cat", label: "Mèo" },
-  { value: "bird", label: "Chim" },
-  { value: "fish", label: "Cá" },
-  { value: "rabbit", label: "Thỏ" },
+  { value: "dog", label: "Dog" },
+  { value: "cat", label: "Cat" },
+  { value: "bird", label: "Bird" },
+  { value: "fish", label: "Fish" },
+  { value: "rabbit", label: "Rabbit" },
   { value: "hamster", label: "Hamster" },
-  { value: "other", label: "Khác" },
+  { value: "other", label: "Other" },
 ];
 
-// Filter tabs
-const FILTER_TABS = [
-  { key: "all", label: "Tất cả" },
-  { key: "active", label: "Đang hoạt động" },
-  { key: "inactive", label: "Ngừng hoạt động" },
+const SERVICE_GROUP_OPTIONS = [
+  { value: "dry", label: "Dry" },
+  { value: "wet", label: "Wet" },
 ];
+
+const SERVICE_GROUP_LABELS = {
+  dry: "Dry",
+  wet: "Wet",
+};
 
 export default function ServiceManagement() {
   const [services, setServices] = useState([]);
@@ -82,7 +99,9 @@ export default function ServiceManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  useScrollLock(showDetailModal || showFormModal || showDeleteModal);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showCategoryDeleteModal, setShowCategoryDeleteModal] = useState(false);
+  useScrollLock(showDetailModal || showFormModal || showDeleteModal || showCategoryModal || showCategoryDeleteModal);
 
   // Selected item
   const [selectedService, setSelectedService] = useState(null);
@@ -94,17 +113,27 @@ export default function ServiceManagement() {
     name: "",
     description: "",
     category: "",
+    group: "dry",
     price: "",
     duration: "",
     petTypes: ["dog", "cat"],
     features: [],
     images: [],
-    maxCapacity: 1,
     isActive: true,
   });
   const [featureInput, setFeatureInput] = useState("");
   const [imageInput, setImageInput] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categoryFormMode, setCategoryFormMode] = useState("create");
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    description: "",
+    isActive: true,
+  });
+  const [categoryEditingId, setCategoryEditingId] = useState("");
+  const [categoryFormLoading, setCategoryFormLoading] = useState(false);
+  const [selectedCategoryToDelete, setSelectedCategoryToDelete] = useState(null);
 
   // Fetch categories
   const fetchCategories = useCallback(async () => {
@@ -151,11 +180,19 @@ export default function ServiceManagement() {
         }));
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách dịch vụ");
+      setError(
+        err.response?.data?.message || "Không thể tải danh sách dịch vụ",
+      );
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, activeTab, categoryFilter, searchTerm]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    activeTab,
+    categoryFilter,
+    searchTerm,
+  ]);
 
   useEffect(() => {
     fetchCategories();
@@ -193,12 +230,12 @@ export default function ServiceManagement() {
       name: "",
       description: "",
       category: categories[0]?._id || "",
+      group: "dry",
       price: "",
       duration: "",
       petTypes: ["dog", "cat"],
       features: [],
       images: [],
-      maxCapacity: 1,
       isActive: true,
     });
     setFeatureInput("");
@@ -214,12 +251,12 @@ export default function ServiceManagement() {
       name: service.name,
       description: service.description || "",
       category: service.category?._id || service.category || "",
+      group: service.group || "dry",
       price: service.price,
       duration: service.duration,
       petTypes: service.petTypes || ["dog", "cat"],
       features: service.features || [],
       images: service.images || [],
-      maxCapacity: service.maxCapacity || 1,
       isActive: service.isActive !== false,
     });
     setFeatureInput("");
@@ -285,6 +322,172 @@ export default function ServiceManagement() {
     }));
   };
 
+  const handleUploadImages = async (filesInput) => {
+    const files = Array.from(filesInput || []).filter((file) =>
+      file.type?.startsWith("image/"),
+    );
+
+    if (!files.length) return;
+
+    try {
+      setImageUploading(true);
+      console.log("Starting upload for files:", files);
+      const uploadedUrls = await uploadMultipleImages(files);
+      console.log("Uploaded URLs received:", uploadedUrls);
+
+      setFormData((prev) => ({
+        ...prev,
+        images: Array.from(new Set([...(prev.images || []), ...uploadedUrls])),
+      }));
+      
+      console.log("FormData images updated");
+      setToast({ type: 'success', message: `${uploadedUrls.length} ảnh đã upload thành công` });
+    } catch (err) {
+      console.error("Upload error:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Không thể upload ảnh";
+      setError(errorMsg);
+      setToast({ type: 'error', message: errorMsg });
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleImageDrop = async (event) => {
+    event.preventDefault();
+    await handleUploadImages(event.dataTransfer.files);
+  };
+
+  const handleImageInputChange = async (event) => {
+    await handleUploadImages(event.target.files);
+    event.target.value = "";
+  };
+
+  const handleOpenCategoryCreate = () => {
+    setCategoryFormMode("create");
+    setCategoryEditingId("");
+    setCategoryFormData({
+      name: "",
+      description: "",
+      isActive: true,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleOpenCategoryEdit = () => {
+    const categoryId = formData.category || categories[0]?._id || "";
+    const targetCategory = categories.find((cat) => cat._id === categoryId);
+
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Vui lòng chọn category để chỉnh sửa" });
+      return;
+    }
+
+    setCategoryFormMode("edit");
+    setCategoryEditingId(targetCategory._id);
+    setCategoryFormData({
+      name: targetCategory.name || "",
+      description: targetCategory.description || "",
+      isActive: targetCategory.isActive !== false,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleCategoryFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setCategoryFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmitCategory = async (e) => {
+    e.preventDefault();
+    const trimmedName = categoryFormData.name.trim();
+    if (!trimmedName) {
+      setToast({ type: "error", message: "Tên category không được để trống" });
+      return;
+    }
+
+    try {
+      setCategoryFormLoading(true);
+      const payload = {
+        name: trimmedName,
+        description: categoryFormData.description.trim(),
+        isActive: categoryFormData.isActive,
+      };
+
+      if (categoryFormMode === "create") {
+        const created = await createCategory(payload);
+        await fetchCategories();
+        if (created?.data?._id) {
+          setFormData((prev) => ({ ...prev, category: created.data._id }));
+        }
+        setToast({ type: "success", message: "Tạo category thành công" });
+      } else {
+        await updateCategory(categoryEditingId, payload);
+        await fetchCategories();
+        setToast({ type: "success", message: "Cập nhật category thành công" });
+      }
+
+      setShowCategoryModal(false);
+    } catch (err) {
+      const message = err.response?.data?.message || "Không thể lưu category";
+      setToast({ type: "error", message });
+    } finally {
+      setCategoryFormLoading(false);
+    }
+  };
+
+  const handleOpenCategoryEditByFilter = (option) => {
+    const targetCategory = categories.find((cat) => cat._id === option.value);
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Không tìm thấy category để chỉnh sửa" });
+      return;
+    }
+
+    setCategoryFormMode("edit");
+    setCategoryEditingId(targetCategory._id);
+    setCategoryFormData({
+      name: targetCategory.name || "",
+      description: targetCategory.description || "",
+      isActive: targetCategory.isActive !== false,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategoryByFilter = async (option) => {
+    const targetCategory = categories.find((cat) => cat._id === option.value);
+    if (!targetCategory) {
+      setToast({ type: "error", message: "Không tìm thấy category để xóa" });
+      return;
+    }
+
+    setSelectedCategoryToDelete(targetCategory);
+    setShowCategoryDeleteModal(true);
+  };
+
+  const handleConfirmCategoryDelete = async () => {
+    if (!selectedCategoryToDelete?._id) return;
+
+    try {
+      await deleteCategory(selectedCategoryToDelete._id);
+      await fetchCategories();
+      if (categoryFilter === selectedCategoryToDelete._id) {
+        setCategoryFilter("all");
+      }
+      if (formData.category === selectedCategoryToDelete._id) {
+        setFormData((prev) => ({ ...prev, category: "" }));
+      }
+      setShowCategoryDeleteModal(false);
+      setSelectedCategoryToDelete(null);
+      setToast({ type: "success", message: "Xóa category thành công" });
+      fetchServices();
+    } catch (err) {
+      const message = err.response?.data?.message || "Không thể xóa category";
+      setToast({ type: "error", message });
+    }
+  };
+
   // Submit form
   const handleSubmitForm = async (e) => {
     e.preventDefault();
@@ -295,12 +498,12 @@ export default function ServiceManagement() {
         name: formData.name,
         description: formData.description,
         category: formData.category,
+        group: formData.group,
         price: Number(formData.price),
         duration: Number(formData.duration),
         petTypes: formData.petTypes,
         features: formData.features,
         images: formData.images,
-        maxCapacity: Number(formData.maxCapacity),
         isActive: formData.isActive,
       };
 
@@ -365,77 +568,85 @@ export default function ServiceManagement() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="max-w-[1400px] mx-auto space-y-6 pb-10"
+    >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Briefcase className="w-7 h-7 text-amber-600" />
-            Quản lý Dịch vụ
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
+            Service Management
           </h1>
-          <p className="text-gray-600 mt-1">Quản lý các dịch vụ chăm sóc thú cưng</p>
+          <p className="text-[#2D3436]/60 text-sm">
+            Manage pet care services
+          </p>
         </div>
-
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Thêm Dịch vụ
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-2 mb-4">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === tab.key
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Danh mục</label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="all">Tất cả danh mục</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="flex items-center gap-2">
+          <motion.button
+            type="button"
+            onClick={handleOpenCategoryCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-white border border-[#2D3436]/10 text-[#2D3436] px-4 py-2.5 rounded-xl font-bold text-sm hover:border-[#D97853] hover:text-[#D97853] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Tag size={16} /> Add Category
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={handleOpenCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Plus size={18} /> Add Service
+          </motion.button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên dịch vụ..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-      </div>
+      {/* Filters */}
+      <AdminFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by service name or category..."
+        filters={[
+          {
+            label: "CATEGORY",
+            icon: Tag,
+            options: [
+              { label: "All Categories", value: "all" },
+              ...categories.map((c) => ({ label: c.name, value: c._id })),
+            ],
+            value: categoryFilter,
+            onChange: (opt) => setCategoryFilter(opt || "all"),
+            optionActions: {
+              hideForValues: ["all"],
+              onEdit: handleOpenCategoryEditByFilter,
+              onDelete: handleDeleteCategoryByFilter,
+            },
+          },
+          {
+            label: "STATUS",
+            icon: Activity,
+            options: ["All Status", "Active", "Inactive"],
+            value:
+              activeTab === "all"
+                ? "All Status"
+                : activeTab === "active"
+                  ? "Active"
+                  : "Inactive",
+            onChange: (opt) =>
+              setActiveTab(
+                opt === "All Status"
+                  ? "all"
+                  : opt === "Active"
+                    ? "active"
+                    : "inactive",
+              ),
+          },
+        ]}
+      />
 
       {/* Error */}
       {error && (
@@ -451,36 +662,40 @@ export default function ServiceManagement() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
           </div>
         ) : services.length === 0 ? (
-          <div className="text-center py-20 text-gray-500">
-            <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Không có dịch vụ nào</p>
+          <div className="text-center py-20 text-[#2D3436]/40">
+            <Briefcase className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
+            <p className="text-lg font-bold text-[#2D3436]">No services found</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Dịch vụ
+            <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Service
                     </th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">
-                      Danh mục
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Category
                     </th>
-                    <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">
-                      Giá
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Group
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Thời gian
+                    <th className="px-6 py-4 whitespace-nowrap text-right">
+                      Price
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Đánh giá
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Duration
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Trạng thái
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Rating
                     </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-600">
-                      Hành động
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -506,7 +721,9 @@ export default function ServiceManagement() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-800">{service.name}</p>
+                            <p className="font-medium text-gray-800">
+                              {service.name}
+                            </p>
                             <div className="flex gap-1 mt-1">
                               {service.petTypes?.slice(0, 3).map((pt) => (
                                 <span
@@ -530,6 +747,17 @@ export default function ServiceManagement() {
                           {getCategoryName(service)}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`px-3 py-1 text-xs font-bold rounded-full border ${
+                            service.group === "wet"
+                              ? "bg-blue-50 text-blue-700 border-blue-100"
+                              : "bg-amber-50 text-amber-700 border-amber-100"
+                          }`}
+                        >
+                          {SERVICE_GROUP_LABELS[service.group] || "Dry"}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <span className="font-semibold text-amber-600">
                           {formatCurrency(service.price)}
@@ -545,7 +773,9 @@ export default function ServiceManagement() {
                         <span className="inline-flex items-center gap-1 text-yellow-600">
                           <Star className="w-4 h-4 fill-current" />
                           {service.rating?.toFixed(1) || "0.0"}
-                          <span className="text-gray-400 text-xs">({service.totalReviews || 0})</span>
+                          <span className="text-[#2D3436]/40 text-xs font-medium">
+                            ({service.totalReviews || 0})
+                          </span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -556,42 +786,24 @@ export default function ServiceManagement() {
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {service.isActive ? (
-                            <>
-                              <ToggleRight className="w-4 h-4" />
-                              Hoạt động
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft className="w-4 h-4" />
-                              Ngừng
-                            </>
-                          )}
+                          {service.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleViewDetail(service)}
-                            className="p-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors"
-                            title="Xem"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
+                          />
+                          <Edit2
+                            size={16}
+                            className="hover:text-[#7FB069] transition-colors cursor-pointer"
                             onClick={() => handleOpenEdit(service)}
-                            className="p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                            title="Sửa"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
+                          />
+                          <Trash2
+                            size={16}
+                            className="hover:text-red-500 transition-colors cursor-pointer"
                             onClick={() => handleOpenDelete(service)}
-                            className="p-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
-                            title="Xóa"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          />
                         </div>
                       </td>
                     </motion.tr>
@@ -601,13 +813,15 @@ export default function ServiceManagement() {
             </div>
 
             {/* Pagination */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Hiển thị {services.length} / {pagination.total} dịch vụ
+            <div className="px-6 py-4 border-t border-[#2D3436]/5 flex items-center justify-between">
+              <p className="text-sm font-medium text-[#2D3436]/60">
+                Showing {services.length} of {pagination.total} services
               </p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                   disabled={pagination.page <= 1}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -617,7 +831,9 @@ export default function ServiceManagement() {
                   {pagination.page} / {pagination.pages}
                 </span>
                 <button
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                   disabled={pagination.page >= pagination.pages}
                   className="p-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
@@ -647,11 +863,20 @@ export default function ServiceManagement() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <Briefcase className="w-6 h-6 text-amber-600" />
-                  Chi tiết Dịch vụ
-                </h2>
+              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <Briefcase className="w-5 h-5 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      Service Details
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      View service information
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -684,33 +909,47 @@ export default function ServiceManagement() {
 
                     {/* Name & Category */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{selectedService.name}</h3>
-                      <span className="inline-block mt-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
-                        {getCategoryName(selectedService)}
-                      </span>
+                      <h3 className="text-xl font-bold text-gray-800">
+                        {selectedService.name}
+                      </h3>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-block px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                          {getCategoryName(selectedService)}
+                        </span>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm ${
+                            selectedService.group === "wet"
+                              ? "bg-blue-50 text-blue-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {SERVICE_GROUP_LABELS[selectedService.group] || "Dry"} Service
+                        </span>
+                      </div>
                     </div>
 
                     {/* Price, Duration, Rating */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-amber-50 rounded-xl p-4 text-center">
                         <DollarSign className="w-6 h-6 text-amber-600 mx-auto mb-1" />
-                        <p className="text-sm text-amber-700">Giá</p>
+                        <p className="text-sm text-amber-700">Price</p>
                         <p className="font-bold text-lg text-amber-800">
                           {formatCurrency(selectedService.price)}
                         </p>
                       </div>
                       <div className="bg-blue-50 rounded-xl p-4 text-center">
                         <Clock className="w-6 h-6 text-blue-600 mx-auto mb-1" />
-                        <p className="text-sm text-blue-700">Thời gian</p>
+                        <p className="text-sm text-blue-700">Duration</p>
                         <p className="font-bold text-lg text-blue-800">
                           {formatDuration(selectedService.duration)}
                         </p>
                       </div>
                       <div className="bg-yellow-50 rounded-xl p-4 text-center">
                         <Star className="w-6 h-6 text-yellow-600 mx-auto mb-1" />
-                        <p className="text-sm text-yellow-700">Đánh giá</p>
+                        <p className="text-sm text-yellow-700">Rating</p>
                         <p className="font-bold text-lg text-yellow-800">
-                          {selectedService.rating?.toFixed(1) || "0.0"} ({selectedService.totalReviews || 0})
+                          {selectedService.rating?.toFixed(1) || "0.0"} (
+                          {selectedService.totalReviews || 0})
                         </p>
                       </div>
                     </div>
@@ -718,7 +957,9 @@ export default function ServiceManagement() {
                     {/* Description */}
                     {selectedService.description && (
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold text-gray-700 mb-2">Mô tả</h4>
+                        <h4 className="font-semibold text-gray-700 mb-2">
+                          Description
+                        </h4>
                         <p className="text-gray-800 whitespace-pre-wrap">
                           {selectedService.description}
                         </p>
@@ -729,7 +970,7 @@ export default function ServiceManagement() {
                     <div className="bg-blue-50 rounded-xl p-4">
                       <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-3">
                         <PawPrint className="w-5 h-5" />
-                        Loại thú cưng
+                        Pet Types
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {selectedService.petTypes?.map((pt) => (
@@ -748,11 +989,14 @@ export default function ServiceManagement() {
                       <div className="bg-green-50 rounded-xl p-4">
                         <h4 className="font-semibold text-green-800 flex items-center gap-2 mb-3">
                           <ListChecks className="w-5 h-5" />
-                          Tính năng
+                          Features
                         </h4>
                         <ul className="space-y-1">
                           {selectedService.features.map((feat, idx) => (
-                            <li key={idx} className="flex items-center gap-2 text-green-700">
+                            <li
+                              key={idx}
+                              className="flex items-center gap-2 text-green-700"
+                            >
                               <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                               {feat}
                             </li>
@@ -761,10 +1005,10 @@ export default function ServiceManagement() {
                       </div>
                     )}
 
-                    {/* Status & Capacity */}
+                    {/* Status & Capacity Source */}
                     <div className="flex items-center justify-between pt-4 border-t">
                       <div>
-                        <span className="text-gray-600">Trạng thái: </span>
+                        <span className="text-gray-600">Status: </span>
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-medium ${
                             selectedService.isActive
@@ -772,16 +1016,18 @@ export default function ServiceManagement() {
                               : "bg-gray-100 text-gray-600"
                           }`}
                         >
-                          {selectedService.isActive ? "Hoạt động" : "Ngừng hoạt động"}
+                          {selectedService.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      <div className="text-gray-600">
-                        Sức chứa: <span className="font-medium">{selectedService.maxCapacity || 1}</span>
+                      <div className="text-gray-600 text-sm">
+                        Capacity by group (Wet/Dry) in Room Management modal
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-8">Không tìm thấy thông tin</p>
+                  <p className="text-[#2D3436]/50 text-center py-8 font-medium">
+                    Service not found
+                  </p>
                 )}
               </div>
             </motion.div>
@@ -807,10 +1053,20 @@ export default function ServiceManagement() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {formMode === "create" ? "Thêm Dịch vụ mới" : "Sửa Dịch vụ"}
-                </h2>
+              <div className="sticky top-0 bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between z-30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D97853]/10 flex items-center justify-center">
+                    <Edit2 className="w-5 h-5 text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
+                      {formMode === "create" ? "Add New Service" : "Edit Service"}
+                    </h2>
+                    <p className="text-xs text-[#2D3436]/50 font-medium">
+                      {formMode === "create" ? "Create a new pet care service" : "Update service information"}
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowFormModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -823,8 +1079,8 @@ export default function ServiceManagement() {
               <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tên dịch vụ <span className="text-red-500">*</span>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Service Name <span className="text-[#D97853]">*</span>
                   </label>
                   <input
                     type="text"
@@ -832,50 +1088,104 @@ export default function ServiceManagement() {
                     value={formData.name}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="VD: Tắm spa cho chó"
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30"
+                    placeholder="E.g. Spa bath for dogs"
                   />
                 </div>
 
                 {/* Category */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Danh mục <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
+                <div className={`relative ${isCategoryOpen ? "z-[60]" : "z-10"}`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="block text-sm font-bold text-[#2D3436]">
+                      Category <span className="text-[#D97853]">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenCategoryCreate}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#7FB069]/40 bg-[#7FB069]/10 px-2 py-1 text-[11px] font-bold text-[#5f8e4e] hover:bg-[#7FB069]/20 transition-colors"
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenCategoryEdit}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#D97853]/40 bg-[#D97853]/10 px-2 py-1 text-[11px] font-bold text-[#D97853] hover:bg-[#D97853]/20 transition-colors"
+                      >
+                        <Edit2 size={12} /> Edit
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 flex items-center justify-between cursor-pointer bg-white"
                   >
-                    <option value="">Chọn danh mục</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id} value={cat._id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
+                    <span className={`text-sm font-medium ${formData.category ? "text-[#2D3436]" : "text-gray-500"}`}>
+                      {formData.category
+                        ? categories.find((c) => c._id === formData.category)?.name || "Select category"
+                        : "Select category"}
+                    </span>
+                    <MoreVertical size={14} className="text-[#D97853]" />
+                  </div>
+                  <AnimatePresence>
+                    {isCategoryOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsCategoryOpen(false);
+                          }}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-50 py-1.5 max-h-60 overflow-y-auto"
+                        >
+                          {categories.map((cat) => {
+                            const isSelected = formData.category === cat._id;
+                            return (
+                              <div
+                                key={cat._id}
+                                className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleFormChange({ target: { name: "category", value: cat._id } });
+                                  setIsCategoryOpen(false);
+                                }}
+                              >
+                                {cat.name}
+                              </div>
+                            );
+                          })}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Description
+                  </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleFormChange}
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Mô tả chi tiết dịch vụ..."
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 resize-none"
+                    placeholder="Describe the service in detail..."
                   />
                 </div>
 
                 {/* Price & Duration */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Giá (VND) <span className="text-red-500">*</span>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Price (VND) <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -889,8 +1199,8 @@ export default function ServiceManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thời gian (phút) <span className="text-red-500">*</span>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Duration (min) <span className="text-[#D97853]">*</span>
                     </label>
                     <input
                       type="number"
@@ -905,26 +1215,44 @@ export default function ServiceManagement() {
                   </div>
                 </div>
 
-                {/* Max Capacity */}
+                {/* Service Group */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Sức chứa tối đa
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Service Group <span className="text-[#D97853]">*</span>
                   </label>
-                  <input
-                    type="number"
-                    name="maxCapacity"
-                    value={formData.maxCapacity}
-                    onChange={handleFormChange}
-                    min="1"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    placeholder="1"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    {SERVICE_GROUP_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          handleFormChange({
+                            target: { name: "group", value: opt.value },
+                          })
+                        }
+                        className={`px-4 py-3 rounded-xl border text-sm font-bold transition-all ${
+                          formData.group === opt.value
+                            ? "border-[#D97853] bg-[#D97853]/10 text-[#D97853]"
+                            : "border-[#2D3436]/10 bg-white text-[#2D3436]/70 hover:border-[#D97853]/60"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-[#2D3436]/50">
+                    Dry: Cắt tỉa/Cắt móng... | Wet: Tắm/Sấy/Massage...
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-700">
+                  Group capacity (Wet/Dry) is managed in <strong>Room Management</strong> via the capacity modal.
                 </div>
 
                 {/* Pet Types */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Loại thú cưng áp dụng
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Applicable Pet Types
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PET_TYPE_OPTIONS.map((opt) => (
@@ -946,22 +1274,27 @@ export default function ServiceManagement() {
 
                 {/* Features */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tính năng</label>
-                  <div className="flex gap-2 mb-2">
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Features
+                  </label>
+                  <div className="flex gap-2 mb-3">
                     <input
                       type="text"
                       value={featureInput}
                       onChange={(e) => setFeatureInput(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-                      placeholder="Nhập tính năng..."
-                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddFeature())}
+                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
+                      placeholder="Enter feature..."
+                      onKeyPress={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), handleAddFeature())
+                      }
                     />
                     <button
                       type="button"
                       onClick={handleAddFeature}
                       className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
                     >
-                      Thêm
+                      Add
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -986,23 +1319,26 @@ export default function ServiceManagement() {
                 {/* Images */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hình ảnh (URL)
+                    Images (URL)
                   </label>
                   <div className="flex gap-2 mb-2">
                     <input
                       type="url"
                       value={imageInput}
                       onChange={(e) => setImageInput(e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500"
-                      placeholder="Nhập URL hình ảnh..."
-                      onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), handleAddImage())}
+                      className="flex-1 px-4 py-2.5 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/20"
+                      placeholder="Enter image URL..."
+                      onKeyPress={(e) =>
+                        e.key === "Enter" &&
+                        (e.preventDefault(), handleAddImage())
+                      }
                     />
                     <button
                       type="button"
                       onClick={handleAddImage}
                       className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
                     >
-                      Thêm
+                      Add
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1035,27 +1371,9 @@ export default function ServiceManagement() {
                     onChange={handleFormChange}
                     className="w-5 h-5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
                   />
-                  <label htmlFor="isActive" className="text-gray-700">
-                    Dịch vụ đang hoạt động
+                  <label htmlFor="isActive" className="text-[#2D3436] font-medium">
+                    Active service
                   </label>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowFormModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={formLoading}
-                    className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50"
-                  >
-                    {formLoading ? "Đang lưu..." : formMode === "create" ? "Tạo" : "Cập nhật"}
-                  </button>
                 </div>
               </form>
             </motion.div>
@@ -1080,34 +1398,192 @@ export default function ServiceManagement() {
               className="bg-white rounded-2xl w-full max-w-md"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Trash2 className="w-8 h-8 text-red-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Xóa Dịch vụ?</h3>
-                <p className="text-gray-600 mb-6">
-                  Bạn có chắc muốn xóa dịch vụ <strong>{selectedService.name}</strong>? Hành động
-                  này không thể hoàn tác.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 py-3 px-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
-                  >
-                    Xóa
-                  </button>
-                </div>
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-[#2D3436] mb-2">
+                Delete Service?
+              </h3>
+              <p className="text-[#2D3436]/60 mb-6 font-medium">
+                Are you sure you want to delete{" "}
+                <strong className="text-[#2D3436]">{selectedService.name}</strong>? This action cannot be
+                undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-3 px-4 bg-white border border-[#2D3436]/10 rounded-xl font-bold text-[#2D3436]/70 hover:border-[#2D3436]/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg"
+                >
+                  Delete
+                </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+
+      {/* Category Delete Modal */}
+      <AnimatePresence>
+        {showCategoryDeleteModal && selectedCategoryToDelete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowCategoryDeleteModal(false);
+                setSelectedCategoryToDelete(null);
+              }}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[400px] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-[#2D3436] mb-2">
+                Delete Category?
+              </h3>
+              <p className="text-[#2D3436]/60 mb-6 font-medium">
+                Are you sure you want to delete{" "}
+                <strong className="text-[#2D3436]">{selectedCategoryToDelete.name}</strong>? This action cannot be
+                undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCategoryDeleteModal(false);
+                    setSelectedCategoryToDelete(null);
+                  }}
+                  className="flex-1 py-3 px-4 bg-white border border-[#2D3436]/10 rounded-xl font-bold text-[#2D3436]/70 hover:border-[#2D3436]/30 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCategoryDelete}
+                  className="flex-1 py-3 px-4 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-lg"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Category Modal */}
+      <AnimatePresence>
+        {showCategoryModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCategoryModal(false)}
+              className="fixed inset-0 bg-[#2D3436]/40 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[520px] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 overflow-hidden"
+            >
+              <div className="bg-white border-b border-[#2D3436]/10 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3436]">
+                    {categoryFormMode === "create" ? "Add Category" : "Edit Category"}
+                  </h3>
+                  <p className="text-xs text-[#2D3436]/50 font-medium mt-0.5">
+                    {categoryFormMode === "create"
+                      ? "Create a new category from backend"
+                      : "Update selected category"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(false)}
+                  className="w-8 h-8 rounded-full bg-[#2D3436]/5 flex items-center justify-center hover:bg-[#2D3436]/10 transition-colors text-[#2D3436]/50"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitCategory} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Category Name <span className="text-[#D97853]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    value={categoryFormData.name}
+                    onChange={handleCategoryFormChange}
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all"
+                    placeholder="E.g. Grooming"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    rows={3}
+                    value={categoryFormData.description}
+                    onChange={handleCategoryFormChange}
+                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all resize-none"
+                    placeholder="Describe this category..."
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 bg-white border border-[#2D3436]/10 rounded-2xl p-4">
+                  <input
+                    type="checkbox"
+                    id="categoryIsActive"
+                    name="isActive"
+                    checked={categoryFormData.isActive}
+                    onChange={handleCategoryFormChange}
+                    className="w-5 h-5 rounded border-[#2D3436]/20 text-[#D97853] focus:ring-[#D97853]"
+                  />
+                  <label htmlFor="categoryIsActive" className="text-[#2D3436] font-medium">
+                    Active category
+                  </label>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(false)}
+                    className="px-5 py-2.5 rounded-xl font-bold text-sm text-[#2D3436]/70 hover:bg-[#2D3436]/5 hover:text-[#2D3436] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={categoryFormLoading}
+                    className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {categoryFormLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                    {categoryFormMode === "create" ? "Create Category" : "Update Category"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

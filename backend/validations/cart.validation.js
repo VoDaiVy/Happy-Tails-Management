@@ -12,12 +12,30 @@ const objectIdPattern = /^[0-9a-fA-F]{24}$/;
  * Schema for adding item to cart
  */
 const addToCartSchema = Joi.object({
+  type: Joi.string()
+    .valid('service', 'stay')
+    .default('service'),
   serviceId: Joi.string()
     .pattern(objectIdPattern)
-    .required()
+    .when('type', {
+      is: 'service',
+      then: Joi.required(),
+      otherwise: Joi.optional().allow(null, '')
+    })
     .messages({
       'string.pattern.base': 'Invalid service ID format',
       'any.required': 'Service ID is required'
+    }),
+  roomId: Joi.string()
+    .pattern(objectIdPattern)
+    .when('type', {
+      is: 'stay',
+      then: Joi.required(),
+      otherwise: Joi.optional().allow(null, '')
+    })
+    .messages({
+      'string.pattern.base': 'Invalid room ID format',
+      'any.required': 'Room ID is required for stay booking'
     }),
   quantity: Joi.number()
     .integer()
@@ -28,13 +46,27 @@ const addToCartSchema = Joi.object({
       'number.min': 'Quantity must be at least 1',
       'number.max': 'Maximum quantity is 99'
     }),
+  checkInDate: Joi.date()
+    .iso()
+    .optional()
+    .allow(null),
+  checkOutDate: Joi.date()
+    .iso()
+    .optional()
+    .allow(null),
+  nights: Joi.number()
+    .integer()
+    .min(1)
+    .max(60)
+    .optional(),
   note: Joi.string()
     .max(200)
     .allow('')
     .default('')
     .messages({
       'string.max': 'Note must be less than 200 characters'
-    })
+    }),
+  metadata: Joi.object().optional().default({})
 });
 
 /**

@@ -102,18 +102,20 @@ exports.updateMedicalRecord = catchAsync(async (req, res, next) => {
 // GET /api/medical-records  (Staff | Admin — view all)
 // ─────────────────────────────────────────────────────────────
 exports.getAllMedicalRecords = catchAsync(async (req, res, next) => {
-  const { userId, petId, recordType, page = 1, limit = 20 } = req.query;
+  const { userId, petId, bookingId, recordType, page = 1, limit = 20 } = req.query;
   const skip = (Math.max(Number(page), 1) - 1) * Math.min(Number(limit), 100);
 
   const filter = {};
   if (userId)     filter.user       = userId;
   if (petId)      filter.userPet    = petId;
+  if (bookingId)  filter.booking    = bookingId;
   if (recordType) filter.recordType = recordType;
 
   const [records, total] = await Promise.all([
     MedicalRecord.find(filter)
       .populate('userPet', 'petName petType breed')
       .populate('user',    'name email phone')
+      .populate('booking', 'bookingNumber bookingDate bookingTime status')
       .populate('createdBy', 'name')
       .sort('-createdAt')
       .skip(skip)
@@ -140,15 +142,17 @@ exports.getAllMedicalRecords = catchAsync(async (req, res, next) => {
 // GET /api/medical-records/my-pets  (Customer — own pets only)
 // ─────────────────────────────────────────────────────────────
 exports.getMyPetsRecords = catchAsync(async (req, res, next) => {
-  const { petId, recordType } = req.query;
+  const { petId, bookingId, recordType } = req.query;
 
   // SECURITY: always force filter to current user
   const filter = { user: req.user.id };
   if (petId)      filter.userPet    = petId;
+  if (bookingId)  filter.booking    = bookingId;
   if (recordType) filter.recordType = recordType;
 
   const records = await MedicalRecord.find(filter)
     .populate('userPet', 'petName petType breed')
+    .populate('booking', 'bookingNumber bookingDate bookingTime status')
     .populate('createdBy', 'name')
     .sort('-createdAt');
 
