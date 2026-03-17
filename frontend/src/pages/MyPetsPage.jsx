@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 import {
   PawPrint, Save, X, Plus, Edit3, Trash2,
-  Calendar, ChevronLeft, Loader2, Palette,
+  Calendar, ChevronLeft, ChevronDown, Loader2, Palette,
   Stethoscope, Syringe, Activity, Eye, ClipboardList, Bell,
   Weight, Image, Camera, Search, SlidersHorizontal, Heart, Sparkles, MoreVertical
 } from 'lucide-react';
@@ -52,6 +52,8 @@ const MyPetsPage = () => {
   const [selectedPet, setSelectedPet] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [expandedHealthSection, setExpandedHealthSection] = useState('medical');
+  const [selectedHealthEntry, setSelectedHealthEntry] = useState(null);
 
   // Medical Record state
   const [medRecordModalOpen, setMedRecordModalOpen] = useState(false);
@@ -243,6 +245,8 @@ const MyPetsPage = () => {
   const openPetDetail = async (pet) => {
     setDetailLoading(true);
     setDetailModalOpen(true);
+    setExpandedHealthSection('medical');
+    setSelectedHealthEntry(null);
     try {
       const res = await getPetById(pet._id);
       setSelectedPet(res.data);
@@ -825,59 +829,146 @@ const MyPetsPage = () => {
 
                     {/* Medical Records */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <Stethoscope size={16} className="text-blue-500" /> Medical Records
-                      </h4>
-                      {selectedPet.pet.medicalRecords && selectedPet.pet.medicalRecords.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {selectedPet.pet.medicalRecords.map((rec, i) => (
-                            <div key={i} className="p-3 bg-slate-50 rounded-xl text-sm">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-bold text-slate-700">{rec.diagnosis}</span>
-                                <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize">{rec.type}</span>
-                              </div>
-                              {rec.treatment && <p className="text-xs text-slate-500">Treatment: {rec.treatment}</p>}
-                              <div className="flex gap-4 mt-1 text-xs text-slate-400">
-                                {rec.veterinarian && <span>Dr. {rec.veterinarian}</span>}
-                                {rec.clinic && <span>{rec.clinic}</span>}
-                                <span>{new Date(rec.date).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">No medical records yet</p>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHealthSection(prev => (prev === 'medical' ? null : 'medical'))}
+                        className="w-full text-left mb-3 flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50 transition-colors"
+                      >
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Stethoscope size={16} className="text-blue-500" />
+                          Medical Records
+                          <span className="text-[11px] font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                            {selectedPet.pet.medicalRecords?.length || 0}
+                          </span>
+                        </h4>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expandedHealthSection === 'medical' ? 'rotate-180' : ''}`} />
+                      </button>
+                      {expandedHealthSection === 'medical' && (
+                        selectedPet.pet.medicalRecords && selectedPet.pet.medicalRecords.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {selectedPet.pet.medicalRecords.map((rec, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setSelectedHealthEntry({ kind: 'medical', data: rec })}
+                                className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm transition-colors"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-slate-700 truncate pr-2">{rec.diagnosis}</span>
+                                  <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize flex-shrink-0">{rec.type}</span>
+                                </div>
+                                {rec.treatment && <p className="text-xs text-slate-500 truncate">Treatment: {rec.treatment}</p>}
+                                <div className="flex gap-4 mt-1 text-xs text-slate-400">
+                                  {rec.veterinarian && <span>Dr. {rec.veterinarian}</span>}
+                                  <span>{new Date(rec.date).toLocaleDateString()}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic">No medical records yet</p>
+                        )
                       )}
                     </div>
 
                     {/* Vaccinations */}
                     <div>
-                      <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                        <Syringe size={16} className="text-green-500" /> Vaccinations
-                      </h4>
-                      {selectedPet.pet.vaccinations && selectedPet.pet.vaccinations.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {selectedPet.pet.vaccinations.map((vacc, i) => (
-                            <div key={i} className="p-3 bg-slate-50 rounded-xl text-sm flex items-center justify-between">
-                              <div>
-                                <span className="font-bold text-slate-700">{vacc.name}</span>
-                                <div className="text-xs text-slate-400 mt-0.5">
-                                  {new Date(vacc.date).toLocaleDateString()}
-                                  {vacc.veterinarian && <span> · Dr. {vacc.veterinarian}</span>}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHealthSection(prev => (prev === 'vaccination' ? null : 'vaccination'))}
+                        className="w-full text-left mb-3 flex items-center justify-between rounded-xl px-2 py-1.5 hover:bg-slate-50 transition-colors"
+                      >
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <Syringe size={16} className="text-green-500" />
+                          Vaccinations
+                          <span className="text-[11px] font-bold px-2 py-0.5 bg-green-50 text-green-600 rounded-full">
+                            {selectedPet.pet.vaccinations?.length || 0}
+                          </span>
+                        </h4>
+                        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expandedHealthSection === 'vaccination' ? 'rotate-180' : ''}`} />
+                      </button>
+                      {expandedHealthSection === 'vaccination' && (
+                        selectedPet.pet.vaccinations && selectedPet.pet.vaccinations.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {selectedPet.pet.vaccinations.map((vacc, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => setSelectedHealthEntry({ kind: 'vaccination', data: vacc })}
+                                className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm flex items-center justify-between transition-colors"
+                              >
+                                <div>
+                                  <span className="font-bold text-slate-700">{vacc.name}</span>
+                                  <div className="text-xs text-slate-400 mt-0.5">
+                                    {new Date(vacc.date).toLocaleDateString()}
+                                    {vacc.veterinarian && <span> · Dr. {vacc.veterinarian}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                              {vacc.nextDueDate && (
-                                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${new Date(vacc.nextDueDate) < new Date() ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
-                                  Next: {new Date(vacc.nextDueDate).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">No vaccination records yet</p>
+                                {vacc.nextDueDate && (
+                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${new Date(vacc.nextDueDate) < new Date() ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                    Next: {new Date(vacc.nextDueDate).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic">No vaccination records yet</p>
+                        )
                       )}
                     </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ====== HEALTH ENTRY DETAIL MODAL ====== */}
+      <AnimatePresence>
+        {selectedHealthEntry && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/45 backdrop-blur-sm"
+            onClick={() => setSelectedHealthEntry(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black flex items-center gap-2">
+                    {selectedHealthEntry.kind === 'medical' ? (
+                      <><Stethoscope size={18} className="text-blue-500" /> Medical Record Detail</>
+                    ) : (
+                      <><Syringe size={18} className="text-green-500" /> Vaccination Detail</>
+                    )}
+                  </h2>
+                  <button onClick={() => setSelectedHealthEntry(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {selectedHealthEntry.kind === 'medical' ? (
+                  <div className="space-y-3 text-sm">
+                    <InfoRow label="Diagnosis" value={selectedHealthEntry.data?.diagnosis} />
+                    <InfoRow label="Type" value={selectedHealthEntry.data?.type} capitalize />
+                    <InfoRow label="Date" value={selectedHealthEntry.data?.date ? new Date(selectedHealthEntry.data.date).toLocaleDateString() : null} />
+                    <InfoRow label="Treatment" value={selectedHealthEntry.data?.treatment} multiline />
+                    <InfoRow label="Veterinarian" value={selectedHealthEntry.data?.veterinarian ? `Dr. ${selectedHealthEntry.data.veterinarian}` : null} />
+                    <InfoRow label="Clinic" value={selectedHealthEntry.data?.clinic} />
+                    <InfoRow label="Medications" value={Array.isArray(selectedHealthEntry.data?.medications) ? selectedHealthEntry.data.medications.join(', ') : ''} />
+                    <InfoRow label="Notes" value={selectedHealthEntry.data?.notes} multiline />
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <InfoRow label="Vaccine" value={selectedHealthEntry.data?.name} />
+                    <InfoRow label="Date" value={selectedHealthEntry.data?.date ? new Date(selectedHealthEntry.data.date).toLocaleDateString() : null} />
+                    <InfoRow label="Next Due" value={selectedHealthEntry.data?.nextDueDate ? new Date(selectedHealthEntry.data.nextDueDate).toLocaleDateString() : null} />
+                    <InfoRow label="Veterinarian" value={selectedHealthEntry.data?.veterinarian ? `Dr. ${selectedHealthEntry.data.veterinarian}` : null} />
                   </div>
                 )}
               </div>
@@ -1026,5 +1117,17 @@ const Field = ({ label, icon, name, value, onChange, disabled, placeholder, type
     />
   </div>
 );
+
+const InfoRow = ({ label, value, multiline = false, capitalize = false }) => {
+  const content = value && `${value}`.trim() ? `${value}` : 'No information';
+  return (
+    <div className="p-3 bg-slate-50 rounded-xl">
+      <p className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wide">{label}</p>
+      <p className={`text-slate-700 ${multiline ? 'whitespace-pre-wrap leading-relaxed' : ''} ${capitalize ? 'capitalize' : ''}`}>
+        {content}
+      </p>
+    </div>
+  );
+};
 
 export default MyPetsPage;

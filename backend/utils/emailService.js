@@ -90,7 +90,8 @@ const sendVerificationEmail = async (to, name, otp) => {
  * @returns {Promise<Object>}
  */
 const sendPasswordResetEmail = async (to, name, token) => {
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const resetUrl = `${frontendUrl}/reset-password/${token}`;
   const template = emailTemplates.passwordReset(name, resetUrl);
   return sendEmail({ to, ...template });
 };
