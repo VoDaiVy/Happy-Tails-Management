@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { logoutApi } from "../../api/authApi";
+import { getCart } from "../../api/cartApi";
 
 /* ─── SCROLL THRESHOLD (px) before navbar shrinks ─── */
 const SCROLL_THRESHOLD = 60;
@@ -32,6 +33,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const dropdownRef = useRef(null);
 
   // Debug: Log user state
@@ -50,6 +52,73 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const loadCartCount = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token || !user) {
+        setCartCount(0);
+        return;
+      }
+
+      try {
+        const result = await getCart();
+        const cartData = result?.data;
+        if (typeof cartData?.summary?.totalItems === "number") {
+          setCartCount(cartData.summary.totalItems);
+          return;
+        }
+
+        if (Array.isArray(cartData?.items)) {
+          const total = cartData.items.reduce(
+            (sum, item) => sum + Number(item?.quantity || 1),
+            0,
+          );
+          setCartCount(total);
+          return;
+        }
+
+        setCartCount(0);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    loadCartCount();
+  }, [user, location.pathname]);
+
+  useEffect(() => {
+    const handleCartUpdated = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (!token || !user) {
+        setCartCount(0);
+        return;
+      }
+
+      try {
+        const result = await getCart();
+        const cartData = result?.data;
+        if (typeof cartData?.summary?.totalItems === "number") {
+          setCartCount(cartData.summary.totalItems);
+          return;
+        }
+        if (Array.isArray(cartData?.items)) {
+          const total = cartData.items.reduce(
+            (sum, item) => sum + Number(item?.quantity || 1),
+            0,
+          );
+          setCartCount(total);
+          return;
+        }
+        setCartCount(0);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    window.addEventListener("cart:updated", handleCartUpdated);
+    return () => window.removeEventListener("cart:updated", handleCartUpdated);
+  }, [user]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -297,11 +366,28 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
           {/* ── Desktop Right ── */}
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {user ? (
-              <div
-                className="relative"
-                style={{ zIndex: 9999 }}
-                ref={dropdownRef}
-              >
+              <>
+                <button
+                  id="navbar-cart-button"
+                  onClick={() => navigate("/cart")}
+                  className={`relative p-2 rounded-xl transition-all duration-300 border ${
+                    isScrolled
+                      ? "border-white/20 bg-white/10 text-white hover:bg-white/15 hover:border-white/40"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] hover:border-orange-300 shadow-sm"
+                  }`}
+                  title="Shopping Cart"
+                >
+                  <ShoppingCart size={18} />
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none border border-white">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                </button>
+
+                <div
+                  className="relative"
+                  style={{ zIndex: 9999 }}
+                  ref={dropdownRef}
+                >
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -404,19 +490,6 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       <button
                         onClick={() => {
                           setIsDropdownOpen(false);
-                          navigate("/cart");
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
-                      >
-                        <ShoppingCart
-                          size={16}
-                          className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
-                        />
-                        Shopping Cart
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
                           navigate("/bookings");
                         }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
@@ -455,7 +528,8 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+              </>
             ) : (
               <>
                 <button
@@ -606,9 +680,14 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                     setIsMobileMenuOpen(false);
                     navigate("/cart");
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all justify-between"
                 >
-                  <ShoppingCart size={16} /> Shopping Cart
+                  <span className="inline-flex items-center gap-3">
+                    <ShoppingCart size={16} /> Shopping Cart
+                  </span>
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
                 </button>
                 <button
                   onClick={() => {

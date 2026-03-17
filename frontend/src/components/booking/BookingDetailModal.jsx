@@ -68,6 +68,11 @@ const PAYMENT_LABELS = {
   wallet: "Ví điện tử",
 };
 
+const SERVICE_GROUP_LABELS = {
+  wet: "Wet",
+  dry: "Dry",
+};
+
 const BookingDetailModal = ({
   isOpen,
   onClose,
@@ -403,9 +408,22 @@ const BookingDetailModal = ({
                           <PawPrint size={20} className="text-[#5B8C51]" />
                         </div>
                         <div>
-                          <p className="font-medium text-[#2D3436]">
-                            {item.service?.name || "Service"}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-[#2D3436]">
+                              {item.service?.name || "Service"}
+                            </p>
+                            {(item.group || item.service?.group) && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  (item.group || item.service?.group) === "wet"
+                                    ? "bg-blue-50 text-blue-700 border-blue-100"
+                                    : "bg-amber-50 text-amber-700 border-amber-100"
+                                }`}
+                              >
+                                {SERVICE_GROUP_LABELS[item.group || item.service?.group] || "Dry"}
+                              </span>
+                            )}
+                          </div>
                           {(item.pet || item.guestPet) && (
                             <p className="text-xs text-gray-500">
                               Pet: {item.pet?.petName || item.pet?.name || item.guestPet?.petName}
