@@ -5,7 +5,15 @@ import type { AccountStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "AccountHome">;
 
-type AccountMenuRoute = "Profile" | "MyPets" | "ShoppingCart" | "MyBookings" | "Wallet";
+type AccountMenuRoute =
+  | "Profile"
+  | "MyPets"
+  | "ShoppingCart"
+  | "MyBookings"
+  | "Wallet"
+  | "ChangePassword"
+  | "NotificationCenter"
+  | "Feedback";
 
 const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute }> = [
   { label: "Profile", route: "Profile" },
@@ -13,6 +21,9 @@ const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute }> = [
   { label: "Shopping Cart", route: "ShoppingCart" },
   { label: "Bookings", route: "MyBookings" },
   { label: "Wallet", route: "Wallet" },
+  { label: "Change Password", route: "ChangePassword" },
+  { label: "Notifications", route: "NotificationCenter" },
+  { label: "Feedback", route: "Feedback" },
 ];
 
 export function AccountScreen({ navigation }: Props) {
