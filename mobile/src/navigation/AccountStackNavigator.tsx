@@ -1,8 +1,11 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { AccountScreen } from "../screens/account/AccountScreen";
 import { BookingDetailScreen } from "../screens/account/BookingDetailScreen";
+import { ChangePasswordScreen } from "../screens/account/ChangePasswordScreen";
+import { FeedbackScreen } from "../screens/account/FeedbackScreen";
 import { MyBookingsScreen } from "../screens/account/MyBookingsScreen";
 import { MyPetsScreen } from "../screens/account/MyPetsScreen";
+import { NotificationCenterScreen } from "../screens/account/NotificationCenterScreen";
 import { ProfileScreen } from "../screens/account/ProfileScreen";
 import { ShoppingCartScreen } from "../screens/account/ShoppingCartScreen";
 import { WalletScreen } from "../screens/account/WalletScreen";
@@ -20,6 +23,9 @@ export function AccountStackNavigator() {
       <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: "Bookings" }} />
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} options={{ title: "Booking Detail" }} />
       <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: "Wallet" }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: "Change Password" }} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ title: "Notifications" }} />
+      <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: "Feedback" }} />
     </Stack.Navigator>
   );
 }

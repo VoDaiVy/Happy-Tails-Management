@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { checkoutCart, clearCart, getCart, removeCartItem, updateCartItem } from "../../api/modules/cartApi";
 import type { Cart, CartItem } from "../../types/cart";
 
@@ -16,7 +18,7 @@ export function ShoppingCartScreen() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [note, setNote] = useState("");
-  const [scheduledAtText, setScheduledAtText] = useState("");
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -86,21 +88,9 @@ export function ShoppingCartScreen() {
     setError("");
     setMessage("");
     try {
-      const normalizedSchedule = scheduledAtText.trim();
-      let scheduledAtIso: string | null = null;
-      if (normalizedSchedule) {
-        const parsed = new Date(normalizedSchedule.replace(" ", "T"));
-        if (Number.isNaN(parsed.getTime())) {
-          setError("Scheduled time khong hop le. Dung dinh dang YYYY-MM-DD HH:mm");
-          setActionLoading(false);
-          return;
-        }
-        scheduledAtIso = parsed.toISOString();
-      }
-
       const response = await checkoutCart({
         note: note.trim() || undefined,
-        scheduledAt: scheduledAtIso,
+        scheduledAt: scheduledAt ? scheduledAt.toISOString() : null,
       });
       setMessage(response?.message || "Checkout thanh cong");
       await loadCart();
@@ -109,6 +99,37 @@ export function ShoppingCartScreen() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const openSchedulePicker = () => {
+    if (Platform.OS !== "android") {
+      setError("Hien chi ho tro popup date picker tren Android");
+      return;
+    }
+
+    const baseDate = scheduledAt ?? new Date();
+
+    DateTimePickerAndroid.open({
+      value: baseDate,
+      mode: "date",
+      is24Hour: true,
+      onChange: (dateEvent, selectedDate) => {
+        if (dateEvent.type !== "set" || !selectedDate) return;
+
+        DateTimePickerAndroid.open({
+          value: selectedDate,
+          mode: "time",
+          is24Hour: true,
+          onChange: (timeEvent, selectedTime) => {
+            if (timeEvent.type !== "set" || !selectedTime) return;
+
+            const nextDate = new Date(selectedDate);
+            nextDate.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+            setScheduledAt(nextDate);
+          },
+        });
+      },
+    });
   };
 
   if (loading) {
@@ -164,12 +185,11 @@ export function ShoppingCartScreen() {
         placeholder="Checkout note (optional)"
       />
 
-      <TextInput
-        style={styles.noteInput}
-        value={scheduledAtText}
-        onChangeText={setScheduledAtText}
-        placeholder="Scheduled At (YYYY-MM-DD HH:mm)"
-      />
+      <Pressable style={styles.pickerButton} onPress={openSchedulePicker}>
+        <Text style={styles.pickerText}>
+          {scheduledAt ? `Scheduled At: ${scheduledAt.toLocaleString()}` : "Chon ngay gio (optional)"}
+        </Text>
+      </Pressable>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       {message ? <Text style={styles.successText}>{message}</Text> : null}
@@ -242,6 +262,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  pickerButton: {
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  pickerText: { color: "#334155" },
   errorText: { marginTop: 8, color: "#DC2626" },
   successText: { marginTop: 8, color: "#059669" },
   bottomRow: { flexDirection: "row", gap: 10, marginTop: 10 },
