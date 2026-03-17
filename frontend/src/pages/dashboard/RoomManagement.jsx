@@ -21,9 +21,19 @@ import {
   MoreVertical,
   Loader2,
   CheckCircle2,
+  Settings,
+  Droplets,
+  Wind,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getRoomsList, createRoom, updateRoom, deleteRoom } from "../../api/roomApi";
+import {
+  getGroupCapacities,
+  initGroupCapacities,
+  updateGroupCapacity,
+} from "../../api/groupCapacityApi";
 import { getErrorMessage } from "../../utils/apiResponseHandler";
 
 // Room types
@@ -32,6 +42,19 @@ const ROOM_TYPES = [
   { value: "deluxe", label: "Deluxe", color: "bg-blue-100 text-blue-700" },
   { value: "suite", label: "Suite", color: "bg-purple-100 text-purple-700" },
   { value: "vip", label: "VIP", color: "bg-amber-100 text-amber-700" },
+];
+
+// Service type options
+const SERVICE_TYPES = [
+  { value: "boarding", label: "Boarding", color: "bg-indigo-100 text-indigo-700" },
+  { value: "service", label: "Grooming/Service", color: "bg-teal-100 text-teal-700" },
+];
+
+// Group options (wet/dry – only for service rooms)
+const GROUP_OPTIONS = [
+  { value: "", label: "None" },
+  { value: "wet", label: "Wet", color: "bg-blue-100 text-blue-700" },
+  { value: "dry", label: "Dry", color: "bg-orange-100 text-orange-700" },
 ];
 
 // Pet types
@@ -52,6 +75,25 @@ const FILTER_TABS = [
   { key: "unavailable", label: "In Use", icon: Bed },
 ];
 
+const CAPACITY_GROUP_META = {
+  wet: {
+    label: "Wet Group",
+    icon: Droplets,
+    border: "border-blue-200",
+    bg: "bg-blue-50",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+  },
+  dry: {
+    label: "Dry Group",
+    icon: Wind,
+    border: "border-orange-200",
+    bg: "bg-orange-50",
+    iconBg: "bg-orange-100",
+    iconColor: "text-orange-600",
+  },
+};
+
 const RoomManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +110,21 @@ const RoomManagement = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState(null);
-  useScrollLock(showModal || showDeleteModal);
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [capacityConfigs, setCapacityConfigs] = useState([]);
+  const [capacityEdits, setCapacityEdits] = useState({});
+  const [capacityLoading, setCapacityLoading] = useState(false);
+  const [capacityError, setCapacityError] = useState(null);
+  const [capacitySaving, setCapacitySaving] = useState({});
+  useScrollLock(showModal || showDeleteModal || showCapacityModal);
   
   // Form state
   const [formData, setFormData] = useState({
     roomNumber: "",
     name: "",
     type: "standard",
+    serviceType: "boarding",
+    group: "",
     capacity: 1,
     amenities: [],
     petTypes: ["dog", "cat"],
@@ -127,6 +177,8 @@ const RoomManagement = () => {
       roomNumber: "",
       name: "",
       type: "standard",
+      serviceType: "boarding",
+      group: "",
       capacity: 1,
       pricePerNight: 10,
       amenities: [],
@@ -147,6 +199,8 @@ const RoomManagement = () => {
       roomNumber: room.roomNumber || "",
       name: room.name || "",
       type: room.type || "standard",
+      serviceType: room.serviceType || "boarding",
+      group: room.group || "",
       capacity: room.capacity || 1,
       pricePerNight: room.pricePerNight ?? 0,
       amenities: room.amenities || [],
@@ -185,6 +239,10 @@ const RoomManagement = () => {
       }
       if (!Number.isFinite(pricePerNight) || pricePerNight < 0) {
         setFormError("Giá/đêm phải lớn hơn hoặc bằng 0");
+        return;
+      }
+      if (formData.serviceType === "service" && !String(formData.group || "").trim()) {
+        setFormError("Service room bắt buộc chọn Group (Wet hoặc Dry)");
         return;
       }
 
@@ -244,6 +302,108 @@ const RoomManagement = () => {
     return roomType || ROOM_TYPES[0];
   };
 
+  const fetchCapacityConfigs = useCallback(async () => {
+    setCapacityLoading(true);
+    setCapacityError(null);
+    try {
+      const res = await getGroupCapacities();
+      const list = Array.isArray(res?.data?.configs)
+        ? res.data.configs
+        : Array.isArray(res?.configs)
+          ? res.configs
+          : [];
+
+      setCapacityConfigs(list);
+      const initialEdits = {};
+      list.forEach((cfg) => {
+        initialEdits[cfg.group] = {
+          maxCapacity: cfg.maxCapacity,
+          roomCount: cfg.roomCount,
+          slotsPerRoom: cfg.slotsPerRoom,
+        };
+      });
+      setCapacityEdits(initialEdits);
+    } catch (err) {
+      setCapacityError(err?.response?.data?.message || "Failed to load capacity configs");
+      setCapacityConfigs([]);
+    } finally {
+      setCapacityLoading(false);
+    }
+  }, []);
+
+  const openCapacityModal = async () => {
+    setShowCapacityModal(true);
+    await fetchCapacityConfigs();
+  };
+
+  const handleInitCapacityConfigs = async () => {
+    try {
+      await initGroupCapacities();
+      await fetchCapacityConfigs();
+    } catch (err) {
+      setCapacityError(err?.response?.data?.message || "Failed to initialize default configs");
+    }
+  };
+
+  const isCapacityDirty = (group) => {
+    const cfg = capacityConfigs.find((item) => item.group === group);
+    const edit = capacityEdits[group];
+    if (!cfg || !edit) return false;
+
+    return (
+      Number(edit.maxCapacity) !== Number(cfg.maxCapacity) ||
+      Number(edit.roomCount) !== Number(cfg.roomCount) ||
+      Number(edit.slotsPerRoom) !== Number(cfg.slotsPerRoom)
+    );
+  };
+
+  const handleResetCapacityGroup = (group) => {
+    const cfg = capacityConfigs.find((item) => item.group === group);
+    if (!cfg) return;
+
+    setCapacityEdits((prev) => ({
+      ...prev,
+      [group]: {
+        maxCapacity: cfg.maxCapacity,
+        roomCount: cfg.roomCount,
+        slotsPerRoom: cfg.slotsPerRoom,
+      },
+    }));
+  };
+
+  const handleSaveCapacityGroup = async (group) => {
+    const edit = capacityEdits[group];
+    if (!edit) return;
+
+    const maxCapacity = Number(edit.maxCapacity);
+    const roomCount = Number(edit.roomCount);
+    const slotsPerRoom = Number(edit.slotsPerRoom);
+
+    if (!maxCapacity || maxCapacity < 1 || maxCapacity > 20) {
+      setCapacityError("Max capacity must be between 1 and 20");
+      return;
+    }
+    if (!roomCount || roomCount < 1) {
+      setCapacityError("Room count must be at least 1");
+      return;
+    }
+    if (!slotsPerRoom || slotsPerRoom < 1) {
+      setCapacityError("Slots per room must be at least 1");
+      return;
+    }
+
+    setCapacitySaving((prev) => ({ ...prev, [group]: true }));
+    setCapacityError(null);
+    try {
+      await updateGroupCapacity(group, { maxCapacity, roomCount, slotsPerRoom });
+      await fetchCapacityConfigs();
+    } catch (err) {
+      setCapacityError(err?.response?.data?.message || "Failed to save capacity config");
+    } finally {
+      setCapacitySaving((prev) => ({ ...prev, [group]: false }));
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
@@ -260,14 +420,25 @@ const RoomManagement = () => {
             Manage accommodation rooms for pets
           </p>
         </div>
-        <motion.button
-          onClick={handleCreate}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
-        >
-          <Plus size={18} /> Add Room
-        </motion.button>
+        <div className="flex items-center gap-2">
+          <motion.button
+            onClick={openCapacityModal}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-white text-[#2D3436] px-4 py-2.5 rounded-xl font-bold text-sm border border-[#2D3436]/10 hover:bg-[#F8F9FA] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Settings size={16} /> Group Capacity
+          </motion.button>
+
+          <motion.button
+            onClick={handleCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
+          >
+            <Plus size={18} /> Add Room
+          </motion.button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -341,6 +512,12 @@ const RoomManagement = () => {
                     <th className="px-6 py-4 whitespace-nowrap">
                       Type
                     </th>
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Service Type
+                    </th>
+                    <th className="px-6 py-4 whitespace-nowrap">
+                      Group
+                    </th>
                     <th className="px-6 py-4 whitespace-nowrap text-center">
                       Capacity
                     </th>
@@ -379,6 +556,29 @@ const RoomManagement = () => {
                           >
                             {typeBadge.label}
                           </span>
+                        </td>
+
+                        {/* Service Type */}
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const st = SERVICE_TYPES.find(s => s.value === room.serviceType);
+                            return st ? (
+                              <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${st.color}`}>{st.label}</span>
+                            ) : <span className="text-[#2D3436]/30 text-xs">—</span>;
+                          })()}
+                        </td>
+
+                        {/* Group */}
+                        <td className="px-6 py-4">
+                          {room.group ? (
+                            <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
+                              room.group === 'wet' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {room.group === 'wet' ? 'Wet' : 'Dry'}
+                            </span>
+                          ) : (
+                            <span className="text-[#2D3436]/30 text-xs">—</span>
+                          )}
                         </td>
 
                         {/* Capacity */}
@@ -578,6 +778,45 @@ const RoomManagement = () => {
                   </div>
                 </div>
 
+                {/* Service Type + Group */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Service Type <span className="text-[#D97853]">*</span>
+                    </label>
+                    <select
+                      required
+                      value={formData.serviceType}
+                      onChange={(e) =>
+                        setFormData({ ...formData, serviceType: e.target.value, group: e.target.value === 'boarding' ? '' : formData.group })
+                      }
+                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                    >
+                      {SERVICE_TYPES.map((st) => (
+                        <option key={st.value} value={st.value}>{st.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                      Group
+                      {formData.serviceType === 'service' && (
+                        <span className="ml-1 text-xs font-normal text-[#2D3436]/50">(Wet/Dry for service rooms)</span>
+                      )}
+                    </label>
+                    <select
+                      value={formData.group}
+                      disabled={formData.serviceType === 'boarding'}
+                      onChange={(e) => setFormData({ ...formData, group: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853] disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {GROUP_OPTIONS.map((g) => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 {/* Pet types */}
                 <div>
                   <label className="block text-sm font-medium text-[#2D3436] mb-1.5">
@@ -674,6 +913,167 @@ const RoomManagement = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Group Capacity Modal */}
+      <AnimatePresence>
+        {showCapacityModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCapacityModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-[#2D3436]/5">
+                <div>
+                  <h2 className="text-xl font-bold text-[#2D3436]">Group Capacity</h2>
+                  <p className="text-sm text-[#2D3436]/60 mt-0.5">
+                    Configure max concurrent pets by service group (Wet / Dry)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCapacityModal(false)}
+                  className="p-2 hover:bg-[#F8F9FA] rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-[#2D3436]/60" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {capacityError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                    <AlertCircle size={16} className="text-red-500" />
+                    <p className="text-sm text-red-700">{capacityError}</p>
+                  </div>
+                )}
+
+                {capacityLoading ? (
+                  <div className="flex items-center justify-center py-14">
+                    <RefreshCw className="w-8 h-8 text-[#D97853] animate-spin" />
+                  </div>
+                ) : capacityConfigs.length === 0 ? (
+                  <div className="border border-[#2D3436]/10 rounded-xl p-6 text-center space-y-3">
+                    <p className="text-[#2D3436]/70">No group capacity configuration found</p>
+                    <button
+                      onClick={handleInitCapacityConfigs}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#D97853] text-white rounded-lg hover:bg-[#C26843] transition-colors"
+                    >
+                      <Settings size={16} /> Initialize Defaults (Wet=6, Dry=6)
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(["wet", "dry"]).map((group) => {
+                      const config = capacityConfigs.find((item) => item.group === group);
+                      const edit = capacityEdits[group] || {};
+                      const meta = CAPACITY_GROUP_META[group];
+                      if (!config || !meta) return null;
+
+                      const Icon = meta.icon;
+                      const dirty = isCapacityDirty(group);
+                      const saving = capacitySaving[group];
+
+                      return (
+                        <div key={group} className={`rounded-xl border ${meta.border} overflow-hidden`}>
+                          <div className={`px-4 py-3 border-b ${meta.border} ${meta.bg} flex items-center gap-3`}>
+                            <div className={`w-9 h-9 rounded-lg ${meta.iconBg} flex items-center justify-center`}>
+                              <Icon size={18} className={meta.iconColor} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-[#2D3436]">{meta.label}</p>
+                              <p className="text-xs text-[#2D3436]/55">
+                                Active: {config.isActive ? "Yes" : "No"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="p-4 space-y-3">
+                            <div>
+                              <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Max Capacity</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={edit.maxCapacity ?? ""}
+                                onChange={(e) =>
+                                  setCapacityEdits((prev) => ({
+                                    ...prev,
+                                    [group]: { ...prev[group], maxCapacity: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Room Count</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={edit.roomCount ?? ""}
+                                  onChange={(e) =>
+                                    setCapacityEdits((prev) => ({
+                                      ...prev,
+                                      [group]: { ...prev[group], roomCount: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Slots/Room</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={edit.slotsPerRoom ?? ""}
+                                  onChange={(e) =>
+                                    setCapacityEdits((prev) => ({
+                                      ...prev,
+                                      [group]: { ...prev[group], slotsPerRoom: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={() => handleSaveCapacityGroup(group)}
+                                disabled={!dirty || saving}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-[#D97853] text-white rounded-lg hover:bg-[#C26843] transition-colors text-sm disabled:opacity-50"
+                              >
+                                {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                Save
+                              </button>
+                              {dirty && (
+                                <button
+                                  onClick={() => handleResetCapacityGroup(group)}
+                                  className="inline-flex items-center gap-2 px-3 py-2 border border-[#2D3436]/10 rounded-lg text-sm text-[#2D3436]/70 hover:bg-[#F8F9FA]"
+                                >
+                                  <RotateCcw size={14} /> Reset
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}

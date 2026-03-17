@@ -287,7 +287,8 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
   );
 };
 
-const toSpaCard = (service) => {
+const toSpaCard = (service, index = 0) => {
+  const slug = slugifyServiceName(service.name || "");
   const fallbackHighlights = [
     "Professional pet-safe process",
     "Experienced staff on-site",
@@ -295,8 +296,8 @@ const toSpaCard = (service) => {
   ];
 
   return {
-    id: service._id,
-    slug: slugifyServiceName(service.name || ""),
+    id: service._id || `${slug || 'service'}-${index}`,
+    slug,
     title: service.name || "Service",
     shortDesc: service.description || "Professional care for your pet.",
     fullDesc: service.description || "",
@@ -540,7 +541,7 @@ const ServicePage = () => {
           ].some((kw) => name.includes(kw));
         });
 
-        const mapped = spaList.map(toSpaCard);
+        const mapped = spaList.map((service, index) => toSpaCard(service, index));
         if (alive) {
           setSpaServices(mapped);
           setActiveSpa(0);
@@ -1158,7 +1159,7 @@ const ServicePage = () => {
                       const isActive = activeSpa === idx;
                       return (
                         <Motion.div
-                          key={service.id}
+                          key={`${service.id || service.slug || service.title}-${idx}`}
                           onClick={() => setActiveSpa(idx)}
                           whileHover={{ scale: isActive ? 1 : 1.02 }}
                           className={`cursor-pointer rounded-[16px] p-3 flex items-center gap-3 transition-all duration-300 border ${
@@ -1188,11 +1189,9 @@ const ServicePage = () => {
                               >
                                 {service.title}
                               </h4>
-                              {!isActive && (
-                                <span className="font-black text-[13px] text-[#7FB069] shrink-0">
-                                  {service.price}
-                                </span>
-                              )}
+                              <span className={`font-black text-[14px] shrink-0 ${isActive ? "text-[#E07A5F]" : "text-[#7FB069]"}`}>
+                                {service.price}
+                              </span>
                             </div>
                             <p
                               className={`text-[12px] leading-snug transition-colors pr-1 ${isActive ? "text-white/70" : "text-[#1F2A37]/50 font-medium"}`}
@@ -1200,44 +1199,27 @@ const ServicePage = () => {
                               {service.shortDesc}
                             </p>
                             {isActive && (
-                              <p className="text-[10px] text-white/40 mt-0.5">
-                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <button
+                                  onClick={(e) => handleAddToCart(e, service.apiService || service)}
+                                  className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                >
+                                  <ShoppingCart size={12} /> Add to Cart
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/service/${service.slug}`, {
+                                      state: { apiService: service.apiService },
+                                    });
+                                  }}
+                                  className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
+                                >
+                                  Book Now
+                                </button>
+                              </div>
                             )}
                           </div>
-
-                          <AnimatePresence>
-                            {isActive && (
-                              <Motion.div
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                className="ml-auto hidden sm:flex flex-col items-end gap-1.5 shrink-0"
-                              >
-                                <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
-                                  {service.price}
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={(e) => handleAddToCart(e, service.apiService || service)}
-                                    className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                  >
-                                    <ShoppingCart size={12} /> Add to Cart
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/service/${service.slug}`, {
-                                        state: { apiService: service.apiService },
-                                      });
-                                    }}
-                                    className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
-                                  >
-                                    Book Now
-                                  </button>
-                                </div>
-                              </Motion.div>
-                            )}
-                          </AnimatePresence>
                         </Motion.div>
                       );
                     })

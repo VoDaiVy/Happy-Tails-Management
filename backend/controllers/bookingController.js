@@ -10,6 +10,8 @@ const Wallet = require("../models/Wallet");
 const Room = require("../models/Room");
 const Transaction = require("../models/Transaction");
 const Voucher = require("../models/Voucher");
+const MedicalRecord = require("../models/MedicalRecord");
+const GroupCapacityConfig = require("../models/GroupCapacityConfig");
 const { catchAsync } = require("../utils/catchAsync");
 const { AppError } = require("../utils/AppError");
 const { sendAutoNotification } = require("../utils/notificationHelper");
@@ -224,6 +226,32 @@ const countGroupOccupancyAtSlot = async (group, slotStart) => {
   return result[0]?.total || 0;
 };
 
+const getDefaultGroupConfig = (group) => ({
+  maxCapacity: GROUP_CAP,
+  roomCount: ROOM_CONFIG[group]?.length || 2,
+  slotsPerRoom: SLOTS_PER_ROOM,
+});
+
+const getActiveGroupConfig = async (group) => {
+  const fallback = getDefaultGroupConfig(group);
+
+  try {
+    const config = await GroupCapacityConfig.findOne({ group, isActive: true })
+      .select("maxCapacity roomCount slotsPerRoom")
+      .lean();
+
+    if (!config) return fallback;
+
+    return {
+      maxCapacity: Math.max(1, Number(config.maxCapacity) || fallback.maxCapacity),
+      roomCount: Math.max(1, Number(config.roomCount) || fallback.roomCount),
+      slotsPerRoom: Math.max(1, Number(config.slotsPerRoom) || fallback.slotsPerRoom),
+    };
+  } catch (_) {
+    return fallback;
+  }
+};
+
 const countServiceOccupancyAtSlot = async (serviceId, slotStart) => {
   const slotEnd = new Date(slotStart.getTime() + SLOT_MS);
 
@@ -288,6 +316,8 @@ const getServiceDayDisabledSlots = async (service, date) => {
   const dayStart = startOfDay(date);
   const now = new Date();
   const slots = [];
+  const serviceGroup = inferServiceGroup(service);
+  const groupConfig = await getActiveGroupConfig(serviceGroup);
 
   for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
     for (let m = 0; m < 60; m += 15) {
@@ -299,9 +329,9 @@ const getServiceDayDisabledSlots = async (service, date) => {
         continue;
       }
 
-      const occupied = await countServiceOccupancyAtSlot(service._id, slotStart);
-      const maxCapacity = Math.max(1, Number(service.maxCapacity) || 1);
-      if (occupied >= maxCapacity) {
+      // Check group capacity (admin-configured max per wet/dry group per 15-min slot)
+      const groupOccupied = await countGroupOccupancyAtSlot(serviceGroup, slotStart);
+      if (groupOccupied >= groupConfig.maxCapacity) {
         slots.push(formatBookingTime(slotStart));
       }
     }
@@ -367,6 +397,14 @@ const getPetDayConflictSlots = async ({ petId, date, serviceDurationMin }) => {
 const validateCapacityAndAssignRooms = async (scheduledItems) => {
   const occupancyCache = new Map();
   const requestAdds = new Map();
+  const groupConfigCache = new Map();
+
+  const getGroupConfig = async (group) => {
+    if (!groupConfigCache.has(group)) {
+      groupConfigCache.set(group, await getActiveGroupConfig(group));
+    }
+    return groupConfigCache.get(group);
+  };
 
   const getBaseOccupancy = async (group, slotStart) => {
     const key = buildSlotKey(group, slotStart);
@@ -379,15 +417,17 @@ const validateCapacityAndAssignRooms = async (scheduledItems) => {
   for (const item of scheduledItems) {
     const slots = buildSlotStarts(item.startTime, item.endTime);
     const startSlot = slots[0];
+    const groupConfig = await getGroupConfig(item.group);
+    const roomPool = ROOM_CONFIG[item.group] || ROOM_CONFIG.dry;
 
     for (const slotStart of slots) {
       const key = buildSlotKey(item.group, slotStart);
       const base = await getBaseOccupancy(item.group, slotStart);
       const inRequest = requestAdds.get(key) || 0;
 
-      if (base + inRequest >= GROUP_CAP) {
+      if (base + inRequest >= groupConfig.maxCapacity) {
         throw new AppError(
-          `Service group \"${item.group}\" is full (${GROUP_CAP}/${GROUP_CAP}) at ${slotStart.toISOString()}`,
+          `Service group \"${item.group}\" is full (${groupConfig.maxCapacity}/${groupConfig.maxCapacity}) at ${slotStart.toISOString()}`,
           409,
           "GROUP_CAPACITY_FULL",
         );
@@ -398,18 +438,164 @@ const validateCapacityAndAssignRooms = async (scheduledItems) => {
     const startBase = await getBaseOccupancy(item.group, startSlot);
     const startRequestAdds = requestAdds.get(startKey) || 0;
     const position = startBase + startRequestAdds;
-    const roomIndex = Math.min(
-      ROOM_CONFIG[item.group].length - 1,
-      Math.floor(position / SLOTS_PER_ROOM),
-    );
+    const roomIndex = Math.min(roomPool.length - 1, Math.floor(position / groupConfig.slotsPerRoom));
 
-    item.assignedRoom = ROOM_CONFIG[item.group][roomIndex];
+    item.assignedRoom = roomPool[roomIndex];
 
     for (const slotStart of slots) {
       const key = buildSlotKey(item.group, slotStart);
       requestAdds.set(key, (requestAdds.get(key) || 0) + 1);
     }
   }
+};
+
+const MEDICAL_STAGE_ORDER = { received: 0, processing: 1, completed: 2 };
+
+const normalizeMedicalPhotos = (photos = []) => {
+  if (!Array.isArray(photos)) return [];
+
+  return photos
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        return String(item.url || item.path || "").trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+};
+
+const appendMedicalNote = (existingNotes, label, notes) => {
+  const current = typeof existingNotes === "string" ? existingNotes.trim() : "";
+  const incoming = String(notes || "").trim();
+  if (!incoming) return current;
+
+  const merged = `[${label}] ${incoming}`;
+  return current ? `${current}\n${merged}` : merged;
+};
+
+const toObjectIdString = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    return mongoose.Types.ObjectId.isValid(value) ? value : null;
+  }
+
+  if (value instanceof mongoose.Types.ObjectId) {
+    return value.toString();
+  }
+
+  if (typeof value === "object") {
+    return (
+      toObjectIdString(value._id) ||
+      toObjectIdString(value.id) ||
+      toObjectIdString(value.petId) ||
+      toObjectIdString(value.userPet) ||
+      null
+    );
+  }
+
+  return null;
+};
+
+const extractBookingItemPetId = (item = {}) =>
+  toObjectIdString(item.pet?._id || item.pet || item.petId || item.userPet || item.userPetId);
+
+const getUniqueBookingPets = (booking) => {
+  const petMap = new Map();
+
+  for (const item of booking.items || []) {
+    const petId = extractBookingItemPetId(item);
+    if (!petId) continue;
+
+    const key = String(petId);
+    if (!petMap.has(key)) {
+      petMap.set(key, { petId, serviceNames: new Set() });
+    }
+
+    const serviceName = typeof item.service?.name === "string" ? item.service.name.trim() : "";
+    if (serviceName) {
+      petMap.get(key).serviceNames.add(serviceName);
+    }
+  }
+
+  return [...petMap.values()].map((entry) => ({
+    petId: entry.petId,
+    serviceNames: [...entry.serviceNames],
+  }));
+};
+
+const ensureMedicalRecordForBookingPet = async ({ booking, petId, serviceNames, actorId }) => {
+  const normalizedPetId = toObjectIdString(petId);
+  const customerId = toObjectIdString(booking.customer?._id || booking.customer);
+
+  if (!normalizedPetId || !customerId) {
+    throw new AppError(
+      "Cannot create medical record because booking pet/customer reference is invalid",
+      400,
+      "MEDICAL_RECORD_REFERENCE_INVALID",
+    );
+  }
+
+  let record = await MedicalRecord.findOne({ booking: booking._id, userPet: normalizedPetId });
+  if (record) return record;
+
+  const serviceSummary = serviceNames.length > 0 ? serviceNames.join(", ") : "Service";
+
+  record = await MedicalRecord.create({
+    userPet: normalizedPetId,
+    user: customerId,
+    booking: booking._id,
+    recordType: "grooming",
+    condition: "Service check-in",
+    diagnosis: "Pet admitted for booked service",
+    treatment: `Services: ${serviceSummary}`,
+    medications: [],
+    workflowStage: "received",
+    createdBy: actorId,
+  });
+
+  return record;
+};
+
+const applyMedicalStageUpdate = async ({ record, stage, notes, photos, actorId }) => {
+  const stagePhotoField =
+    stage === "completed"
+      ? "completedPhotos"
+      : stage === "processing"
+        ? "processingPhotos"
+        : "receivedPhotos";
+
+  if (photos.length > 0) {
+    record[stagePhotoField].push(...photos);
+    record.images = [...(record.images || []), ...photos];
+  }
+
+  if (notes) {
+    const label =
+      stage === "completed"
+        ? "Check-out"
+        : stage === "processing"
+          ? "Processing"
+          : "Check-in";
+    record.notes = appendMedicalNote(record.notes, label, notes);
+  }
+
+  const currentStageOrder = MEDICAL_STAGE_ORDER[record.workflowStage] ?? 0;
+  const targetStageOrder = MEDICAL_STAGE_ORDER[stage] ?? 0;
+  if (targetStageOrder > currentStageOrder) {
+    record.workflowStage = stage;
+  }
+
+  record.stageHistory.push({
+    stage,
+    updatedBy: actorId,
+    updatedAt: new Date(),
+    notes: notes || "",
+  });
+  record.updatedBy = actorId;
+
+  await record.save();
 };
 
 const buildGuestPetKey = ({ phone, petName, petType }) => {
@@ -614,8 +800,11 @@ exports.getMyBookings = catchAsync(async (req, res, next) => {
   }
 
   const bookings = await Booking.find(filter)
-
-    .populate("items.service items.pet assignedStaff", "name email")
+    .populate([
+      { path: "items.service", select: "name price duration" },
+      { path: "items.pet", select: "petName petType breed" },
+      { path: "assignedStaff", select: "name email" },
+    ])
     .sort("-createdAt");
 
   res.status(200).json({
@@ -629,12 +818,23 @@ exports.getMyBookings = catchAsync(async (req, res, next) => {
  * Get all bookings
  * @route GET /api/bookings
  * @access Private (Staff, Admin)
+ * @note Admin can only view confirmed, in-progress, completed, cancelled.
+ *       Staff can see all statuses.
  */
 exports.getAllBookings = catchAsync(async (req, res, next) => {
   const { status, date, customer } = req.query;
 
   const filter = {};
-  if (status) filter.status = status;
+
+  if (req.user.role === "admin") {
+    const adminVisibleStatuses = ["confirmed", "in-progress", "completed", "cancelled"];
+    filter.status = { $in: adminVisibleStatuses };
+    if (status && adminVisibleStatuses.includes(status)) {
+      filter.status = status;
+    }
+  } else if (status) {
+    filter.status = status;
+  }
 
   if (date)
     filter.bookingDate = {
@@ -645,11 +845,13 @@ exports.getAllBookings = catchAsync(async (req, res, next) => {
   if (customer) filter.customer = customer;
 
   const bookings = await Booking.find(filter)
-
-    .populate(
-      "customer items.service items.pet assignedStaff room",
-      "name email roomNumber",
-    )
+    .populate([
+      { path: "customer", select: "name email" },
+      { path: "items.service", select: "name price duration" },
+      { path: "items.pet", select: "petName petType breed" },
+      { path: "assignedStaff", select: "name email" },
+      { path: "room", select: "roomNumber name serviceType group" },
+    ])
     .sort("-createdAt");
 
   res.status(200).json({
@@ -702,9 +904,16 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
  * @access Private (Staff, Admin)
  */
 exports.updateBookingStatus = catchAsync(async (req, res, next) => {
-  const { status } = req.body;
+  if (req.user.role !== "staff") {
+    return next(new AppError("Only staff can update booking status", 403, "FORBIDDEN"));
+  }
 
-  const booking = await Booking.findById(req.params.id).populate("items.pet");
+  const { status, medicalRecord } = req.body;
+  const medicalNotes = String(medicalRecord?.notes || "").trim();
+  const medicalPhotos = normalizeMedicalPhotos(medicalRecord?.photos || []);
+
+  // Keep raw pet references from booking items; only populate service names for record summaries.
+  const booking = await Booking.findById(req.params.id).populate("items.service");
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
@@ -713,11 +922,89 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   booking.status = status;
 
   const usesItemLevelSpaRooms = booking.items?.some((item) => item.assignedRoom);
+  const bookingPets = getUniqueBookingPets(booking);
+  const hasTrackablePets = bookingPets.length > 0;
+  const hasGuestPetItems = (booking.items || []).some((item) => item?.guestPet?.petName);
+
+  if (
+    (status === "in-progress" || status === "completed") &&
+    !hasTrackablePets &&
+    !hasGuestPetItems
+  ) {
+    return next(
+      new AppError(
+        "Cannot update this booking step: missing pet reference for medical-record synchronization",
+        400,
+        "BOOKING_PET_REFERENCE_MISSING",
+      ),
+    );
+  }
+
+  // Require check-in notes/photos and sync them to medical records.
+  if (status === 'in-progress' && oldStatus !== 'in-progress') {
+    if (hasTrackablePets) {
+      if (!medicalNotes) {
+        return next(new AppError("Check-in note is required", 400, "CHECKIN_NOTE_REQUIRED"));
+      }
+      if (medicalPhotos.length === 0) {
+        return next(new AppError("At least one check-in photo is required", 400, "CHECKIN_PHOTOS_REQUIRED"));
+      }
+
+      for (const petEntry of bookingPets) {
+        const record = await ensureMedicalRecordForBookingPet({
+          booking,
+          petId: petEntry.petId,
+          serviceNames: petEntry.serviceNames,
+          actorId: req.user.id,
+        });
+
+        await applyMedicalStageUpdate({
+          record,
+          stage: "received",
+          notes: medicalNotes,
+          photos: medicalPhotos,
+          actorId: req.user.id,
+        });
+      }
+    }
+  }
+
+  // Require check-out notes/photos and mark medical records as completed.
+  if (status === 'completed' && oldStatus !== 'completed') {
+    if (hasTrackablePets) {
+      if (!medicalNotes) {
+        return next(new AppError("Check-out note is required", 400, "CHECKOUT_NOTE_REQUIRED"));
+      }
+      if (medicalPhotos.length === 0) {
+        return next(new AppError("At least one check-out photo is required", 400, "CHECKOUT_PHOTOS_REQUIRED"));
+      }
+
+      for (const petEntry of bookingPets) {
+        const record = await ensureMedicalRecordForBookingPet({
+          booking,
+          petId: petEntry.petId,
+          serviceNames: petEntry.serviceNames,
+          actorId: req.user.id,
+        });
+
+        await applyMedicalStageUpdate({
+          record,
+          stage: "completed",
+          notes: medicalNotes,
+          photos: medicalPhotos,
+          actorId: req.user.id,
+        });
+      }
+    }
+  }
 
   // Auto-assign room when staff confirms booking
   if (!usesItemLevelSpaRooms && status === "confirmed" && oldStatus === "pending" && !booking.room) {
-    // Get pet types from booking items
-    const petTypes = [...new Set(booking.items.map(item => item.pet?.petType).filter(Boolean))];
+    // Get pet types from booking pet references.
+    const petIds = bookingPets.map((entry) => entry.petId).filter(Boolean);
+    const petTypes = petIds.length > 0
+      ? await UserPet.find({ _id: { $in: petIds } }).distinct("petType")
+      : [];
     
     if (petTypes.length > 0) {
       // Find available room that supports the pet type(s)
@@ -961,6 +1248,10 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
  */
 
 exports.assignStaffToBooking = catchAsync(async (req, res, next) => {
+  if (req.user.role !== "staff") {
+    return next(new AppError("Only staff can assign booking ownership", 403, "FORBIDDEN"));
+  }
+
   const { staffId } = req.body;
 
   const booking = await Booking.findByIdAndUpdate(
@@ -1009,7 +1300,7 @@ const hasRoomOverlapBooking = async (roomId, checkIn, checkOut) => {
 
 /**
  * Get disabled slots for a specific service/date.
- * The slot is considered unavailable only when capacity of that exact service is full.
+ * The slot is considered unavailable when the service group (wet/dry) reaches configured max capacity.
  * @route GET /api/bookings/available-slots
  * @access Private (Customer)
  */
@@ -1031,6 +1322,8 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
   }
 
   const serviceDisabledSlots = await getServiceDayDisabledSlots(service, day);
+  const serviceGroup = inferServiceGroup(service);
+  const groupConfig = await getActiveGroupConfig(serviceGroup);
 
   let petConflictSlots = [];
   if (petId) {
@@ -1060,7 +1353,8 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
       serviceId,
       petId: petId || null,
       date: startOfDay(day).toISOString(),
-      maxCapacity: Math.max(1, Number(service.maxCapacity) || 1),
+      group: serviceGroup,
+      maxCapacity: groupConfig.maxCapacity,
     },
   });
 });
@@ -1182,7 +1476,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   try {
     await acquireSlotLocks(lockTargets, lockHolder);
-    await validateServiceCapacityAndAssignRooms(scheduledItems);
+    await validateCapacityAndAssignRooms(scheduledItems);
 
     let stayInfo = null;
     let bookingRoomId = null;
@@ -1379,13 +1673,13 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         assignedRoom: item.assignedRoom,
       }));
 
-      // Deduct wallet balance atomically; booking remains pending for staff confirmation
+      // Deduct wallet balance atomically; successful wallet checkout is immediately confirmed.
       await Wallet.findByIdAndUpdate(
         wallet._id,
         { $inc: { balance: -totalAmount, totalSpent: totalAmount } },
         { session },
       );
-      const bookingStatus = "pending";
+      const bookingStatus = "confirmed";
       const isPaid = true;
 
       const [booking] = await Booking.create(
@@ -1451,6 +1745,14 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         { path: "items.service", select: "name price duration" },
         { path: "items.pet", select: "petName petType breed" },
       ]);
+
+      await sendAutoNotification(
+        req.user.id,
+        "booking",
+        "Booking Confirmed",
+        "Đơn booking của bạn đã được xác nhận thành công. Vui lòng đến cửa hàng đúng giờ để staff tiếp nhận pet.",
+        { priority: "high", metadata: { bookingId: booking._id } },
+      );
 
       res.status(201).json({
         status: "success",

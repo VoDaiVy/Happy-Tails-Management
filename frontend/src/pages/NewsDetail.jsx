@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Calendar,
   Clock,
   User,
-  ChevronRight,
+  ChevronLeft,
   PawPrint,
   MapPin,
   Phone,
@@ -38,12 +38,6 @@ const formatDate = (value) => {
 const estimateReadTime = (text) => {
   const words = toPlainText(text).split(" ").filter(Boolean).length;
   return `${Math.max(2, Math.ceil(words / 220))} min read`;
-};
-
-const shortenTitle = (title, maxLength = 18) => {
-  const raw = String(title || "Detail").trim();
-  if (raw.length <= maxLength) return raw;
-  return `${raw.slice(0, maxLength)}..`;
 };
 
 const mapNewsDetail = (item) => {
@@ -136,11 +130,6 @@ const NewsDetail = () => {
     fetchNewsDetail();
   }, [slug]);
 
-  const breadcrumbTitle = useMemo(
-    () => shortenTitle(newsDetail?.title || "News detail"),
-    [newsDetail?.title],
-  );
-
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     setIsAuthModalOpen(false);
@@ -162,6 +151,14 @@ const NewsDetail = () => {
     setIsAuthModalOpen(true);
   };
 
+  const handleBackToNews = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/news");
+  };
+
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
       <Navbar
@@ -177,19 +174,20 @@ const NewsDetail = () => {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <main className="pt-24 pb-16">
+      <main className="pt-28 pb-16">
         <section className="container mx-auto px-6 max-w-7xl">
-          <nav className="mb-6 text-sm font-semibold text-[#2D3436]/55 flex items-center gap-2 flex-wrap">
-            <Link to="/" className="hover:text-[#D97853] transition-colors">
-              Home
-            </Link>
-            <ChevronRight size={14} />
-            <Link to="/news" className="hover:text-[#D97853] transition-colors">
-              News
-            </Link>
-            <ChevronRight size={14} />
-            <span className="text-[#2D3436]">{breadcrumbTitle}</span>
-          </nav>
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={handleBackToNews}
+              className="group inline-flex items-center gap-2 rounded-2xl border border-[#E8D7CB] bg-linear-to-r from-white to-[#FFF5EE] px-4 py-2.5 text-sm font-semibold text-[#2D3436] shadow-[0_10px_30px_rgba(45,52,54,0.08)] transition-all hover:-translate-y-0.5 hover:border-[#D97853]/35 hover:shadow-[0_14px_36px_rgba(217,120,83,0.18)]"
+            >
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-[#D97853] text-white shadow-sm transition-transform group-hover:-translate-x-0.5">
+                <ChevronLeft size={15} />
+              </span>
+              Back to News
+            </button>
+          </div>
 
           {isLoading && (
             <div className="rounded-3xl border border-[#2D3436]/10 bg-white p-8 text-center text-[#2D3436]/70 font-semibold">

@@ -2,6 +2,7 @@ const express = require('express');
 const {
   getAllFeedback,
   getMyFeedback,
+  getMyReceivedFeedback,
   getEligibleBookingsForFeedback,
   getFeedbacksByService,
   createFeedback,
@@ -25,6 +26,9 @@ router.use(protect);
 router.get('/my', restrictTo('customer'), getMyFeedback);
 router.get('/eligible-bookings', restrictTo('customer'), getEligibleBookingsForFeedback);
 router.post('/', restrictTo('customer'), createFeedback);
+
+// Staff inbox
+router.get('/staff/received', restrictTo('staff', 'admin'), getMyReceivedFeedback);
 
 router.route('/:id')
   .put(restrictTo('customer'), updateFeedback)

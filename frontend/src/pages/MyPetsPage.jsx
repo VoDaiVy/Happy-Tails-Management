@@ -8,6 +8,7 @@ import {
   Weight, Image, Camera, Search, SlidersHorizontal, Heart, Sparkles, MoreVertical
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
+import MedicalRecordShowcase from '../components/medical/MedicalRecordShowcase';
 import { useAuth } from '../context/AuthContext';
 import {
   getMyPets, createPet, updatePet, deletePet,
@@ -15,6 +16,7 @@ import {
   getVaccinationReminders, getPetStatistics
 } from '../api/profileApi';
 import { uploadSingleImage } from '../api/uploadApi';
+import { getMyPetsMedicalRecords } from '../api/medicalRecordApi';
 
 const PET_TYPES = [
   { value: 'dog', label: 'Dog' },
@@ -28,6 +30,27 @@ const GENDERS = [
   { value: 'female', label: 'Female' },
   { value: 'unknown', label: 'Unknown' },
 ];
+
+const MEDICAL_RECORD_TYPE_LABELS = {
+  checkup: 'Checkup',
+  vaccination: 'Vaccination',
+  treatment: 'Treatment',
+  surgery: 'Surgery',
+  emergency: 'Emergency',
+  grooming: 'Grooming',
+  other: 'Other'
+};
+
+const getMedicalRecordType = (record) => record?.recordType || record?.type || 'other';
+
+const getMedicalRecordDate = (record) => record?.createdAt || record?.date || null;
+
+const getMedicalDoctorName = (record) => {
+  if (record?.veterinarian) return record.veterinarian;
+  if (record?.createdBy?.name) return record.createdBy.name;
+  if (record?.updatedBy?.name) return record.updatedBy.name;
+  return '';
+};
 
 const MyPetsPage = () => {
   const navigate = useNavigate();
@@ -54,6 +77,8 @@ const MyPetsPage = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [expandedHealthSection, setExpandedHealthSection] = useState('medical');
   const [selectedHealthEntry, setSelectedHealthEntry] = useState(null);
+  const [selectedPetMedicalRecords, setSelectedPetMedicalRecords] = useState([]);
+  const [medicalRecordsLoading, setMedicalRecordsLoading] = useState(false);
 
   // Medical Record state
   const [medRecordModalOpen, setMedRecordModalOpen] = useState(false);
@@ -242,19 +267,8 @@ const MyPetsPage = () => {
   };
 
   // View pet detail
-  const openPetDetail = async (pet) => {
-    setDetailLoading(true);
-    setDetailModalOpen(true);
-    setExpandedHealthSection('medical');
-    setSelectedHealthEntry(null);
-    try {
-      const res = await getPetById(pet._id);
-      setSelectedPet(res.data);
-    } catch {
-      setSelectedPet({ pet });
-    } finally {
-      setDetailLoading(false);
-    }
+  const openPetDetail = (pet) => {
+    navigate(`/pets/${pet._id}`);
   };
 
 
@@ -340,6 +354,10 @@ const MyPetsPage = () => {
     return () => { document.body.style.overflow = ''; };
   }, [petModalOpen, detailModalOpen, medRecordModalOpen, vaccModalOpen]);
 
+  const selectedPetMedicalRecordsForView = selectedPetMedicalRecords.length > 0
+    ? selectedPetMedicalRecords
+    : (selectedPet?.pet?.medicalRecords || []);
+
   if (!user) {
     return (
       <div className="bg-[#FDFBF7] min-h-screen flex items-center justify-center">
@@ -359,7 +377,7 @@ const MyPetsPage = () => {
           <div className="absolute -bottom-8 -right-8 w-56 h-56 bg-[#D97853]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => navigate(-1)} className="p-2.5 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/80 shadow-sm hover:bg-white transition-all">
+              <button onClick={() => navigate('/')} className="p-2.5 rounded-2xl bg-white/60 backdrop-blur-sm border border-white/80 shadow-sm hover:bg-white transition-all">
                 <ChevronLeft size={20} className="text-slate-600" />
               </button>
               <div>
@@ -820,7 +838,7 @@ const MyPetsPage = () => {
                           <Activity size={16} /> Health Summary
                         </h4>
                         <div className="grid grid-cols-3 gap-3 text-center">
-                          <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.totalMedicalRecords ?? 0}</div><div className="text-xs text-emerald-600">Records</div></div>
+                          <div><div className="text-lg font-black text-emerald-700">{selectedPetMedicalRecordsForView.length}</div><div className="text-xs text-emerald-600">Records</div></div>
                           <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.totalVaccinations ?? 0}</div><div className="text-xs text-emerald-600">Vaccines</div></div>
                           <div><div className="text-lg font-black text-emerald-700">{selectedPet.healthSummary.upcomingVaccinations ?? 0}</div><div className="text-xs text-emerald-600">Upcoming</div></div>
                         </div>
@@ -838,30 +856,58 @@ const MyPetsPage = () => {
                           <Stethoscope size={16} className="text-blue-500" />
                           Medical Records
                           <span className="text-[11px] font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
-                            {selectedPet.pet.medicalRecords?.length || 0}
+                            {selectedPetMedicalRecordsForView.length}
                           </span>
                         </h4>
                         <ChevronDown size={16} className={`text-slate-400 transition-transform ${expandedHealthSection === 'medical' ? 'rotate-180' : ''}`} />
                       </button>
                       {expandedHealthSection === 'medical' && (
-                        selectedPet.pet.medicalRecords && selectedPet.pet.medicalRecords.length > 0 ? (
+                        medicalRecordsLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                            <Loader2 size={14} className="animate-spin" />
+                            Loading medical records...
+                          </div>
+                        ) : selectedPetMedicalRecordsForView.length > 0 ? (
                           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                            {selectedPet.pet.medicalRecords.map((rec, i) => (
+                            {selectedPetMedicalRecordsForView.map((rec, i) => (
                               <button
-                                key={i}
+                                key={rec._id || i}
                                 type="button"
                                 onClick={() => setSelectedHealthEntry({ kind: 'medical', data: rec })}
                                 className="w-full text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-sm transition-colors"
                               >
+                                {(() => {
+                                  const checkInCount = Array.isArray(rec?.receivedPhotos) ? rec.receivedPhotos.length : 0;
+                                  const checkOutCount = Array.isArray(rec?.completedPhotos) ? rec.completedPhotos.length : 0;
+
+                                  return (
+                                    <>
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="font-bold text-slate-700 truncate pr-2">{rec.diagnosis}</span>
-                                  <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize flex-shrink-0">{rec.type}</span>
+                                  <span className="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-full capitalize flex-shrink-0">
+                                    {MEDICAL_RECORD_TYPE_LABELS[getMedicalRecordType(rec)] || getMedicalRecordType(rec)}
+                                  </span>
                                 </div>
-                                {rec.treatment && <p className="text-xs text-slate-500 truncate">Treatment: {rec.treatment}</p>}
+                                {(rec.treatment || rec.condition) && (
+                                  <p className="text-xs text-slate-500 truncate">Treatment: {rec.treatment || rec.condition}</p>
+                                )}
                                 <div className="flex gap-4 mt-1 text-xs text-slate-400">
-                                  {rec.veterinarian && <span>Dr. {rec.veterinarian}</span>}
-                                  <span>{new Date(rec.date).toLocaleDateString()}</span>
+                                  {getMedicalDoctorName(rec) && <span>Dr. {getMedicalDoctorName(rec)}</span>}
+                                  <span>{getMedicalRecordDate(rec) ? new Date(getMedicalRecordDate(rec)).toLocaleDateString() : 'No date'}</span>
                                 </div>
+                                      {(checkInCount > 0 || checkOutCount > 0) && (
+                                        <div className="flex gap-2 mt-2 text-[11px]">
+                                          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                                            Check-in: {checkInCount} image(s)
+                                          </span>
+                                          <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">
+                                            Check-out: {checkOutCount} image(s)
+                                          </span>
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </button>
                             ))}
                           </div>
@@ -935,7 +981,7 @@ const MyPetsPage = () => {
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <div className="p-6">
@@ -953,16 +999,7 @@ const MyPetsPage = () => {
                 </div>
 
                 {selectedHealthEntry.kind === 'medical' ? (
-                  <div className="space-y-3 text-sm">
-                    <InfoRow label="Diagnosis" value={selectedHealthEntry.data?.diagnosis} />
-                    <InfoRow label="Type" value={selectedHealthEntry.data?.type} capitalize />
-                    <InfoRow label="Date" value={selectedHealthEntry.data?.date ? new Date(selectedHealthEntry.data.date).toLocaleDateString() : null} />
-                    <InfoRow label="Treatment" value={selectedHealthEntry.data?.treatment} multiline />
-                    <InfoRow label="Veterinarian" value={selectedHealthEntry.data?.veterinarian ? `Dr. ${selectedHealthEntry.data.veterinarian}` : null} />
-                    <InfoRow label="Clinic" value={selectedHealthEntry.data?.clinic} />
-                    <InfoRow label="Medications" value={Array.isArray(selectedHealthEntry.data?.medications) ? selectedHealthEntry.data.medications.join(', ') : ''} />
-                    <InfoRow label="Notes" value={selectedHealthEntry.data?.notes} multiline />
-                  </div>
+                  <MedicalRecordShowcase record={selectedHealthEntry.data} />
                 ) : (
                   <div className="space-y-3 text-sm">
                     <InfoRow label="Vaccine" value={selectedHealthEntry.data?.name} />

@@ -3,8 +3,8 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PrivateRoute from "./components/PrivateRoute";
 import Home from "./pages/Home";
-import { Login } from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import Service from "./pages/Service";
 import ServiceDetail from "./components/service/ServiceDetail";
 import BoardingDetail from "./components/service/BoardingDetail";
@@ -17,11 +17,13 @@ import Wallet from "./pages/Wallet";
 import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
+import PetDetailPage from "./pages/PetDetailPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
+import StaffFeedbackPage from "./pages/dashboard/staff/StaffFeedbackPage";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/UserManagement";
 import RoomManagement from "./pages/dashboard/RoomManagement";
@@ -70,6 +72,14 @@ function App() {
             }
           />
           <Route
+            path="/pets/:petId"
+            element={
+              <ProtectedRoute>
+                <PetDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/bookings"
             element={
               <ProtectedRoute>
@@ -114,6 +124,14 @@ function App() {
           >
             <Route index element={<StaffDashboard />} />
             <Route path="bookings" element={<BookingBoard />} />
+            <Route
+              path="feedback"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffFeedbackPage />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="news"
               element={

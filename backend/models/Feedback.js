@@ -19,6 +19,10 @@ const feedbackSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service'
   },
+  staff: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   rating: {
     type: Number,
     required: [true, 'Rating is required'],
@@ -54,6 +58,7 @@ const feedbackSchema = new mongoose.Schema({
 feedbackSchema.index({ user: 1 });
 feedbackSchema.index({ booking: 1 });
 feedbackSchema.index({ service: 1 });
+feedbackSchema.index({ staff: 1 });
 feedbackSchema.index({ rating: 1 });
 feedbackSchema.index({ isPublished: 1 });
 
