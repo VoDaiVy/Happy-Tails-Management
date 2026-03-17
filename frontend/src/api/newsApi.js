@@ -1,43 +1,51 @@
 import axiosInstance from "./axiosInstance";
-import { extractResponseData, normalizeResponse } from "../utils/apiResponseHandler";
+
+/**
+ * News API - Dashboard + public news integration
+ */
 
 export const getAllNews = async (params = {}) => {
   const response = await axiosInstance.get("/news", { params });
-  const normalized = normalizeResponse(response);
-
-  return {
-    ...normalized,
-    data: extractResponseData(normalized, "news") || [],
-  };
+  return response.data;
 };
 
-export const createNews = async (newsData) => {
-  const response = await axiosInstance.post("/news", newsData);
-  const normalized = normalizeResponse(response);
-
-  return {
-    ...normalized,
-    data: extractResponseData(normalized, "news"),
-  };
+export const getNewsBySlug = async (slug) => {
+  const response = await axiosInstance.get(`/news/${encodeURIComponent(slug)}`);
+  return response.data;
 };
 
-export const updateNews = async (id, newsData) => {
-  const response = await axiosInstance.put(`/news/${id}`, newsData);
-  const normalized = normalizeResponse(response);
+export const uploadNewsImage = async (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
 
-  return {
-    ...normalized,
-    data: extractResponseData(normalized, "news"),
-  };
+  const response = await axiosInstance.post("/uploads/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
+
+export const createNews = async (payload) => {
+  const response = await axiosInstance.post("/news", payload);
+  return response.data;
+};
+
+export const updateNews = async (id, payload) => {
+  const response = await axiosInstance.put(`/news/${id}`, payload);
+  return response.data;
 };
 
 export const deleteNews = async (id) => {
   const response = await axiosInstance.delete(`/news/${id}`);
-  return normalizeResponse(response);
+  return response.data;
 };
 
 export default {
   getAllNews,
+  getNewsBySlug,
+  uploadNewsImage,
   createNews,
   updateNews,
   deleteNews,
