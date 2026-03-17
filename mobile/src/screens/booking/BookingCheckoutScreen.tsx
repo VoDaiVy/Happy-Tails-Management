@@ -1,4 +1,4 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Formik } from "formik";
 import { useEffect, useMemo, useState } from "react";
@@ -35,7 +35,6 @@ export function BookingCheckoutScreen({ navigation }: Props) {
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
   const [petsError, setPetsError] = useState("");
-  const [showPicker, setShowPicker] = useState(false);
   const [showVoucherHint, setShowVoucherHint] = useState(false);
 
   useEffect(() => {
@@ -62,6 +61,38 @@ export function BookingCheckoutScreen({ navigation }: Props) {
     now.setMilliseconds(0);
     return now;
   }, []);
+
+  const openAndroidDateTime = (currentValue: Date, onSelected: (date: Date) => void) => {
+    DateTimePickerAndroid.open({
+      value: currentValue,
+      mode: "date",
+      minimumDate: new Date(),
+      is24Hour: true,
+      onChange: (dateEvent, selectedDate) => {
+        if (dateEvent.type !== "set" || !selectedDate) {
+          return;
+        }
+
+        const merged = new Date(selectedDate);
+        merged.setHours(currentValue.getHours(), currentValue.getMinutes(), 0, 0);
+
+        DateTimePickerAndroid.open({
+          value: merged,
+          mode: "time",
+          is24Hour: true,
+          onChange: (timeEvent, selectedTime) => {
+            if (timeEvent.type !== "set" || !selectedTime) {
+              return;
+            }
+
+            const finalDate = new Date(merged);
+            finalDate.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+            onSelected(finalDate);
+          },
+        });
+      },
+    });
+  };
 
   return (
     <KeyboardAvoidingView style={styles.wrapper} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -97,27 +128,20 @@ export function BookingCheckoutScreen({ navigation }: Props) {
           {({ values, errors, touched, setFieldValue, handleSubmit, isSubmitting, status }) => (
             <View style={styles.formCard}>
               <Text style={styles.label}>Ngay gio hen</Text>
-              <Pressable accessibilityRole="button" style={styles.pickerButton} onPress={() => setShowPicker(true)}>
+              <Pressable
+                style={styles.pickerButton}
+                onPress={() => {
+                  if (Platform.OS === "android") {
+                    openAndroidDateTime(values.appointmentDate, (date) => setFieldValue("appointmentDate", date));
+                    return;
+                  }
+                }}
+              >
                 <Text style={styles.pickerText}>{values.appointmentDate.toLocaleString()}</Text>
               </Pressable>
               {touched.appointmentDate && errors.appointmentDate ? (
                 <Text style={styles.error}>{String(errors.appointmentDate)}</Text>
               ) : null}
-
-              {showPicker && (
-                <DateTimePicker
-                  value={values.appointmentDate}
-                  mode="datetime"
-                  minimumDate={new Date()}
-                  is24Hour
-                  onChange={(_, selectedDate) => {
-                    setShowPicker(false);
-                    if (selectedDate) {
-                      setFieldValue("appointmentDate", selectedDate);
-                    }
-                  }}
-                />
-              )}
 
               <Text style={styles.label}>Chon pet</Text>
               {petsLoading ? (

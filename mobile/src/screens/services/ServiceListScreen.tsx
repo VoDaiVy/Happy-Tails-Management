@@ -11,6 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { addToCart } from "../../api/modules/cartApi";
 import { getCategories } from "../../api/modules/categoryApi";
 import { getServices } from "../../api/modules/serviceApi";
 import type { Category } from "../../types/category";
@@ -37,6 +38,8 @@ export function ServiceListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -115,6 +118,19 @@ export function ServiceListScreen() {
 
   const categoryOptions = useMemo(() => [{ _id: "all", name: "Tat ca" }, ...categories], [categories]);
 
+  const handleAddToCart = useCallback(async (serviceId: string) => {
+    setAddingId(serviceId);
+    setActionMessage("");
+    try {
+      await addToCart({ serviceId, quantity: 1 });
+      setActionMessage("Da them service vao gio hang");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Khong the them vao gio hang");
+    } finally {
+      setAddingId(null);
+    }
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text accessibilityRole="header" style={styles.title}>Services</Text>
@@ -126,6 +142,8 @@ export function ServiceListScreen() {
         placeholder="Tim theo ten hoac mo ta service"
         accessibilityLabel="Tim kiem service"
       />
+
+      {actionMessage ? <Text style={styles.actionMessage}>{actionMessage}</Text> : null}
 
       <FlatList
         horizontal
@@ -191,6 +209,14 @@ export function ServiceListScreen() {
               <Text style={styles.cardSubTitle}>Thoi luong: {item.duration} phut</Text>
               <Text style={styles.cardSubTitle}>Pet: {(item.petTypes || []).join(", ") || "N/A"}</Text>
               <Text style={styles.ratingText}>{renderStars(item.rating || 0)} ({item.rating?.toFixed(1) || "0.0"})</Text>
+
+              <Pressable
+                style={[styles.addButton, addingId === item._id && styles.addButtonDisabled]}
+                onPress={() => handleAddToCart(item._id)}
+                disabled={addingId === item._id}
+              >
+                {addingId === item._id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.addButtonText}>Add to Cart</Text>}
+              </Pressable>
             </View>
           )}
         />
@@ -240,6 +266,21 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
   cardSubTitle: { fontSize: 13, color: "#4B5563", marginTop: 2 },
   ratingText: { marginTop: 6, color: "#B45309", fontWeight: "600" },
+  addButton: {
+    marginTop: 10,
+    backgroundColor: "#0D9488",
+    borderRadius: 9,
+    alignItems: "center",
+    paddingVertical: 9,
+  },
+  addButtonText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  addButtonDisabled: { opacity: 0.65 },
+  actionMessage: {
+    marginTop: 6,
+    marginHorizontal: 16,
+    color: "#065F46",
+    fontSize: 13,
+  },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   errorText: { color: "#B91C1C", textAlign: "center", marginBottom: 10 },
   retryButton: { backgroundColor: "#2563EB", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },

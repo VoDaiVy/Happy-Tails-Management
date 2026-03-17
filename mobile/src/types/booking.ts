@@ -1,11 +1,21 @@
 import type { ServiceItem } from "./service";
+import type { Pet } from "./pet";
+
+export interface BookingServiceRef {
+  _id?: string;
+  name?: string;
+  price?: number;
+  duration?: number;
+}
 
 export interface BookingItem {
   _id?: string;
-  service: string | ServiceItem;
+  service: string | ServiceItem | BookingServiceRef;
+  pet?: string | Pet;
   quantity: number;
   price: number;
   notes?: string;
+  group?: string;
   startTime?: string;
   endTime?: string;
   assignedRoom?: string;

@@ -26,6 +26,13 @@ interface CheckoutBookingResponse {
   };
 }
 
+interface BookingDetailResponse {
+  status: "success" | "error";
+  data: {
+    booking: Booking;
+  };
+}
+
 export async function getMyBookings(status?: string): Promise<Booking[]> {
   const response = await axiosClient.get<MyBookingsResponse>("/bookings/my", {
     params: status ? { status } : undefined,
@@ -43,4 +50,9 @@ export async function cancelBooking(bookingId: string, reason?: string) {
     reason,
   });
   return response.data;
+}
+
+export async function getBookingById(bookingId: string): Promise<Booking> {
+  const response = await axiosClient.get<BookingDetailResponse>(`/bookings/${bookingId}`);
+  return response.data.data.booking;
 }
