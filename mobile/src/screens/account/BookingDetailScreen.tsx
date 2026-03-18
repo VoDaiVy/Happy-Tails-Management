@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, RefreshControl, ScrollView, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { getBookingById } from "../../api/modules/bookingApi";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { Booking, BookingItem } from "../../types/booking";
@@ -19,10 +19,12 @@ function getPetName(item: BookingItem) {
 }
 
 export function BookingDetailScreen({ route }: Props) {
-  const { bookingId } = route.params;
+  const { bookingId, toastMessage } = route.params;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [inlineToast, setInlineToast] = useState("");
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -41,6 +43,28 @@ export function BookingDetailScreen({ route }: Props) {
     loadDetail();
   }, [loadDetail]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadDetail();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadDetail]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    if (Platform.OS === "android") {
+      ToastAndroid.show(toastMessage, ToastAndroid.SHORT);
+      return;
+    }
+
+    setInlineToast(toastMessage);
+    const timer = setTimeout(() => setInlineToast(""), 2200);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
   if (loading) {
     return (
       <View style={styles.centerBox}>
@@ -58,7 +82,12 @@ export function BookingDetailScreen({ route }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
+      {inlineToast ? <View style={styles.toastBox}><Text style={styles.toastText}>{inlineToast}</Text></View> : null}
       <View style={styles.summaryCard}>
         <Text style={styles.title}>{booking.bookingNumber || booking._id}</Text>
         <Text style={styles.meta}>Status: {booking.status}</Text>
@@ -71,7 +100,7 @@ export function BookingDetailScreen({ route }: Props) {
       <Text style={styles.sectionTitle}>Items</Text>
       <View style={styles.itemsWrap}>
         {booking.items.map((item, idx) => (
-          <View key={item._id || `${idx}-${item.price}`} style={styles.itemCard}>
+          <View key={`${item._id || "item"}-${idx}`} style={styles.itemCard}>
             <Text style={styles.itemName}>{getServiceName(item)}</Text>
             <Text style={styles.itemMeta}>Pet: {getPetName(item)}</Text>
             <Text style={styles.itemMeta}>Qty: {item.quantity}</Text>
@@ -89,8 +118,17 @@ export function BookingDetailScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: "#F4F1EC" },
   content: { padding: 16, gap: 12 },
+  toastBox: {
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  toastText: { color: "#166534", fontWeight: "700" },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
   summaryCard: {
     backgroundColor: "#fff",

@@ -304,10 +304,10 @@ const getWallet = async (userId) => {
 /**
  * Deposit money to wallet via PayOS only
  * @param {ObjectId} userId - User ID
- * @param {Object} data - Deposit data { amount, note }
+ * @param {Object} data - Deposit data { amount, note, returnUrl?, cancelUrl? }
  * @returns {Promise<Object>} { checkoutUrl, qrCode, orderCode, transactionCode, amount, expiredAt }
  */
-const deposit = async (userId, { amount, note }) => {
+const deposit = async (userId, { amount, note, returnUrl, cancelUrl }) => {
   // Step 1: Find or create wallet
   const wallet = await Wallet.findOrCreateByUser(userId);
   
@@ -324,6 +324,8 @@ const deposit = async (userId, { amount, note }) => {
     walletId: wallet._id,
     amount,
     note,
+    returnUrl,
+    cancelUrl,
     user,
     wallet
   });

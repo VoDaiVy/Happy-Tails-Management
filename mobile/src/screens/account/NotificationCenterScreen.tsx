@@ -143,7 +143,7 @@ export function NotificationCenterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
+  container: { flex: 1, backgroundColor: "#F4F1EC", padding: 16 },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center" },
   headerCard: {
     borderWidth: 1,
@@ -172,10 +172,10 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
   },
-  unreadItem: { borderColor: "#93C5FD", backgroundColor: "#EFF6FF" },
+  unreadItem: { borderColor: "#F2C9BC", backgroundColor: "#FFF4EF" },
   itemHeader: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   itemTitle: { flex: 1, fontWeight: "700", color: "#0F172A" },
-  itemType: { color: "#2563EB", fontWeight: "700", textTransform: "capitalize" },
+  itemType: { color: "#D87D4A", fontWeight: "700", textTransform: "capitalize" },
   itemBody: { color: "#475569" },
   itemFooter: { marginTop: 4, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   itemDate: { color: "#94A3B8", fontSize: 12 },
