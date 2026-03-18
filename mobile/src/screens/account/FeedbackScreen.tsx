@@ -14,11 +14,14 @@ import {
   getEligibleBookingsForFeedback,
   getMyFeedback,
 } from "../../api/modules/feedbackApi";
+import { useAuth } from "../../context/AuthContext";
 import type { EligibleFeedbackBooking, FeedbackItem } from "../../types/feedback";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 const RATING_OPTIONS = [1, 2, 3, 4, 5];
 
 export function FeedbackScreen() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
@@ -29,6 +32,7 @@ export function FeedbackScreen() {
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -48,8 +52,20 @@ export function FeedbackScreen() {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadData();
-  }, [loadData]);
+  }, [canAccess, loadData]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.centerBox}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const selectedBooking = useMemo(
     () => eligibleBookings.find((booking) => booking._id === selectedBookingId),

@@ -14,8 +14,10 @@ import {
 import { addToCart } from "../../api/modules/cartApi";
 import { getCategories } from "../../api/modules/categoryApi";
 import { getServices } from "../../api/modules/serviceApi";
+import { useAuth } from "../../context/AuthContext";
 import type { Category } from "../../types/category";
 import type { ServiceItem } from "../../types/service";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 const PAGE_LIMIT = 10;
 
@@ -25,8 +27,10 @@ function renderStars(rating = 0) {
 }
 
 export function ServiceListScreen() {
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const listColumns = width >= 760 ? 2 : 1;
+  const canAddToCart = canUseCustomerFeatures(user?.role);
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -119,6 +123,11 @@ export function ServiceListScreen() {
   const categoryOptions = useMemo(() => [{ _id: "all", name: "Tat ca" }, ...categories], [categories]);
 
   const handleAddToCart = useCallback(async (serviceId: string) => {
+    if (!canAddToCart) {
+      setActionMessage("Chi tai khoan customer moi co the them vao gio hang");
+      return;
+    }
+
     setAddingId(serviceId);
     setActionMessage("");
     try {
@@ -129,7 +138,7 @@ export function ServiceListScreen() {
     } finally {
       setAddingId(null);
     }
-  }, []);
+  }, [canAddToCart]);
 
   return (
     <View style={styles.container}>
@@ -213,9 +222,13 @@ export function ServiceListScreen() {
               <Pressable
                 style={[styles.addButton, addingId === item._id && styles.addButtonDisabled]}
                 onPress={() => handleAddToCart(item._id)}
-                disabled={addingId === item._id}
+                disabled={addingId === item._id || !canAddToCart}
               >
-                {addingId === item._id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.addButtonText}>Add to Cart</Text>}
+                {addingId === item._id ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.addButtonText}>{canAddToCart ? "Add to Cart" : "Khong ho tro role nay"}</Text>
+                )}
               </Pressable>
             </View>
           )}

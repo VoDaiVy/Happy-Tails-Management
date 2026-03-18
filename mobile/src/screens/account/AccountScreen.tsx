@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import type { AccountStackParamList } from "../../navigation/types";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "AccountHome">;
 
@@ -10,20 +11,22 @@ type AccountMenuRoute =
   | "MyPets"
   | "ShoppingCart"
   | "MyBookings"
+  | "BookingCamera"
   | "Wallet"
   | "ChangePassword"
   | "NotificationCenter"
   | "Feedback";
 
-const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute }> = [
+const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute; customerOnly?: boolean }> = [
   { label: "Profile", route: "Profile" },
-  { label: "My Pets", route: "MyPets" },
-  { label: "Shopping Cart", route: "ShoppingCart" },
-  { label: "Bookings", route: "MyBookings" },
-  { label: "Wallet", route: "Wallet" },
+  { label: "My Pets", route: "MyPets", customerOnly: true },
+  { label: "Shopping Cart", route: "ShoppingCart", customerOnly: true },
+  { label: "Bookings", route: "MyBookings", customerOnly: true },
+  { label: "Booking Camera", route: "BookingCamera", customerOnly: true },
+  { label: "Wallet", route: "Wallet", customerOnly: true },
   { label: "Change Password", route: "ChangePassword" },
   { label: "Notifications", route: "NotificationCenter" },
-  { label: "Feedback", route: "Feedback" },
+  { label: "Feedback", route: "Feedback", customerOnly: true },
 ];
 
 export function AccountScreen({ navigation }: Props) {
@@ -38,6 +41,8 @@ export function AccountScreen({ navigation }: Props) {
   }
 
   const avatarText = (user.name || user.email || "U").trim().charAt(0).toUpperCase();
+  const showCustomerFeatures = canUseCustomerFeatures(user.role);
+  const visibleMenuItems = MENU_ITEMS.filter((item) => !item.customerOnly || showCustomerFeatures);
 
   return (
     <View style={styles.container}>
@@ -54,7 +59,7 @@ export function AccountScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.menuCard}>
-        {MENU_ITEMS.map((item) => (
+        {visibleMenuItems.map((item) => (
           <Pressable
             key={item.route}
             style={styles.menuItem}

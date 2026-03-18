@@ -9,7 +9,9 @@ import {
   View,
 } from "react-native";
 import { createPet, deletePet, getMyPets, updatePet } from "../../api/modules/petApi";
+import { useAuth } from "../../context/AuthContext";
 import type { Pet } from "../../types/pet";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 type Gender = "male" | "female" | "unknown";
 
@@ -32,6 +34,7 @@ const initialForm: PetFormState = {
 };
 
 export function MyPetsScreen() {
+  const { user } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +44,7 @@ export function MyPetsScreen() {
   const [form, setForm] = useState<PetFormState>(initialForm);
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   const loadPets = useCallback(async () => {
     setLoading(true);
@@ -56,8 +60,20 @@ export function MyPetsScreen() {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadPets();
-  }, [loadPets]);
+  }, [canAccess, loadPets]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const onChange = (key: keyof PetFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
