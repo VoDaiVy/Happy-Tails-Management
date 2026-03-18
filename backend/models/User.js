@@ -185,7 +185,6 @@ userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1, isDeleted: 1 });
 userSchema.index({ passwordResetToken: 1 });
 userSchema.index({ emailVerificationToken: 1 });
-userSchema.index({ googleId: 1 });
 
 // ==================== VIRTUALS ====================
 

@@ -58,6 +58,7 @@ const STAFF_STATUS_LABELS = {
   confirmed: "Đã nhận",
   "in-progress": "Đang thực hiện",
   completed: "Hoàn thành",
+  cancelled: "Đã hủy",
 };
 
 // Payment method labels
@@ -84,8 +85,10 @@ const BookingCard = ({
     booking.assignedStaff?._id === currentUserId ||
     booking.assignedStaff === currentUserId;
 
-  // Check if booking is unclaimed
-  const isUnclaimed = booking.status === "pending" && !booking.assignedStaff;
+  // Check if booking is unclaimed (pending/confirmed can be claimed by staff)
+  const isUnclaimed =
+    (booking.status === "pending" || booking.status === "confirmed") &&
+    !booking.assignedStaff;
 
   // Format date
   const formatDate = (dateString) => {
@@ -171,7 +174,7 @@ const BookingCard = ({
           return (
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
               <button
-                onClick={() => onUpdateStatus(booking._id, "in-progress")}
+                onClick={() => onUpdateStatus(booking, "in-progress")}
                 className="w-full py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
               >
                 <PlayCircle size={16} />
@@ -186,7 +189,7 @@ const BookingCard = ({
           return (
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
               <button
-                onClick={() => onUpdateStatus(booking._id, "completed")}
+                onClick={() => onUpdateStatus(booking, "completed")}
                 className="w-full py-1.5 px-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle size={16} />

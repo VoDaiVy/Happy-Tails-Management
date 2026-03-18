@@ -1,6 +1,8 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { Formik } from "formik";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,8 +15,11 @@ import {
   View,
 } from "react-native";
 import * as Yup from "yup";
+import { env } from "../../config/env";
 import { useAuth } from "../../context/AuthContext";
 import type { AuthStackParamList } from "../../navigation/types";
+
+WebBrowser.maybeCompleteAuthSession();
 
 const LoginSchema = Yup.object({
   email: Yup.string().email("Email khong hop le").required("Email la bat buoc"),
@@ -24,9 +29,57 @@ const LoginSchema = Yup.object({
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export function LoginScreen({ navigation }: Props) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [apiMessage, setApiMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  const [googleRequest, googleResponse, promptGoogleLogin] = Google.useIdTokenAuthRequest({
+    clientId: env.googleWebClientId,
+    androidClientId: env.googleAndroidClientId || undefined,
+    iosClientId: env.googleIosClientId || undefined,
+  });
+
+  useEffect(() => {
+    const runGoogleAuth = async () => {
+      if (googleResponse?.type !== "success") {
+        if (googleResponse?.type === "error") {
+          setApiMessage("Google login that bai. Vui long thu lai.");
+        }
+        return;
+      }
+
+      const idToken = googleResponse.params?.id_token;
+      if (!idToken) {
+        setApiMessage("Khong lay duoc Google ID token.");
+        return;
+      }
+
+      setGoogleSubmitting(true);
+      setApiMessage("");
+      try {
+        await loginWithGoogle(idToken);
+      } catch (error) {
+        setApiMessage(error instanceof Error ? error.message : "Dang nhap Google that bai");
+      } finally {
+        setGoogleSubmitting(false);
+      }
+    };
+
+    void runGoogleAuth();
+  }, [googleResponse, loginWithGoogle]);
+
+  const onGooglePress = async () => {
+    if (!env.googleWebClientId) {
+      setApiMessage("Thieu EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID trong file .env");
+      return;
+    }
+
+    setApiMessage("");
+    await promptGoogleLogin({
+      showInRecents: true,
+    });
+  };
 
   return (
     <KeyboardAvoidingView
@@ -98,7 +151,10 @@ export function LoginScreen({ navigation }: Props) {
                 </View>
                 {touched.password && errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
 
-                <Pressable style={styles.forgotWrap}>
+                <Pressable
+                  style={styles.forgotWrap}
+                  onPress={() => navigation.navigate("ForgotPassword", { email: values.email.trim() || undefined })}
+                >
                   <Text style={styles.forgotText}>Forgot Password?</Text>
                 </Pressable>
 
@@ -125,8 +181,8 @@ export function LoginScreen({ navigation }: Props) {
                 </View>
 
                 <View style={styles.socialRow}>
-                  <Pressable style={styles.socialButton}>
-                    <Text style={styles.socialButtonText}>G  Google</Text>
+                  <Pressable style={styles.socialButton} onPress={onGooglePress} disabled={!googleRequest || googleSubmitting || isSubmitting}>
+                    <Text style={styles.socialButtonText}>{googleSubmitting ? "Dang xu ly..." : "G  Google"}</Text>
                   </Pressable>
                   <Pressable style={styles.socialButton}>
                     <Text style={styles.socialButtonText}>  Apple</Text>

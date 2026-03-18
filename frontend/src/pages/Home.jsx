@@ -11,10 +11,7 @@ const Home = () => {
   const navigate = useNavigate();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const { user, setUser } = useAuth();
   const { scrollYProgress } = useScroll();
 
   // Redirect admin/staff to their dashboard if already logged in
@@ -32,6 +29,7 @@ const Home = () => {
   const y2 = useTransform(scrollYProgress, [0, 1], [0, 50]);
 
   const handleLoginSuccess = (userData) => {
+    setUser(userData);
     setIsAuthModalOpen(false);
     // Role-based navigation
     if (userData.role === 'admin') {
@@ -54,7 +52,7 @@ const Home = () => {
 
   return (
     <div className="bg-[#FDFBF7] min-h-screen font-sans text-[#2D3436] selection:bg-[#D97853] selection:text-white overflow-x-hidden">
-      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} />
+      <Navbar onLoginClick={openLoginModal} onRegisterClick={openRegisterModal} user={user} onLogout={() => setUser(null)} />
       
       <AuthModal 
         isOpen={isAuthModalOpen} 

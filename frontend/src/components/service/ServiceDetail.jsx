@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from "react";
-import { useParams, Navigate, useLocation } from "react-router-dom";
+import { useParams, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
@@ -12,7 +12,6 @@ import {
 import Navbar from "../layout/Navbar";
 import Footer from "../layout/Footer";
 import AuthModal from "../AuthModal";
-import ServiceBreadcrumb from "./ServiceBreadcrumb";
 import ServiceBookingPanel from "./ServiceBookingPanel";
 import BoardingBookingPanel from "./BoardingBookingPanel";
 import { slugifyServiceName } from "../../data/servicesData";
@@ -108,6 +107,7 @@ const mapApiServiceToDetail = (apiService) => {
 export default function ServiceDetail() {
   const { serviceSlug } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("login");
@@ -257,6 +257,16 @@ export default function ServiceDetail() {
     setSingleIdx(idx);
     setViewMode("single");
   };
+
+  const handleBackToServices = () => {
+    // Prefer history back for natural flow; fallback to service listing.
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/service");
+  };
+
   const goNext = () => {
     if (viewMode === "collage") {
       goSingle(0, 1);
@@ -296,8 +306,19 @@ export default function ServiceDetail() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <main className="mx-auto max-w-6xl px-4 pt-24 pb-20">
-        <ServiceBreadcrumb serviceTitle={service.title} />
+      <main className="mx-auto max-w-6xl px-4 pt-28 pb-20">
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={handleBackToServices}
+            className="group inline-flex items-center gap-2 rounded-2xl border border-[#E8D7CB] bg-linear-to-r from-white to-[#FFF5EE] px-4 py-2.5 text-sm font-semibold text-[#2D3436] shadow-[0_10px_30px_rgba(45,52,54,0.08)] transition-all hover:-translate-y-0.5 hover:border-[#E07A5F]/35 hover:shadow-[0_14px_36px_rgba(224,122,95,0.18)]"
+          >
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-[#E07A5F] text-white shadow-sm transition-transform group-hover:-translate-x-0.5">
+              <ChevronLeft size={15} />
+            </span>
+            Back to Services
+          </button>
+        </div>
 
         <div className={detailGridClass}>
           {/* ══ LEFT COLUMN ══ */}

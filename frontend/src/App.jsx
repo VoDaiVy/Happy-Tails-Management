@@ -1,10 +1,10 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PrivateRoute from "./components/PrivateRoute";
 import Home from "./pages/Home";
-import { Login } from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import Service from "./pages/Service";
 import ServiceDetail from "./components/service/ServiceDetail";
 import BoardingDetail from "./components/service/BoardingDetail";
@@ -17,11 +17,13 @@ import Wallet from "./pages/Wallet";
 import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
+import PetDetailPage from "./pages/PetDetailPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
+import StaffFeedbackPage from "./pages/dashboard/staff/StaffFeedbackPage";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/admin/AdminUserManagement";
 import RoomManagement from "./pages/dashboard/admin/AdminRoomManagement";
@@ -38,8 +40,9 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/service" element={<Service />} />
           <Route path="/service/:serviceSlug" element={<ServiceDetail />} />
           <Route path="/service-detail" element={<ServiceDetail />} />
@@ -66,6 +69,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyPetsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pets/:petId"
+            element={
+              <ProtectedRoute>
+                <PetDetailPage />
               </ProtectedRoute>
             }
           />
@@ -115,6 +126,14 @@ function App() {
           >
             <Route index element={<StaffDashboard />} />
             <Route path="bookings" element={<BookingBoard />} />
+            <Route
+              path="feedback"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffFeedbackPage />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="news"
               element={

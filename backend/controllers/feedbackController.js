@@ -6,8 +6,38 @@
 const Feedback = require('../models/Feedback');
 const Booking = require('../models/Booking');
 const { catchAsync } = require('../utils/catchAsync');
-const AppError = require('../utils/AppError');
+const { AppError } = require('../utils/AppError');
 const { moderateFeedback } = require('../utils/aiService');
+
+const FEEDBACK_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const toTimestamp = (value) => {
+  if (!value) return null;
+  const ts = new Date(value).getTime();
+  return Number.isFinite(ts) ? ts : null;
+};
+
+const getFeedbackWindowMeta = (booking, now = Date.now()) => {
+  const completedAtTs =
+    toTimestamp(booking?.completedAt) ||
+    toTimestamp(booking?.updatedAt) ||
+    null;
+
+  if (!completedAtTs) {
+    return {
+      completedAtTs: null,
+      feedbackDeadlineAt: null,
+      isExpired: false,
+    };
+  }
+
+  const feedbackDeadlineAt = new Date(completedAtTs + FEEDBACK_WINDOW_MS);
+  return {
+    completedAtTs,
+    feedbackDeadlineAt,
+    isExpired: now > feedbackDeadlineAt.getTime(),
+  };
+};
 
 /**
  * Get all feedback (public view)
@@ -31,6 +61,7 @@ exports.getAllFeedback = catchAsync(async (req, res, next) => {
 
   const feedback = await Feedback.find(filter)
     .populate('user', 'name')
+    .populate('staff', 'name email')
     .populate('service', 'name')
     .populate('response.respondedBy', 'name')
     .sort('-createdAt')
@@ -50,7 +81,7 @@ exports.getAllFeedback = catchAsync(async (req, res, next) => {
  */
 exports.getMyFeedback = catchAsync(async (req, res, next) => {
   const feedback = await Feedback.find({ user: req.user.id })
-    .populate('booking service response.respondedBy')
+    .populate('booking service staff response.respondedBy')
     .sort('-createdAt');
 
   res.status(200).json({
@@ -62,7 +93,8 @@ exports.getMyFeedback = catchAsync(async (req, res, next) => {
 
 /**
  * Create feedback
- * Customers can ONLY leave feedback for services in their COMPLETED bookings.
+ * Customers can ONLY leave feedback for services in their COMPLETED bookings
+ * and only within 24h from completion time.
  * @route POST /api/feedback
  * @access Private (Customer)
  */
@@ -79,10 +111,26 @@ exports.createFeedback = catchAsync(async (req, res, next) => {
     _id: bookingId,
     customer: req.user.id,
     status: 'completed'
-  }).populate('items.service', 'name');
+  })
+    .populate('items.service', 'name')
+    .populate('assignedStaff', 'name email');
 
   if (!booking) {
     return next(new AppError('Lịch hẹn không tồn tại hoặc chưa hoàn thành', 404, 'BOOKING_NOT_FOUND'));
+  }
+
+  const { feedbackDeadlineAt, isExpired } = getFeedbackWindowMeta(booking);
+  if (isExpired) {
+    const deadlineText = feedbackDeadlineAt
+      ? feedbackDeadlineAt.toLocaleString('vi-VN')
+      : '24 giờ sau khi hoàn thành booking';
+    return next(
+      new AppError(
+        `Feedback đã quá hạn. Bạn chỉ có thể gửi feedback trong vòng 24h sau khi booking hoàn thành (đến ${deadlineText}).`,
+        400,
+        'FEEDBACK_WINDOW_EXPIRED'
+      )
+    );
   }
 
   // If a specific service is provided, it must be in the booking's items
@@ -131,16 +179,74 @@ exports.createFeedback = catchAsync(async (req, res, next) => {
     user: req.user.id,
     booking: bookingId,
     service: serviceId || undefined,
+    staff: booking.assignedStaff?._id || booking.assignedStaff || undefined,
     rating,
     comment,
     images
   });
 
-  await feedback.populate('service booking');
+  await feedback.populate('service booking staff');
 
   res.status(201).json({
     status: 'success',
     message: 'Feedback đã được gửi thành công',
+    data: { feedback }
+  });
+});
+
+/**
+ * Get feedback received by current staff
+ * @route GET /api/feedback/staff/received
+ * @access Private (Staff, Admin)
+ */
+exports.getMyReceivedFeedback = catchAsync(async (req, res, next) => {
+  const populateFeedbackQuery = (query) =>
+    query
+      .populate('user', 'name email')
+      .populate('staff', 'name email')
+      .populate({
+        path: 'booking',
+        select: 'bookingNumber bookingDate bookingTime status assignedStaff',
+        populate: { path: 'assignedStaff', select: 'name email' }
+      })
+      .populate('service', 'name')
+      .populate('response.respondedBy', 'name email');
+
+  let feedback = [];
+
+  if (req.user.role === 'admin') {
+    feedback = await populateFeedbackQuery(Feedback.find({}).sort('-createdAt'));
+  } else {
+    const staffId = String(req.user.id);
+
+    const [directFeedback, legacyCandidates] = await Promise.all([
+      populateFeedbackQuery(Feedback.find({ staff: req.user.id }).sort('-createdAt')),
+      populateFeedbackQuery(
+        Feedback.find({
+          $or: [{ staff: { $exists: false } }, { staff: null }],
+        }).sort('-createdAt')
+      ),
+    ]);
+
+    const legacyFeedback = legacyCandidates.filter((item) => {
+      const assigned = item?.booking?.assignedStaff;
+      const assignedId = assigned?._id ? String(assigned._id) : assigned ? String(assigned) : null;
+      return assignedId === staffId;
+    });
+
+    const mergedById = new Map();
+    [...directFeedback, ...legacyFeedback].forEach((item) => {
+      mergedById.set(String(item._id), item);
+    });
+
+    feedback = [...mergedById.values()].sort(
+      (left, right) => new Date(right.createdAt) - new Date(left.createdAt)
+    );
+  }
+
+  res.status(200).json({
+    status: 'success',
+    results: feedback.length,
     data: { feedback }
   });
 });
@@ -310,20 +416,28 @@ exports.togglePublishStatus = catchAsync(async (req, res, next) => {
 
 /**
  * Get completed bookings eligible for feedback
- * Returns completed bookings with per-service feedback status (reviewed/not reviewed)
+ * Returns completed bookings still in 24h feedback window,
+ * with per-service feedback status (reviewed/not reviewed).
  * @route GET /api/feedback/eligible-bookings
  * @access Private (Customer)
  */
 exports.getEligibleBookingsForFeedback = catchAsync(async (req, res, next) => {
+  const now = Date.now();
+
   // Get all completed bookings for this customer
-  const completedBookings = await Booking.find({
+  const allCompletedBookings = await Booking.find({
     customer: req.user.id,
     status: 'completed'
   })
     .populate('items.service', 'name price images')
     .populate('items.pet', 'name')
+    .populate('assignedStaff', 'name email')
     .sort('-bookingDate')
     .lean();
+
+  const completedBookings = allCompletedBookings.filter(
+    (booking) => !getFeedbackWindowMeta(booking, now).isExpired
+  );
 
   if (completedBookings.length === 0) {
     return res.status(200).json({
@@ -351,6 +465,7 @@ exports.getEligibleBookingsForFeedback = catchAsync(async (req, res, next) => {
 
   // Annotate each booking's items with hasReviewed flag
   const bookings = completedBookings.map(booking => {
+    const { feedbackDeadlineAt } = getFeedbackWindowMeta(booking, now);
     const reviewed = reviewedMap[booking._id.toString()] || new Set();
     const items = (booking.items || []).map(item => ({
       ...item,
@@ -358,8 +473,16 @@ exports.getEligibleBookingsForFeedback = catchAsync(async (req, res, next) => {
         ? reviewed.has(item.service._id.toString())
         : false
     }));
-    const allReviewed = items.length > 0 && items.every(i => i.hasReviewed);
-    return { ...booking, items, allReviewed };
+    const hasOverallReviewed = reviewed.has('__overall__');
+    const allReviewed = hasOverallReviewed || (items.length > 0 && items.every(i => i.hasReviewed));
+    return {
+      ...booking,
+      items,
+      allReviewed,
+      hasOverallReviewed,
+      feedbackDeadlineAt,
+      feedbackWindowOpen: true,
+    };
   });
 
   res.status(200).json({

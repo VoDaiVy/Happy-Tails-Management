@@ -287,7 +287,8 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
   );
 };
 
-const toSpaCard = (service) => {
+const toSpaCard = (service, index = 0) => {
+  const slug = slugifyServiceName(service.name || "");
   const fallbackHighlights = [
     "Professional pet-safe process",
     "Experienced staff on-site",
@@ -295,8 +296,8 @@ const toSpaCard = (service) => {
   ];
 
   return {
-    id: service._id,
-    slug: slugifyServiceName(service.name || ""),
+    id: service._id || `${slug || 'service'}-${index}`,
+    slug,
     title: service.name || "Service",
     shortDesc: service.description || "Professional care for your pet.",
     fullDesc: service.description || "",
@@ -386,6 +387,31 @@ const ServicePage = () => {
   const [spaServices, setSpaServices] = useState([]);
   const [spaLoading, setSpaLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
+  const [flyToCartItems, setFlyToCartItems] = useState([]);
+
+  const triggerFlyToCart = (sourceElement) => {
+    const sourceRect = sourceElement?.getBoundingClientRect?.();
+    const targetRect = document
+      .getElementById("navbar-cart-button")
+      ?.getBoundingClientRect?.();
+    if (!sourceRect || !targetRect) return;
+
+    const id = `${Date.now()}-${Math.random()}`;
+    setFlyToCartItems((prev) => [
+      ...prev,
+      {
+        id,
+        startX: sourceRect.left + sourceRect.width / 2,
+        startY: sourceRect.top + sourceRect.height / 2,
+        endX: targetRect.left + targetRect.width / 2,
+        endY: targetRect.top + targetRect.height / 2,
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setFlyToCartItems((prev) => prev.filter((item) => item.id !== id));
+    }, 720);
+  };
 
   const showCartMessage = (message) => {
     setCartMessage(message);
@@ -407,7 +433,7 @@ const ServicePage = () => {
     );
   };
 
-  const openStaySetup = async (service) => {
+  const openStaySetup = async (service, sourceElement) => {
     const serviceId = service?._id || service?.apiService?._id;
     if (!serviceId) {
       showCartMessage("Không tìm thấy dịch vụ boarding để thiết lập.");
@@ -437,6 +463,9 @@ const ServicePage = () => {
         },
       });
 
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
+
       showCartMessage("Đã thêm boarding vào giỏ. Bạn chọn ngày giờ chính thức ở trang Cart.");
     } catch (error) {
       const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
@@ -446,6 +475,7 @@ const ServicePage = () => {
 
   const handleAddToCart = async (event, service) => {
     event.stopPropagation();
+    const sourceElement = event.currentTarget;
 
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -454,7 +484,7 @@ const ServicePage = () => {
     }
 
     if (isBoardingService(service)) {
-      await openStaySetup(service);
+      await openStaySetup(service, sourceElement);
       return;
     }
 
@@ -472,6 +502,8 @@ const ServicePage = () => {
           source: "service-page",
         },
       });
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
       showCartMessage(`Đã thêm \"${service.name || service.title || "dịch vụ"}\" vào giỏ hàng.`);
     } catch (error) {
       const message = error?.response?.data?.message || "Không thể thêm gói lưu trú vào giỏ hàng.";
@@ -509,7 +541,7 @@ const ServicePage = () => {
           ].some((kw) => name.includes(kw));
         });
 
-        const mapped = spaList.map(toSpaCard);
+        const mapped = spaList.map((service, index) => toSpaCard(service, index));
         if (alive) {
           setSpaServices(mapped);
           setActiveSpa(0);
@@ -615,6 +647,33 @@ const ServicePage = () => {
         initialMode={authModalMode}
         onLoginSuccess={handleLoginSuccess}
       />
+
+      <AnimatePresence>
+        {flyToCartItems.map((item) => (
+          <Motion.div
+            key={item.id}
+            className="fixed left-0 top-0 z-[70] pointer-events-none"
+            initial={{
+              x: item.startX - 18,
+              y: item.startY - 18,
+              scale: 1.15,
+              opacity: 1,
+            }}
+            animate={{
+              x: [item.startX - 18, item.startX + 30, item.endX - 18],
+              y: [item.startY - 18, item.startY - 36, item.endY - 18],
+              scale: [1.15, 1, 0.68],
+              opacity: [1, 0.95, 0.3],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.15, ease: "easeInOut" }}
+          >
+            <div className="w-9 h-9 rounded-full bg-[#E07A5F] text-white flex items-center justify-center shadow-[0_10px_22px_rgba(224,122,95,0.45)] ring-2 ring-white/70">
+              <ShoppingCart size={17} />
+            </div>
+          </Motion.div>
+        ))}
+      </AnimatePresence>
 
       <main className="w-full mx-auto px-6 md:px-12 lg:px-[5%] pt-28 pb-20">
         {cartMessage && (
@@ -1100,7 +1159,7 @@ const ServicePage = () => {
                       const isActive = activeSpa === idx;
                       return (
                         <Motion.div
-                          key={service.id}
+                          key={`${service.id || service.slug || service.title}-${idx}`}
                           onClick={() => setActiveSpa(idx)}
                           whileHover={{ scale: isActive ? 1 : 1.02 }}
                           className={`cursor-pointer rounded-[16px] p-3 flex items-center gap-3 transition-all duration-300 border ${
@@ -1130,11 +1189,9 @@ const ServicePage = () => {
                               >
                                 {service.title}
                               </h4>
-                              {!isActive && (
-                                <span className="font-black text-[13px] text-[#7FB069] shrink-0">
-                                  {service.price}
-                                </span>
-                              )}
+                              <span className={`font-black text-[14px] shrink-0 ${isActive ? "text-[#E07A5F]" : "text-[#7FB069]"}`}>
+                                {service.price}
+                              </span>
                             </div>
                             <p
                               className={`text-[12px] leading-snug transition-colors pr-1 ${isActive ? "text-white/70" : "text-[#1F2A37]/50 font-medium"}`}
@@ -1142,44 +1199,27 @@ const ServicePage = () => {
                               {service.shortDesc}
                             </p>
                             {isActive && (
-                              <p className="text-[10px] text-white/40 mt-0.5">
-                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <button
+                                  onClick={(e) => handleAddToCart(e, service.apiService || service)}
+                                  className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                >
+                                  <ShoppingCart size={12} /> Add to Cart
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/service/${service.slug}`, {
+                                      state: { apiService: service.apiService },
+                                    });
+                                  }}
+                                  className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
+                                >
+                                  Book Now
+                                </button>
+                              </div>
                             )}
                           </div>
-
-                          <AnimatePresence>
-                            {isActive && (
-                              <Motion.div
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                className="ml-auto hidden sm:flex flex-col items-end gap-1.5 shrink-0"
-                              >
-                                <span className="font-black text-[16px] text-[#E07A5F] leading-none mb-1">
-                                  {service.price}
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={(e) => handleAddToCart(e, service.apiService || service)}
-                                    className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                  >
-                                    <ShoppingCart size={12} /> Add to Cart
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/service/${service.slug}`, {
-                                        state: { apiService: service.apiService },
-                                      });
-                                    }}
-                                    className="px-3 py-1.5 bg-[#E07A5F] text-white rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-[#c56a52] shadow-sm transition-colors whitespace-nowrap"
-                                  >
-                                    Book Now
-                                  </button>
-                                </div>
-                              </Motion.div>
-                            )}
-                          </AnimatePresence>
                         </Motion.div>
                       );
                     })

@@ -3,6 +3,12 @@ import type { NavigatorScreenParams } from "@react-navigation/native";
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
+  ForgotPassword: {
+    email?: string;
+  } | undefined;
+  ResetPassword: {
+    resetToken?: string;
+  } | undefined;
   VerifyOtp: {
     email: string;
     canAutoLogin: boolean;
@@ -28,6 +34,9 @@ export type AccountStackParamList = {
     bookingId: string;
   };
   Wallet: undefined;
+  ChangePassword: undefined;
+  NotificationCenter: undefined;
+  Feedback: undefined;
 };
 
 export type MainTabParamList = {
