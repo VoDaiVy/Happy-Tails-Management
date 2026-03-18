@@ -1,6 +1,6 @@
 import axios from "axios";
 import { env } from "../config/env";
-import { ApiError, extractApiMessage } from "../utils/apiError";
+import { ApiError, extractApiCode, extractApiDetails, extractApiMessage, mapBackendErrorMessage } from "../utils/apiError";
 
 let accessToken: string | null = null;
 let refreshTokenValue: string | null = null;
@@ -78,7 +78,7 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (!error?.response) {
-      return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true));
+      return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true, "NETWORK_ERROR"));
     }
 
     const statusCode = error.response.status as number;
@@ -107,12 +107,19 @@ axiosClient.interceptors.response.use(
       setAccessToken(null);
       setRefreshToken(null);
       onAuthInvalid?.();
-      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401));
+      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401, false, "TOKEN_EXPIRED"));
     }
 
+    const backendCode = extractApiCode(error.response.data);
+    const backendDetails = extractApiDetails(error.response.data);
     const backendMessage = extractApiMessage(error.response.data);
     const fallbackMessage = typeof error.message === "string" ? error.message : "Yeu cau that bai";
+    const finalMessage = mapBackendErrorMessage({
+      code: backendCode,
+      statusCode,
+      fallback: backendMessage || fallbackMessage,
+    });
 
-    return Promise.reject(new ApiError(backendMessage || fallbackMessage, statusCode));
+    return Promise.reject(new ApiError(finalMessage, statusCode, false, backendCode || undefined, backendDetails));
   }
 );

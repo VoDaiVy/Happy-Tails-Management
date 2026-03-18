@@ -2,7 +2,7 @@
   "expo": {
     "name": "mobile",
     "slug": "mobile",
-    "scheme": "happytails",
+    "scheme": ["happytails", "com.hosyhung.mobile", "my-happy-tails-app"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

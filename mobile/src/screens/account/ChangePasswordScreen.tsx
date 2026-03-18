@@ -101,7 +101,7 @@ export function ChangePasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
+  container: { flex: 1, backgroundColor: "#F4F1EC", padding: 16 },
   title: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
   subtitle: { marginTop: 4, color: "#64748B" },
   form: { marginTop: 14, gap: 8 },
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: 8,
     borderRadius: 10,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#D87D4A",
     alignItems: "center",
     paddingVertical: 12,
   },
