@@ -130,7 +130,7 @@ export function BookingCameraScreen({ route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
+  container: { flex: 1, backgroundColor: "#F4F1EC", padding: 16 },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center" },
   title: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
   subtitle: { color: "#64748B", marginTop: 4, marginBottom: 10 },
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   btn: {
     flex: 1,
     borderRadius: 10,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#D87D4A",
     alignItems: "center",
     paddingVertical: 10,
   },

@@ -37,6 +37,18 @@ const depositSchema = Joi.object({
     .allow('')
     .messages({
       'string.max': 'Note must be less than 200 characters'
+    }),
+  returnUrl: Joi.string()
+    .uri({ allowRelative: false })
+    .optional()
+    .messages({
+      'string.uri': 'returnUrl must be a valid absolute URL'
+    }),
+  cancelUrl: Joi.string()
+    .uri({ allowRelative: false })
+    .optional()
+    .messages({
+      'string.uri': 'cancelUrl must be a valid absolute URL'
     })
 });
 

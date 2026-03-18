@@ -19,6 +19,31 @@ export async function updateMyProfile(payload: UpdateProfilePayload) {
   return response.data;
 }
 
+export async function updateProfileAvatar(payload: {
+  uri: string;
+  type?: string;
+  fileName?: string;
+}) {
+  const formData = new FormData();
+  formData.append("avatar", {
+    uri: payload.uri,
+    type: payload.type || "image/jpeg",
+    name: payload.fileName || `avatar-${Date.now()}.jpg`,
+  } as unknown as Blob);
+
+  const response = await axiosClient.put<{
+    status: "success" | "error";
+    message: string;
+    data: { avatar: string };
+  }>("/profile/avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
+
 export async function getProfileCompletion() {
   const response = await axiosClient.get<ProfileCompletionResponse>("/profile/completion");
   return response.data.data;

@@ -6,6 +6,7 @@ export { MyBookingsScreen } from "./MyBookingsScreen";
 export { BookingDetailScreen } from "./BookingDetailScreen";
 export { BookingCameraScreen } from "./BookingCameraScreen";
 export { WalletScreen } from "./WalletScreen";
+export { WalletTransactionDetailScreen } from "./WalletTransactionDetailScreen";
 export { ChangePasswordScreen } from "./ChangePasswordScreen";
 export { NotificationCenterScreen } from "./NotificationCenterScreen";
 export { FeedbackScreen } from "./FeedbackScreen";

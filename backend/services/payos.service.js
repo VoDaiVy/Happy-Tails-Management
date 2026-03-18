@@ -68,11 +68,13 @@ const callCancelPaymentLink = async (paymentLinkId, cancellationReason = undefin
  * @param {ObjectId} params.walletId - Wallet ID
  * @param {number} params.amount - Amount in VND
  * @param {string} params.note - Optional note
+ * @param {string} [params.returnUrl] - Optional per-request return URL
+ * @param {string} [params.cancelUrl] - Optional per-request cancel URL
  * @param {Object} params.user - User object with fullName, email, phone
  * @param {Object} params.wallet - Wallet object for balanceBefore
  * @returns {Promise<Object>} { checkoutUrl, orderCode, transactionCode, expiredAt }
  */
-const createPaymentLink = async ({ userId, walletId, amount, note, user, wallet }) => {
+const createPaymentLink = async ({ userId, walletId, amount, note, returnUrl, cancelUrl, user, wallet }) => {
   try {
     // Step 1: Generate unique numeric orderCode for PayOS
     const orderCode = await Transaction.generatePayOSOrderCode();
@@ -106,8 +108,8 @@ const createPaymentLink = async ({ userId, walletId, amount, note, user, wallet 
       orderCode: orderCode,
       amount: amount,
       description: description,
-      returnUrl: payosConfig.returnUrl,
-      cancelUrl: payosConfig.cancelUrl,
+      returnUrl: returnUrl || payosConfig.returnUrl,
+      cancelUrl: cancelUrl || payosConfig.cancelUrl,
       items: [{
         name: 'Nap tien vi',
         quantity: 1,

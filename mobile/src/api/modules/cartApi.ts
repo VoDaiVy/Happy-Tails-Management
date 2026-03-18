@@ -1,5 +1,5 @@
 import { axiosClient } from "../axiosClient";
-import type { CartCheckoutPayload, CartEnvelope } from "../../types/cart";
+import type { CartEnvelope } from "../../types/cart";
 
 export async function getCart() {
   const response = await axiosClient.get<CartEnvelope>("/cart");
@@ -24,9 +24,4 @@ export async function removeCartItem(itemId: string) {
 export async function clearCart() {
   const response = await axiosClient.delete<CartEnvelope>("/cart");
   return response.data.data;
-}
-
-export async function checkoutCart(payload: CartCheckoutPayload) {
-  const response = await axiosClient.post("/cart/checkout", payload);
-  return response.data;
 }

@@ -10,24 +10,26 @@ import { NotificationCenterScreen } from "../screens/account/NotificationCenterS
 import { ProfileScreen } from "../screens/account/ProfileScreen";
 import { ShoppingCartScreen } from "../screens/account/ShoppingCartScreen";
 import { WalletScreen } from "../screens/account/WalletScreen";
+import { WalletTransactionDetailScreen } from "../screens/account/WalletTransactionDetailScreen";
 import type { AccountStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<AccountStackParamList>();
 
 export function AccountStackNavigator() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="AccountHome" component={AccountScreen} options={{ title: "Tai khoan" }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
-      <Stack.Screen name="MyPets" component={MyPetsScreen} options={{ title: "My Pets" }} />
-      <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} options={{ title: "Shopping Cart" }} />
-      <Stack.Screen name="MyBookings" component={MyBookingsScreen} options={{ title: "Bookings" }} />
-      <Stack.Screen name="BookingDetail" component={BookingDetailScreen} options={{ title: "Booking Detail" }} />
-      <Stack.Screen name="BookingCamera" component={BookingCameraScreen} options={{ title: "Booking Camera" }} />
-      <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: "Wallet" }} />
-      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: "Change Password" }} />
-      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} options={{ title: "Notifications" }} />
-      <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: "Feedback" }} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AccountHome" component={AccountScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="MyPets" component={MyPetsScreen} />
+      <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} />
+      <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
+      <Stack.Screen name="BookingCamera" component={BookingCameraScreen} />
+      <Stack.Screen name="Wallet" component={WalletScreen} />
+      <Stack.Screen name="WalletTransactionDetail" component={WalletTransactionDetailScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
+      <Stack.Screen name="Feedback" component={FeedbackScreen} />
     </Stack.Navigator>
   );
 }

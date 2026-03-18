@@ -1,19 +1,6 @@
 import { axiosClient } from "../axiosClient";
+import { extractPayload } from "../responseParser";
 import type { CameraAccessSession, CameraItem } from "../../types/camera";
-
-function extractPayload<T>(raw: unknown): T {
-  const data = raw as { message?: unknown; data?: unknown };
-
-  if (data && typeof data.message === "object" && data.message !== null) {
-    return data.message as T;
-  }
-
-  if (data && typeof data.data === "object" && data.data !== null) {
-    return data.data as T;
-  }
-
-  return raw as T;
-}
 
 export async function enableBookingCameraAccess(bookingId: string): Promise<CameraAccessSession> {
   const response = await axiosClient.post(`/camera/booking/${bookingId}/enable`);
@@ -44,4 +31,41 @@ export async function getAllCameras() {
   const response = await axiosClient.get("/camera");
   const payload = extractPayload<{ cameras?: CameraItem[] }>(response.data);
   return payload.cameras || [];
+}
+
+export async function getCamerasByRoom(roomId: string) {
+  const response = await axiosClient.get(`/camera/room/${roomId}`);
+  const payload = extractPayload<{ cameras?: CameraItem[] }>(response.data);
+  return payload.cameras || [];
+}
+
+export async function getCameraById(cameraId: string) {
+  const response = await axiosClient.get(`/camera/${cameraId}`);
+  return extractPayload<CameraItem>(response.data);
+}
+
+export interface CreateCameraPayload {
+  room: string;
+  cameraName: string;
+  streamUrl?: string;
+  position?: string;
+  resolution?: string;
+  cameraType?: string;
+  isOnline?: boolean;
+  isActive?: boolean;
+}
+
+export async function createCamera(payload: CreateCameraPayload) {
+  const response = await axiosClient.post("/camera", payload);
+  return extractPayload<CameraItem>(response.data);
+}
+
+export async function updateCamera(cameraId: string, payload: Partial<CreateCameraPayload>) {
+  const response = await axiosClient.patch(`/camera/${cameraId}`, payload);
+  return extractPayload<CameraItem>(response.data);
+}
+
+export async function deleteCamera(cameraId: string) {
+  const response = await axiosClient.delete(`/camera/${cameraId}`);
+  return extractPayload<null>(response.data);
 }
