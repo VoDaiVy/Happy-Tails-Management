@@ -9,6 +9,7 @@ import {
   DollarSign,
   Ticket,
   Briefcase,
+  BookOpen,
 } from "lucide-react";
 
 const adminMenuItems = [
@@ -17,6 +18,7 @@ const adminMenuItems = [
   { path: "/admin/users", icon: Users, label: "Users" },
   { path: "/admin/rooms", icon: DoorOpen, label: "Rooms" },
   { path: "/admin/services", icon: Briefcase, label: "Services" },
+  { path: "/admin/policies", icon: BookOpen, label: "Policies" },
   { path: "/admin/medical-records", icon: FileText, label: "Medical Records" },
   { path: "/admin/transactions", icon: DollarSign, label: "Transactions" },
   { path: "/admin/vouchers", icon: Ticket, label: "Vouchers" },

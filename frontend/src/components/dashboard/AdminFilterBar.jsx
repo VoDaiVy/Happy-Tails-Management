@@ -133,8 +133,11 @@ const AdminFilterBar = ({
   onCreateClick,
   createLabel = "Create",
   extraActions = null,
+  className = "",
 }) => (
-  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end bg-white p-3 rounded-[24px] shadow-sm border border-[#2D3436]/5">
+  <div
+    className={`flex flex-wrap lg:flex-nowrap gap-3 items-end bg-white p-3 rounded-[24px] shadow-sm border border-[#2D3436]/5 ${className}`}
+  >
     {/* ── Search ── */}
     <div className="relative flex-[4] min-w-[180px] flex flex-col">
       <span className="text-[11px] font-bold text-[#D97853] uppercase tracking-widest ml-1 mb-1.5">

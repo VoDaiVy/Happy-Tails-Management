@@ -29,6 +29,7 @@ import MedicalRecordManagement from "./pages/dashboard/admin/AdminMedicalRecordM
 import TransactionManagement from "./pages/dashboard/admin/AdminTransactionManagement";
 import VoucherManagement from "./pages/dashboard/admin/AdminVoucherManagement";
 import ServiceManagement from "./pages/dashboard/admin/AdminServiceManagement";
+import AdminPolicyManagement from "./pages/dashboard/admin/AdminPolicyManagement";
 import FloatingChatBubble from "./components/FloatingChatBubble";
 
 function App() {
@@ -99,6 +100,7 @@ function App() {
               element={<MedicalRecordManagement />}
             />
             <Route path="transactions" element={<TransactionManagement />} />
+            <Route path="policies" element={<AdminPolicyManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
           </Route>
 
