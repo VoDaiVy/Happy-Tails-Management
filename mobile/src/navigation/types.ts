@@ -33,6 +33,9 @@ export type AccountStackParamList = {
   BookingDetail: {
     bookingId: string;
   };
+  BookingCamera: {
+    bookingId?: string;
+  } | undefined;
   Wallet: undefined;
   ChangePassword: undefined;
   NotificationCenter: undefined;
@@ -42,5 +45,7 @@ export type AccountStackParamList = {
 export type MainTabParamList = {
   ServicesTab: undefined;
   BookingTab: undefined;
+  InfoTab: undefined;
+  ManagementTab: undefined;
   AccountTab: NavigatorScreenParams<AccountStackParamList> | undefined;
 };

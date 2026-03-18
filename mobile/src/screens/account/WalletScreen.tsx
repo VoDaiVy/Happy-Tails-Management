@@ -10,9 +10,12 @@ import {
   View,
 } from "react-native";
 import { createDepositLink, getWalletInfo, getWalletTransactions } from "../../api/modules/walletApi";
+import { useAuth } from "../../context/AuthContext";
 import type { WalletInfo, WalletTransaction } from "../../types/wallet";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 export function WalletScreen() {
+  const { user } = useAuth();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +24,7 @@ export function WalletScreen() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   const loadWalletData = useCallback(async () => {
     setLoading(true);
@@ -40,8 +44,20 @@ export function WalletScreen() {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadWalletData();
-  }, [loadWalletData]);
+  }, [canAccess, loadWalletData]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const onCreateDeposit = async () => {
     const parsed = Number(amount);

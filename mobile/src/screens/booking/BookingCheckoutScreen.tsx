@@ -17,8 +17,10 @@ import {
 import * as Yup from "yup";
 import { checkoutBooking } from "../../api/modules/bookingApi";
 import { getMyPets } from "../../api/modules/petApi";
+import { useAuth } from "../../context/AuthContext";
 import type { BookingStackParamList } from "../../navigation/types";
 import type { Pet } from "../../types/pet";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<BookingStackParamList, "BookingCheckout">;
 
@@ -31,13 +33,20 @@ const BookingSchema = Yup.object({
 });
 
 export function BookingCheckoutScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsLoading, setPetsLoading] = useState(true);
   const [petsError, setPetsError] = useState("");
   const [showVoucherHint, setShowVoucherHint] = useState(false);
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   useEffect(() => {
+    if (!canAccess) {
+      setPetsLoading(false);
+      return;
+    }
+
     const loadPets = async () => {
       setPetsLoading(true);
       setPetsError("");
@@ -52,7 +61,15 @@ export function BookingCheckoutScreen({ navigation }: Props) {
     };
 
     loadPets();
-  }, []);
+  }, [canAccess]);
+
+  if (!canAccess) {
+    return (
+      <View style={[styles.wrapper, { justifyContent: "center", alignItems: "center", padding: 20 }]}>
+        <Text style={styles.error}>Tinh nang dat lich chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const initialDate = useMemo(() => {
     const now = new Date();
