@@ -11,9 +11,12 @@ import {
 } from "react-native";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { checkoutCart, clearCart, getCart, removeCartItem, updateCartItem } from "../../api/modules/cartApi";
+import { useAuth } from "../../context/AuthContext";
 import type { Cart, CartItem } from "../../types/cart";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 export function ShoppingCartScreen() {
+  const { user } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -21,6 +24,7 @@ export function ShoppingCartScreen() {
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   const loadCart = useCallback(async () => {
     setLoading(true);
@@ -36,8 +40,20 @@ export function ShoppingCartScreen() {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadCart();
-  }, [loadCart]);
+  }, [canAccess, loadCart]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const changeQuantity = async (item: CartItem, nextQty: number) => {
     if (nextQty < 1) return;

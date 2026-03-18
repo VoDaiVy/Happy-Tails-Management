@@ -9,20 +9,24 @@ import {
   View,
 } from "react-native";
 import { cancelBooking, getMyBookings } from "../../api/modules/bookingApi";
+import { useAuth } from "../../context/AuthContext";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { Booking } from "../../types/booking";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 const STATUS_FILTERS = ["all", "pending", "confirmed", "in-progress", "completed", "cancelled"] as const;
 
 type Props = NativeStackScreenProps<AccountStackParamList, "MyBookings">;
 
 export function MyBookingsScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [activeStatus, setActiveStatus] = useState<(typeof STATUS_FILTERS)[number]>("all");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const canAccess = canUseCustomerFeatures(user?.role);
 
   const loadBookings = useCallback(async (status: string) => {
     setLoading(true);
@@ -38,8 +42,20 @@ export function MyBookingsScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadBookings(activeStatus);
-  }, [activeStatus, loadBookings]);
+  }, [activeStatus, canAccess, loadBookings]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const onCancel = async (bookingId: string) => {
     setProcessingId(bookingId);
@@ -106,6 +122,13 @@ export function MyBookingsScreen({ navigation }: Props) {
                     {processingId === item._id ? <ActivityIndicator color="#fff" /> : <Text style={styles.cancelButtonText}>Cancel Booking</Text>}
                   </Pressable>
                 ) : null}
+
+                <Pressable
+                  style={styles.cameraButton}
+                  onPress={() => navigation.navigate("BookingCamera", { bookingId: item._id })}
+                >
+                  <Text style={styles.cameraButtonText}>Open Camera</Text>
+                </Pressable>
               </Pressable>
             );
           }}
@@ -151,6 +174,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   cancelButtonText: { color: "#fff", fontWeight: "700" },
+  cameraButton: {
+    marginTop: 8,
+    backgroundColor: "#0D9488",
+    borderRadius: 10,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  cameraButtonText: { color: "#fff", fontWeight: "700" },
   errorText: { paddingHorizontal: 16, color: "#DC2626", paddingBottom: 8 },
   successText: { paddingHorizontal: 16, color: "#059669", paddingBottom: 8 },
   disabled: { opacity: 0.65 },
