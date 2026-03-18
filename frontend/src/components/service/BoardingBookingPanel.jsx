@@ -11,19 +11,14 @@ import {
   ArrowRightLeft,
 } from "lucide-react";
 import { getMyPets } from "../../api/petApi";
-import { getMyBookings } from "../../api/bookingApi";
-import { addStayToCart } from "../../api/cartApi";
+import { getMyBookings, checkoutBoarding } from "../../api/bookingApi";
 import { getRoomsList } from "../../api/roomApi";
 import CalendarPicker from "./CalendarPicker";
+import TimeSlotPicker from "./TimeSlotPicker";
 
 const BOARDING_OPEN_MINUTES = 8 * 60; // 08:00
 const BOARDING_CLOSE_MINUTES = 23 * 60; // 23:00 (exclusive start)
 const BOARDING_SLOT_INTERVAL = 15;
-
-const ROOM_NIGHT_CAPACITY = {
-  standard: 4,
-  vip: 2,
-};
 
 const toIsoDate = (date) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
@@ -88,14 +83,6 @@ const rangesOverlap = (startA, endA, startB, endB) => {
   return startA < endB && startB < endA;
 };
 
-const buildMockNightlyInventory = (todayIso) => ({
-  standard: {
-    [addDaysIso(todayIso, 3)]: ROOM_NIGHT_CAPACITY.standard,
-  },
-  vip: {
-    [addDaysIso(todayIso, 2)]: ROOM_NIGHT_CAPACITY.vip,
-  },
-});
 
 const StepLabel = ({ icon, label, step, locked }) => {
   const IconComponent = icon;
@@ -138,11 +125,6 @@ export default function BoardingBookingPanel({
   const todayStr = toIsoDate(new Date());
   const hasToken = Boolean(localStorage.getItem("accessToken"));
 
-  // TODO: Replace with real room inventory endpoint by date-range.
-  const [nightlyBookedByType] = useState(() =>
-    buildMockNightlyInventory(toIsoDate(new Date())),
-  );
-
   const minCheckOutDate = checkInDate
     ? addDaysIso(checkInDate, 1)
     : addDaysIso(todayStr, 1);
@@ -172,17 +154,10 @@ export default function BoardingBookingPanel({
   const nights = stayNightDates.length;
   const totalPrice = nights * pricePerNight;
 
-  const unavailableNights = useMemo(() => {
-    const bookedByNight = nightlyBookedByType[roomType] || {};
-    const capacity = ROOM_NIGHT_CAPACITY[roomType] || 0;
+  const unavailableNights = useMemo(() => [], []);
 
-    return stayNightDates.filter(
-      (nightIso) => (bookedByNight[nightIso] || 0) >= capacity,
-    );
-  }, [nightlyBookedByType, roomType, stayNightDates]);
-
-  const roomAvailabilityPass =
-    stayNightDates.length > 0 && unavailableNights.length === 0;
+  // Availability is validated by selected room + backend stay-overlap check at checkout.
+  const roomAvailabilityPass = stayNightDates.length > 0 && Boolean(selectedRoomId);
 
   const overlappingPetIds = useMemo(() => {
     if (!checkInDate || !checkOutDate || stayNightDates.length === 0) {
@@ -198,24 +173,47 @@ export default function BoardingBookingPanel({
     return new Set(blocked);
   }, [petStays, checkInDate, checkOutDate, stayNightDates.length]);
 
-  const step2Locked = !checkInDate || !checkOutDate || nights < 1;
-  const step3Locked = step2Locked || !checkInTime;
-  const step4Locked = step3Locked || !selectedPet;
+  const step2Locked = !selectedPet;
+  const step3Locked = step2Locked || !checkInDate || !checkOutDate || nights < 1;
+  const step4Locked = step3Locked || !checkInTime;
   const step5Locked = step4Locked;
 
   const selectedPetOverlaps =
     selectedPet && overlappingPetIds.has(String(selectedPet));
 
   const canConfirm =
+    selectedPet &&
     checkInDate &&
     checkInTime &&
     checkOutDate &&
     nights >= 1 &&
     nights <= 30 &&
-    selectedPet &&
     roomAvailabilityPass &&
     !selectedPetOverlaps &&
     !isSubmitting;
+
+  const blockingReason = useMemo(() => {
+    if (!selectedPet) return "Missing field: please select a pet.";
+    if (!checkInDate) return "Missing field: please select a check-in date.";
+    if (!checkOutDate) return "Missing field: please select a check-out date.";
+    if (!checkInTime) return "Missing field: please select a check-in time.";
+    if (checkOutDate <= checkInDate) return "Check-out must be after check-in (minimum 1 night).";
+    if (!selectedRoomId) return "Missing field: please choose an available room.";
+    if (selectedPetOverlaps) return "Selected pet has an overlapping booking in this stay range.";
+    if (!roomAvailabilityPass) return `${roomTitle} is unavailable for one or more nights in your selected stay.`;
+    if (nights > 30) return "Maximum stay is 30 nights.";
+    return "";
+  }, [
+    selectedPet,
+    checkInDate,
+    checkOutDate,
+    checkInTime,
+    selectedRoomId,
+    selectedPetOverlaps,
+    roomAvailabilityPass,
+    roomTitle,
+    nights,
+  ]);
 
   useEffect(() => {
     let alive = true;
@@ -253,43 +251,50 @@ export default function BoardingBookingPanel({
           ? bookingResult.data.bookings
           : [];
 
-        const activeStatuses = new Set(["pending", "confirmed", "in-progress"]);
+        const activeStatuses = new Set([
+          "pending",
+          "confirmed",
+          "accepted",
+          "in-progress",
+        ]);
         const stays = [];
 
         rawBookings.forEach((booking) => {
-          if (!activeStatuses.has(booking?.status)) return;
+          const normalizedStatus = String(booking?.status || "")
+            .trim()
+            .toLowerCase();
+          if (!activeStatuses.has(normalizedStatus)) return;
+          if (!booking?.stayInfo?.enabled) return;
 
-          const bookingStartDate = toIsoDate(new Date(booking?.bookingDate));
+          const bookingStartDate = toIsoDate(
+            new Date(booking?.stayInfo?.checkInDate || booking?.bookingDate),
+          );
           if (!bookingStartDate) return;
 
-          const hasBoardingSignal =
-            Boolean(booking?.room) ||
-            (Array.isArray(booking?.items) &&
-              booking.items.some((item) => {
-                const serviceName = (item?.service?.name || "").toLowerCase();
-                return (
-                  serviceName.includes("board") ||
-                  serviceName.includes("hotel") ||
-                  serviceName.includes("room") ||
-                  serviceName.includes("luu tru")
-                );
-              }));
+          const bookingEndDate = booking?.stayInfo?.checkOutDate
+            ? toIsoDate(new Date(booking.stayInfo.checkOutDate))
+            : addDaysIso(bookingStartDate, 1);
+          if (!bookingEndDate) return;
 
-          if (!hasBoardingSignal) return;
-
-          // Backend currently has no check-out field for boarding bookings, so fallback 1 night.
-          const bookingEndDate = addDaysIso(bookingStartDate, 1);
-
-          (booking?.items || []).forEach((item) => {
-            const petId = item?.pet?._id || item?.pet;
-            if (!petId) return;
-
+          const boardingPetId = booking?.boardingPet?._id || booking?.boardingPet;
+          if (boardingPetId) {
             stays.push({
-              petId: String(petId),
+              petId: String(boardingPetId),
               startDate: bookingStartDate,
               endDate: bookingEndDate,
             });
-          });
+            return;
+          }
+
+          // Fallback for legacy bookings that stored pet only in items.
+          const legacyPetId = booking?.items?.[0]?.pet?._id || booking?.items?.[0]?.pet;
+          if (legacyPetId) {
+            stays.push({
+              petId: String(legacyPetId),
+              startDate: bookingStartDate,
+              endDate: bookingEndDate,
+            });
+          }
         });
 
         if (alive) {
@@ -315,14 +320,42 @@ export default function BoardingBookingPanel({
 
   useEffect(() => {
     let alive = true;
-    getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" })
+    const roomQuery = {
+      type: roomType,
+      isAvailable: "true",
+      isActive: "true",
+      ...(checkInDate && checkOutDate
+        ? {
+            checkInDate,
+            checkOutDate,
+            checkInTime: checkInTime || "00:00",
+            checkOutTime: "10:00",
+          }
+        : {}),
+    };
+
+    getRoomsList(roomQuery)
       .then((res) => {
         if (!alive) return;
-        const rows = Array.isArray(res?.data) ? res.data : [];
+        const rows = Array.isArray(res?.data?.rooms)
+          ? res.data.rooms
+          : Array.isArray(res?.rooms)
+            ? res.rooms
+            : Array.isArray(res?.data)
+              ? res.data
+              : [];
         setRoomChoices(rows);
-        if (rows[0]?._id) {
-          setSelectedRoomId(rows[0]._id);
-        }
+
+        const firstAvailable =
+          rows.find((room) => Number(room?.remainingCapacity ?? room?.capacity ?? 0) > 0)?._id ||
+          rows[0]?._id ||
+          "";
+
+        setSelectedRoomId((prev) =>
+          prev && rows.some((room) => room._id === prev)
+            ? prev
+            : firstAvailable,
+        );
       })
       .catch(() => {
         if (!alive) return;
@@ -333,38 +366,29 @@ export default function BoardingBookingPanel({
     return () => {
       alive = false;
     };
-  }, [roomType]);
+  }, [roomType, checkInDate, checkOutDate, checkInTime]);
 
   useEffect(() => {
     if (checkInTime && !visibleCheckInSlots.includes(checkInTime)) {
       setCheckInTime("");
-      setSelectedPet("");
     }
   }, [checkInTime, visibleCheckInSlots]);
 
   useEffect(() => {
     if (checkOutDate && minCheckOutDate && checkOutDate < minCheckOutDate) {
       setCheckOutDate("");
-      setSelectedPet("");
     }
   }, [checkOutDate, minCheckOutDate]);
 
-  useEffect(() => {
-    if (selectedPet && overlappingPetIds.has(String(selectedPet))) {
-      setSelectedPet("");
-    }
-  }, [selectedPet, overlappingPetIds]);
-
   const validate = () => {
+    if (!selectedPet) return "Please select a pet for boarding";
     if (!checkInDate) return "Please select a check-in date";
-    if (!checkInTime) return "Please select a check-in time";
     if (!checkOutDate) return "Please select a check-out date";
+    if (!checkInTime) return "Please select a check-in time";
 
     if (checkOutDate <= checkInDate) {
       return "Minimum stay is 1 night";
     }
-
-    if (!selectedPet) return "Please select a pet for boarding";
 
     if (selectedPetOverlaps) {
       return "Selected pet has overlapping boarding booking in this stay";
@@ -396,23 +420,24 @@ export default function BoardingBookingPanel({
         return;
       }
 
-      await addStayToCart({
+      await checkoutBoarding({
+        petId: selectedPet,
         roomId: selectedRoomId,
-        checkInDate,
-        checkOutDate,
-        nights,
-        note: notes,
-        metadata: {
-          roomType,
-          roomTitle,
-          selectedPet,
-        },
+        stayCheckInDate: checkInDate,
+        stayCheckInTime: checkInTime,
+        stayCheckOutDate: checkOutDate,
+        stayCheckOutTime: "10:00",
+        notes,
       });
       setSubmitSuccess(
-        "Boarding package added to cart. Open Cart to checkout with your other services.",
+        "Boarding booking created successfully.",
       );
-    } catch {
-      setSubmitError("Unable to add the boarding package to cart. Please try again.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+        "Unable to create boarding booking. Please try again.";
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -435,165 +460,176 @@ export default function BoardingBookingPanel({
         </div>
       </div>
 
-      <StepLabel icon={Calendar} step={1} label="Select Stay Dates" />
-      {roomChoices.length > 0 && (
-        <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3 mb-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Available room</p>
-          <select
-            value={selectedRoomId}
-            onChange={(e) => setSelectedRoomId(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#1F2A37]"
-          >
-            {roomChoices.map((room) => (
-              <option key={room._id} value={room._id}>
-                {room.roomNumber} - {room.name}
-              </option>
-            ))}
-          </select>
-          {selectedRoomData && (
-            <p className="text-xs text-gray-500 mt-1">{selectedRoomData.type} · Capacity {selectedRoomData.capacity}</p>
-          )}
+      <StepLabel icon={PawPrint} step={1} label="Select Pet" />
+
+      {!hasToken ? (
+        <div className="text-xs text-gray-500 py-2">
+          Please sign in to load your pets.
         </div>
-      )}
-      <div className="rounded-2xl border border-[#E8E3DB] bg-[#F9F7F4] p-3.5">
-        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] gap-2.5 items-center">
-          <div className="space-y-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Check-in
-            </p>
-            <CalendarPicker
-              selectedDate={checkInDate}
-              onChange={(date) => {
-                setCheckInDate(date);
-                setCheckInTime("");
-                setCheckOutDate("");
-                setSelectedPet("");
-                setSubmitError("");
-                setSubmitSuccess("");
-              }}
-              minDate={todayStr}
-              placeholder="Select check-in date..."
-              compact
-            />
-          </div>
-
-          <div className="hidden sm:flex h-full items-center justify-center text-[#E07A5F]/55">
-            <ArrowRightLeft size={16} />
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Check-out
-            </p>
-            <CalendarPicker
-              selectedDate={checkOutDate}
-              onChange={(date) => {
-                setCheckOutDate(date);
-                setSelectedPet("");
-                setSubmitError("");
-                setSubmitSuccess("");
-              }}
-              minDate={minCheckOutDate}
-              placeholder={
-                checkInDate
-                  ? "Select check-out date..."
-                  : "Choose check-in first"
-              }
-              disabled={!checkInDate}
-              compact
-            />
-          </div>
+      ) : petsLoading ? (
+        <div className="text-xs text-gray-400 py-2">Loading pets...</div>
+      ) : pets.length === 0 ? (
+        <div className="text-xs text-gray-500 py-2">
+          No pets found in your account.
         </div>
+      ) : (
+        <div className="space-y-2">
+          {pets.map((pet) => {
+            const blocked = overlappingPetIds.has(String(pet.id));
+            const selected = selectedPet === String(pet.id);
 
-        <div className="mt-2.5 flex items-center justify-between text-[11px] text-gray-500">
-          <span>Minimum stay is 1 night.</span>
-          {nights > 0 ? (
-            <span className="rounded-full bg-[#E07A5F]/10 px-2 py-0.5 font-semibold text-[#E07A5F]">
-              {nights} night{nights > 1 ? "s" : ""}
-            </span>
-          ) : (
-            <span className="text-gray-400">Select both dates to continue</span>
-          )}
-        </div>
-      </div>
-
-      {!step2Locked && !roomAvailabilityPass && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          {roomTitle} is unavailable for one or more nights in your selected
-          stay.
+            return (
+              <button
+                key={pet.id}
+                type="button"
+                disabled={blocked}
+                onClick={() => {
+                  if (blocked) return;
+                  setSelectedPet(String(pet.id));
+                  setSubmitError("");
+                }}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                  blocked
+                    ? selected
+                      ? "border-red-200 bg-red-50 text-red-500 cursor-not-allowed"
+                      : "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
+                    : selected
+                      ? "border-[#E07A5F] bg-[#E07A5F]/5"
+                      : "border-gray-100 hover:border-gray-300"
+                }`}
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E07A5F]/10 text-[#E07A5F]">
+                  <PawPrint size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-[#1F2A37] truncate">
+                    {pet.name}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {pet.type}
+                    {pet.breed ? ` - ${pet.breed}` : ""}
+                  </p>
+                  {blocked && (
+                    <p className="text-[11px] text-red-400 mt-0.5">
+                      Unavailable due to overlapping boarding stay
+                    </p>
+                  )}
+                </div>
+                {selected && !blocked && (
+                  <CheckCircle2
+                    size={16}
+                    className="ml-auto text-[#E07A5F]"
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
       <Divider />
 
       <div className={step2Locked ? "opacity-40 pointer-events-none" : ""}>
-        <StepLabel
-          icon={Clock}
-          step={2}
-          label="Select Check-in Time"
-          locked={step2Locked}
-        />
-
-        {!checkInDate ? (
-          <div className="grid grid-cols-4 gap-1.5">
-            {Array(8)
-              .fill(null)
-              .map((_, i) => (
-                <div
-                  key={i}
-                  className="h-9 rounded-xl bg-gray-100 animate-pulse"
-                />
+        <StepLabel icon={Calendar} step={2} label="Select Stay Dates" locked={step2Locked} />
+        {roomChoices.length > 0 && (
+          <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3 mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Available room</p>
+            <select
+              value={selectedRoomId}
+              onChange={(e) => setSelectedRoomId(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#1F2A37]"
+            >
+              {roomChoices.map((room) => (
+                <option
+                  key={room._id}
+                  value={room._id}
+                  disabled={Number(room?.remainingCapacity ?? room?.capacity ?? 0) <= 0}
+                >
+                  {room.roomNumber} - {room.name}
+                  {Number.isFinite(Number(room?.remainingCapacity))
+                    ? ` (${Number(room.remainingCapacity)}/${Number(room.capacity || 0)} left)`
+                    : ""}
+                </option>
               ))}
+            </select>
+            {selectedRoomData && (
+              <p className="text-xs text-gray-500 mt-1">
+                {selectedRoomData.type} · Remaining {selectedRoomData.remainingCapacity ?? selectedRoomData.capacity}/{selectedRoomData.capacity}
+              </p>
+            )}
           </div>
-        ) : visibleCheckInSlots.length === 0 ? (
-          <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
-            <p className="text-amber-600 text-[13px] font-semibold">
-              No check-in slots left for today (08:00-22:45).
-            </p>
-            <p className="text-amber-500 text-[12px] mt-0.5">
-              Please choose another check-in date.
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="text-[11px] text-gray-400 font-medium mb-2">
-              <span className="font-bold text-[#1F2A37]/60">
-                {visibleCheckInSlots.length}
-              </span>{" "}
-              slots available
-            </p>
-            <div className="grid grid-cols-4 gap-1.5 max-h-[210px] overflow-y-auto pr-0.5">
-              {visibleCheckInSlots.map((slot) => {
-                const unavailable = unavailableCheckInSlots.has(slot);
-                const selected = checkInTime === slot;
-
-                return (
-                  <button
-                    key={slot}
-                    type="button"
-                    disabled={unavailable}
-                    onClick={() => {
-                      if (unavailable) return;
-                      setCheckInTime(slot);
-                      setSelectedPet("");
-                      setSubmitError("");
-                      setSubmitSuccess("");
-                    }}
-                    className={[
-                      "py-2 text-[11px] font-bold rounded-xl border-2 transition-all duration-150 leading-none text-center w-full",
-                      selected
-                        ? "bg-[#E07A5F] text-white border-[#E07A5F] shadow-md shadow-[#E07A5F]/25 scale-[1.04]"
-                        : unavailable
-                          ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed line-through decoration-gray-300"
-                          : "bg-white border border-gray-200 text-[#1F2A37] hover:border-[#E07A5F] hover:text-[#E07A5F] cursor-pointer active:scale-95",
-                    ].join(" ")}
-                  >
-                    {slot}
-                  </button>
-                );
-              })}
+        )}
+        <div className="rounded-2xl border border-[#E8E3DB] bg-[#F9F7F4] p-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] gap-2.5 items-center">
+            <div className="space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                Check-in
+              </p>
+              <CalendarPicker
+                selectedDate={checkInDate}
+                onChange={(date) => {
+                  setCheckInDate(date);
+                  setCheckInTime("");
+                  setCheckOutDate("");
+                  setSubmitError("");
+                  setSubmitSuccess("");
+                }}
+                minDate={todayStr}
+                placeholder="Select check-in date..."
+                compact
+              />
             </div>
-          </>
+
+            <div className="hidden sm:flex h-full items-center justify-center text-[#E07A5F]/55">
+              <ArrowRightLeft size={16} />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                Check-out
+              </p>
+              <CalendarPicker
+                selectedDate={checkOutDate}
+                onChange={(date) => {
+                  setCheckOutDate(date);
+                  setSubmitError("");
+                  setSubmitSuccess("");
+                }}
+                minDate={minCheckOutDate}
+                placeholder={
+                  checkInDate
+                    ? "Select check-out date..."
+                    : "Choose check-in first"
+                }
+                disabled={!checkInDate}
+                compact
+              />
+            </div>
+          </div>
+
+          <div className="mt-2.5 flex items-center justify-between text-[11px] text-gray-500">
+            <span>Minimum stay is 1 night.</span>
+            {nights > 0 ? (
+              <span className="rounded-full bg-[#E07A5F]/10 px-2 py-0.5 font-semibold text-[#E07A5F]">
+                {nights} night{nights > 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="text-gray-400">Select both dates to continue</span>
+            )}
+          </div>
+        </div>
+
+        {!step2Locked && !roomAvailabilityPass && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 mt-3">
+            {roomTitle} is unavailable for one or more nights in your selected
+            stay.
+          </div>
+        )}
+
+        {!step2Locked && selectedPetOverlaps && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 mt-3">
+            Selected pet has overlapping boarding booking in this stay.
+          </div>
         )}
       </div>
 
@@ -601,74 +637,24 @@ export default function BoardingBookingPanel({
 
       <div className={step3Locked ? "opacity-40 pointer-events-none" : ""}>
         <StepLabel
-          icon={PawPrint}
+          icon={Clock}
           step={3}
-          label="Select Pet"
+          label="Select Check-in Time"
           locked={step3Locked}
         />
 
-        {!hasToken ? (
-          <div className="text-xs text-gray-500 py-2">
-            Please sign in to load your pets.
-          </div>
-        ) : petsLoading ? (
-          <div className="text-xs text-gray-400 py-2">Loading pets...</div>
-        ) : pets.length === 0 ? (
-          <div className="text-xs text-gray-500 py-2">
-            No pets found in your account.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {pets.map((pet) => {
-              const blocked = overlappingPetIds.has(String(pet.id));
-              const selected = selectedPet === String(pet.id);
-
-              return (
-                <button
-                  key={pet.id}
-                  type="button"
-                  disabled={blocked}
-                  onClick={() => {
-                    if (blocked) return;
-                    setSelectedPet(String(pet.id));
-                    setSubmitError("");
-                  }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                    blocked
-                      ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
-                      : selected
-                        ? "border-[#E07A5F] bg-[#E07A5F]/5"
-                        : "border-gray-100 hover:border-gray-300"
-                  }`}
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E07A5F]/10 text-[#E07A5F]">
-                    <PawPrint size={16} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-[#1F2A37] truncate">
-                      {pet.name}
-                    </p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {pet.type}
-                      {pet.breed ? ` - ${pet.breed}` : ""}
-                    </p>
-                    {blocked && (
-                      <p className="text-[11px] text-red-400 mt-0.5">
-                        Unavailable due to overlapping boarding stay
-                      </p>
-                    )}
-                  </div>
-                  {selected && !blocked && (
-                    <CheckCircle2
-                      size={16}
-                      className="ml-auto text-[#E07A5F]"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <TimeSlotPicker
+          selectedDate={checkInDate}
+          slots={CHECK_IN_SLOTS}
+          bookedSlots={[...unavailableCheckInSlots]}
+          selectedSlot={checkInTime}
+          onSelect={(slot) => {
+            setCheckInTime(slot);
+            setSubmitError("");
+            setSubmitSuccess("");
+          }}
+          intervalMinutes={BOARDING_SLOT_INTERVAL}
+        />
       </div>
 
       <Divider />
@@ -753,6 +739,12 @@ export default function BoardingBookingPanel({
             <p className="text-[12px] text-red-600 font-medium">
               {submitError}
             </p>
+          </div>
+        )}
+
+        {!canConfirm && !submitError && blockingReason && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+            <p className="text-[12px] text-amber-700 font-medium">{blockingReason}</p>
           </div>
         )}
 

@@ -33,6 +33,16 @@ const toISODate = (d) => d.toISOString().split("T")[0];
 
 const splitDateTime = (date, time) => new Date(`${date}T${time}:00`).toISOString();
 
+const STAY_OPEN_MINUTES = 8 * 60;
+const STAY_CLOSE_MINUTES = 23 * 60;
+const STAY_INTERVAL_MINUTES = 15;
+
+const minutesToSlot = (minutes) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
 export default function CartPage() {
   const [user, setUser] = useState(() => {
     try {
@@ -173,12 +183,32 @@ export default function CartPage() {
   }, [stayItem?._id]);
 
   const firstServiceId = serviceItems[0]?.serviceId?._id || serviceItems[0]?.serviceId;
-  const timeSlots = useMemo(() => generateTimeSlots(15), []);
+  const serviceTimeSlots = useMemo(() => generateTimeSlots(15), []);
+  const stayTimeSlots = useMemo(() => {
+    const slots = [];
+    for (
+      let t = STAY_OPEN_MINUTES;
+      t < STAY_CLOSE_MINUTES;
+      t += STAY_INTERVAL_MINUTES
+    ) {
+      slots.push(minutesToSlot(t));
+    }
+    return slots;
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    const slotDate = checkoutMode === "service-stay" ? stayCheckInDate : selectedDate;
+
     const loadSlots = async () => {
+      if (checkoutMode !== "service-only") {
+        if (alive) {
+          setBookedSlots([]);
+          setSlotLoading(false);
+        }
+        return;
+      }
+
+      const slotDate = selectedDate;
       if (!slotDate || !firstServiceId) {
         if (alive) setBookedSlots([]);
         return;
@@ -201,7 +231,7 @@ export default function CartPage() {
     return () => {
       alive = false;
     };
-  }, [checkoutMode, selectedDate, stayCheckInDate, firstServiceId]);
+  }, [checkoutMode, selectedDate, firstServiceId]);
 
   const handleQtyChange = async (itemId, nextQty) => {
     if (nextQty < 1 || nextQty > 99) return;
@@ -498,7 +528,7 @@ export default function CartPage() {
                           ) : (
                             <TimeSlotPicker
                               selectedDate={selectedDate}
-                              slots={timeSlots}
+                              slots={serviceTimeSlots}
                               bookedSlots={bookedSlots}
                               selectedSlot={selectedTime}
                               onSelect={setSelectedTime}
@@ -542,19 +572,15 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ nhận phòng (cũng là giờ bắt đầu dịch vụ)</label>
-                          {slotLoading ? (
-                            <div className="text-xs text-[#1F2A37]/60 py-2">Đang kiểm tra slot...</div>
-                          ) : (
-                            <TimeSlotPicker
-                              selectedDate={stayCheckInDate}
-                              slots={timeSlots}
-                              bookedSlots={bookedSlots}
-                              selectedSlot={stayCheckInTime}
-                              onSelect={setStayCheckInTime}
-                              intervalMinutes={15}
-                            />
-                          )}
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ nhận phòng (khung giờ lưu trú)</label>
+                          <TimeSlotPicker
+                            selectedDate={stayCheckInDate}
+                            slots={stayTimeSlots}
+                            bookedSlots={[]}
+                            selectedSlot={stayCheckInTime}
+                            onSelect={setStayCheckInTime}
+                            intervalMinutes={STAY_INTERVAL_MINUTES}
+                          />
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày trả phòng</label>
@@ -612,7 +638,9 @@ export default function CartPage() {
                     <CalendarDays size={12} /> Không chọn được ngày quá khứ, slot hết chỗ sẽ tự khóa.
                   </p>
                   <p className="text-[11px] text-[#1F2A37]/55 flex items-center gap-1">
-                    <Clock3 size={12} /> Slot đang kiểm tra theo dịch vụ cụ thể, tránh chặn nhầm toàn hệ thống.
+                    <Clock3 size={12} /> {checkoutMode === "service-stay"
+                      ? "Giờ nhận phòng dùng khung giờ lưu trú của phòng, không lấy theo slot dịch vụ."
+                      : "Slot đang kiểm tra theo dịch vụ cụ thể, tránh chặn nhầm toàn hệ thống."}
                   </p>
                 </>
               )}

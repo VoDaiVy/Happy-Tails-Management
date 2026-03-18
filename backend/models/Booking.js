@@ -69,6 +69,10 @@ const bookingSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  boardingPet: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserPet'
+  },
   items: [bookingItemSchema],
   bookingDate: {
     type: Date,
@@ -230,6 +234,7 @@ bookingSchema.pre('validate', async function() {
 
 // Indexes
 bookingSchema.index({ customer: 1 });
+bookingSchema.index({ boardingPet: 1, status: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ bookingDate: 1 });
 bookingSchema.index({ 'items.group': 1, 'items.startTime': 1, 'items.endTime': 1 });

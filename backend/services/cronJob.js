@@ -3,9 +3,13 @@
  *
  * Runs every 60 seconds and auto-transitions booking statuses:
  *
- *   confirmed  → in-progress  when the earliest item.startTime has passed
- *   in-progress → completed   when the latest  item.endTime  has passed
- *                              AND completedAt is set to now
+ * Non-stay bookings (service only):
+ *   confirmed  -> in-progress  when at least one item.startTime <= now
+ *   in-progress -> completed   when all item.endTime <= now
+ *
+ * Stay bookings (boarding / service+stay):
+ *   pending|confirmed -> in-progress when stayInfo.checkInDate <= now
+ *   pending|confirmed|in-progress -> completed when stayInfo.checkOutDate <= now
  *
  * Staff can still override manually via PUT /api/bookings/:id/status.
  *
@@ -26,34 +30,60 @@ const runStatusTransitions = async () => {
   const now = new Date();
 
   try {
-    // ── confirmed → in-progress ───────────────────────────────────────────
-    // A booking should move to in-progress when AT LEAST ONE item has started
-    // (i.e. items.startTime <= now exists in the array).
-    const toInProgress = await Booking.updateMany(
+    // Service-only: confirmed -> in-progress
+    const serviceToInProgress = await Booking.updateMany(
       {
         status: 'confirmed',
+        'stayInfo.enabled': { $ne: true },
         'items.startTime': { $lte: now },
       },
       { $set: { status: 'in-progress' } }
     );
 
-    // ── in-progress → completed ───────────────────────────────────────────
-    // A booking is complete when ALL items have ended
-    // i.e. no item has endTime > now.
-    const toCompleted = await Booking.updateMany(
+    // Stay-enabled: pending|confirmed -> in-progress at check-in
+    const stayToInProgress = await Booking.updateMany(
+      {
+        status: { $in: ['pending', 'confirmed'] },
+        'stayInfo.enabled': true,
+        'stayInfo.checkInDate': { $lte: now },
+      },
+      { $set: { status: 'in-progress' } }
+    );
+
+    // Service-only: in-progress -> completed when all items have ended
+    const serviceToCompleted = await Booking.updateMany(
       {
         status: 'in-progress',
-        // $not $elemMatch: no item has endTime still in the future
+        'stayInfo.enabled': { $ne: true },
+        'items.0': { $exists: true },
         items: { $not: { $elemMatch: { endTime: { $gt: now } } } },
       },
       { $set: { status: 'completed', completedAt: now } }
     );
 
-    if (toInProgress.modifiedCount > 0 || toCompleted.modifiedCount > 0) {
+    // Stay-enabled: complete at check-out regardless of previous active status
+    const stayToCompleted = await Booking.updateMany(
+      {
+        status: { $in: ['pending', 'confirmed', 'in-progress'] },
+        'stayInfo.enabled': true,
+        'stayInfo.checkOutDate': { $lte: now },
+      },
+      { $set: { status: 'completed', completedAt: now } }
+    );
+
+    const changedCount =
+      serviceToInProgress.modifiedCount +
+      stayToInProgress.modifiedCount +
+      serviceToCompleted.modifiedCount +
+      stayToCompleted.modifiedCount;
+
+    if (changedCount > 0) {
       logger.info(
         `[CronJob] Booking auto-transitions: ` +
-        `${toInProgress.modifiedCount} → in-progress, ` +
-        `${toCompleted.modifiedCount} → completed`
+        `service ${serviceToInProgress.modifiedCount} -> in-progress, ` +
+        `stay ${stayToInProgress.modifiedCount} -> in-progress, ` +
+        `service ${serviceToCompleted.modifiedCount} -> completed, ` +
+        `stay ${stayToCompleted.modifiedCount} -> completed`
       );
     }
   } catch (err) {

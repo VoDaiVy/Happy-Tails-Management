@@ -9,6 +9,7 @@ const {
   cancelBooking,
   assignStaffToBooking,
   checkoutBooking,
+  checkoutBoarding,
   getAvailableSlots
 
 } = require('../controllers/bookingController');
@@ -22,6 +23,7 @@ router.use(protect);
 // Customer routes
 router.get('/available-slots', restrictTo('customer'), getAvailableSlots);  // GET /api/bookings/available-slots
 router.post('/checkout', restrictTo('customer'), checkoutBooking);  // POST /api/bookings/checkout - Checkout with availability check
+router.post('/boarding-checkout', restrictTo('customer'), checkoutBoarding);  // POST /api/bookings/boarding-checkout - Checkout standalone boarding booking
 router.post('/', restrictTo('customer'), createBooking);  // POST /api/bookings - Create booking from cart
 router.get('/my', restrictTo('customer'), getMyBookings);  // GET /api/bookings/my - Get my bookings
 

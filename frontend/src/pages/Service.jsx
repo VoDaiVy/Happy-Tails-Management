@@ -433,18 +433,18 @@ const ServicePage = () => {
   };
 
   const openStaySetup = async (service, sourceElement) => {
-    const serviceId = service?._id || service?.apiService?._id;
-    if (!serviceId) {
-      showCartMessage("Không tìm thấy dịch vụ boarding để thiết lập.");
-      return;
-    }
-
     const roomName = (service?.name || service?.title || "").toLowerCase();
     const roomType = roomName.includes("vip") || roomName.includes("penthouse") ? "vip" : "standard";
 
     try {
       const res = await getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" });
-      const rooms = Array.isArray(res?.data) ? res.data : [];
+      const rooms = Array.isArray(res?.data?.rooms)
+        ? res.data.rooms
+        : Array.isArray(res?.rooms)
+          ? res.rooms
+          : Array.isArray(res?.data)
+            ? res.data
+            : [];
       const roomId = rooms[0]?._id;
       if (!roomId) {
         showCartMessage("Hiện chưa có phòng khả dụng cho loại lưu trú này.");
@@ -871,7 +871,7 @@ const ServicePage = () => {
                             onClick={(e) => handleAddToCart(e, service)}
                             className="bg-white border border-[#E07A5F]/35 text-[#E07A5F] text-[12px] font-bold px-3 py-2 rounded-full hover:bg-[#E07A5F]/10 transition-colors shadow-sm inline-flex items-center gap-1.5"
                           >
-                            <ShoppingCart size={13} /> {isBoardingService(service) ? "Choose Stay" : "Add to Cart"}
+                            <ShoppingCart size={13} /> Add to Cart
                           </button>
                           <button
                             onClick={(e) => {

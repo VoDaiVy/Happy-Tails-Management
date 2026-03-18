@@ -615,7 +615,7 @@ exports.getMyBookings = catchAsync(async (req, res, next) => {
 
   const bookings = await Booking.find(filter)
 
-    .populate("items.service items.pet assignedStaff", "name email")
+    .populate("items.service items.pet assignedStaff boardingPet", "name email petName petType breed")
     .sort("-createdAt");
 
   res.status(200).json({
@@ -647,7 +647,7 @@ exports.getAllBookings = catchAsync(async (req, res, next) => {
   const bookings = await Booking.find(filter)
 
     .populate(
-      "customer items.service items.pet assignedStaff room",
+      "customer items.service items.pet assignedStaff room boardingPet",
       "name email roomNumber",
     )
     .sort("-createdAt");
@@ -669,7 +669,7 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   const booking = await Booking.findById(req.params.id)
 
     .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy",
+      "customer items.service items.pet assignedStaff room cancelledBy boardingPet",
     );
 
   if (!booking) {
@@ -995,16 +995,51 @@ const buildStayRange = ({ checkInDate, checkInTime = '00:00', checkOutDate, chec
   return { checkIn, checkOut };
 };
 
-const hasRoomOverlapBooking = async (roomId, checkIn, checkOut) => {
-  const conflict = await Booking.findOne({
+const getRoomOverlapCount = async (roomId, checkIn, checkOut) => {
+  const overlapCount = await Booking.countDocuments({
     status: { $in: ACTIVE_STATUSES },
     $or: [{ room: roomId }, { 'stayInfo.room': roomId }],
     'stayInfo.enabled': true,
     'stayInfo.checkInDate': { $lt: checkOut },
     'stayInfo.checkOutDate': { $gt: checkIn },
-  }).lean();
+  });
 
-  return Boolean(conflict);
+  return overlapCount;
+};
+
+const getRoomRemainingCapacity = async (room, checkIn, checkOut) => {
+  const overlapCount = await getRoomOverlapCount(room._id, checkIn, checkOut);
+  const totalCapacity = Math.max(1, Number(room?.capacity) || 1);
+  return Math.max(0, totalCapacity - overlapCount);
+};
+
+const hasRoomOverlapBooking = async (roomId, checkIn, checkOut) =>
+  (await getRoomOverlapCount(roomId, checkIn, checkOut)) > 0;
+
+const getPetBookingIntervals = (booking, petId) => {
+  const intervals = [];
+
+  const isSameBoardingPet =
+    booking?.boardingPet && String(booking.boardingPet) === String(petId);
+
+  if (isSameBoardingPet && booking?.stayInfo?.enabled) {
+    const checkIn = new Date(booking.stayInfo.checkInDate);
+    const checkOut = new Date(booking.stayInfo.checkOutDate);
+    if (!Number.isNaN(checkIn.getTime()) && !Number.isNaN(checkOut.getTime()) && checkOut > checkIn) {
+      intervals.push({ start: checkIn, end: checkOut });
+    }
+  }
+
+  (booking?.items || []).forEach((item) => {
+    if (!item?.pet || String(item.pet) !== String(petId)) return;
+    const start = item?.startTime ? new Date(item.startTime) : null;
+    const end = item?.endTime ? new Date(item.endTime) : null;
+    if (!start || !end) return;
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return;
+    intervals.push({ start, end });
+  });
+
+  return intervals;
 };
 
 /**
@@ -1221,8 +1256,13 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       }
 
       let selectedRoom = requestedRoom;
-      const hasConflict = await hasRoomOverlapBooking(requestedRoom._id, stayRange.checkIn, stayRange.checkOut);
-      if (hasConflict) {
+      const requestedRemainingCapacity = await getRoomRemainingCapacity(
+        requestedRoom,
+        stayRange.checkIn,
+        stayRange.checkOut,
+      );
+
+      if (requestedRemainingCapacity <= 0) {
         const roomFilter = {
           isActive: true,
           type: requestedRoom.type,
@@ -1232,8 +1272,12 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         const candidateRooms = await Room.find(roomFilter).sort({ pricePerNight: 1, roomNumber: 1 });
         let replacement = null;
         for (const candidate of candidateRooms) {
-          const candidateConflict = await hasRoomOverlapBooking(candidate._id, stayRange.checkIn, stayRange.checkOut);
-          if (!candidateConflict) {
+          const candidateRemainingCapacity = await getRoomRemainingCapacity(
+            candidate,
+            stayRange.checkIn,
+            stayRange.checkOut,
+          );
+          if (candidateRemainingCapacity > 0) {
             replacement = candidate;
             break;
           }
@@ -1490,6 +1534,199 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     } catch (_) {
       // Intentionally ignore lock-release failures to preserve primary error flow.
     }
+  }
+});
+
+/**
+ * Checkout Boarding Booking — standalone flow (no service cart dependency)
+ * @route POST /api/bookings/boarding-checkout
+ * @access Private (Customer)
+ */
+exports.checkoutBoarding = catchAsync(async (req, res, next) => {
+  const {
+    petId,
+    roomId,
+    stayCheckInDate,
+    stayCheckInTime = "00:00",
+    stayCheckOutDate,
+    stayCheckOutTime = "10:00",
+    notes,
+  } = req.body;
+
+  if (!petId || !roomId || !stayCheckInDate || !stayCheckOutDate) {
+    return next(
+      new AppError(
+        "petId, roomId, stayCheckInDate, stayCheckOutDate are required",
+        400,
+        "MISSING_REQUIRED_FIELDS",
+      ),
+    );
+  }
+
+  const pet = await UserPet.findOne({ _id: petId, userID: req.user.id });
+  if (!pet) {
+    return next(new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"));
+  }
+
+  const stayRange = buildStayRange({
+    checkInDate: stayCheckInDate,
+    checkInTime: stayCheckInTime,
+    checkOutDate: stayCheckOutDate,
+    checkOutTime: stayCheckOutTime,
+  });
+
+  if (!stayRange) {
+    return next(new AppError("Ngày nhận/trả phòng không hợp lệ", 400, "INVALID_STAY_RANGE"));
+  }
+
+  if (startOfDay(stayRange.checkIn).getTime() < startOfDay(new Date()).getTime()) {
+    return next(new AppError("Không thể chọn ngày nhận phòng trong quá khứ", 400, "PAST_CHECKIN_DATE"));
+  }
+
+  const room = await Room.findById(roomId);
+  if (!room || !room.isActive) {
+    return next(new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"));
+  }
+
+  const roomRemainingCapacity = await getRoomRemainingCapacity(
+    room,
+    stayRange.checkIn,
+    stayRange.checkOut,
+  );
+  if (roomRemainingCapacity <= 0) {
+    return next(
+      new AppError(
+        "Không còn phòng trống trong khoảng nhận/trả đã chọn. Vui lòng đổi ngày hoặc giờ trả phòng.",
+        409,
+        "ROOM_STAY_CONFLICT",
+      ),
+    );
+  }
+
+  const petBookings = await Booking.find({
+    status: { $in: ACTIVE_STATUSES },
+    customer: req.user.id,
+    $or: [{ "items.pet": petId }, { boardingPet: petId }],
+  }).select("items.pet items.startTime items.endTime stayInfo boardingPet");
+
+  const hasPetConflict = petBookings.some((booking) => {
+    const intervals = getPetBookingIntervals(booking, petId);
+    return intervals.some(
+      ({ start, end }) => start < stayRange.checkOut && end > stayRange.checkIn,
+    );
+  });
+
+  if (hasPetConflict) {
+    return next(
+      new AppError(
+        "Thú cưng này đã có lịch hẹn/lưu trú trùng thời gian. Vui lòng chọn thời gian khác.",
+        409,
+        "PET_SCHEDULE_CONFLICT",
+      ),
+    );
+  }
+
+  const nights = Math.max(
+    1,
+    Math.ceil((stayRange.checkOut - stayRange.checkIn) / (1000 * 60 * 60 * 24)),
+  );
+  const pricePerNight = Number(room.pricePerNight || 0);
+  const totalAmount = pricePerNight * nights;
+
+  const wallet = await Wallet.findOne({ userId: req.user.id });
+  const currentBalance = wallet ? wallet.balance : 0;
+  if (currentBalance < totalAmount) {
+    return next(
+      new AppError(
+        `Số dư ví không đủ. Số dư hiện tại: ${currentBalance.toLocaleString("vi-VN")}đ, cần thanh toán: ${totalAmount.toLocaleString("vi-VN")}đ.`,
+        400,
+        "INSUFFICIENT_WALLET_BALANCE",
+      ),
+    );
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    await Wallet.findByIdAndUpdate(
+      wallet._id,
+      { $inc: { balance: -totalAmount, totalSpent: totalAmount } },
+      { session },
+    );
+
+    const [booking] = await Booking.create(
+      [
+        {
+          customer: req.user.id,
+          boardingPet: petId,
+          items: [],
+          bookingDate: stayRange.checkIn,
+          bookingTime: stayCheckInTime,
+          totalAmount,
+          paymentMethod: "wallet",
+          notes,
+          room: room._id,
+          stayInfo: {
+            enabled: true,
+            room: room._id,
+            roomName: room.name,
+            checkInDate: stayRange.checkIn,
+            checkOutDate: stayRange.checkOut,
+            checkInTime: stayCheckInTime,
+            checkOutTime: stayCheckOutTime,
+            nights,
+            pricePerNight,
+            subtotal: totalAmount,
+          },
+          status: "pending",
+          isPaid: true,
+        },
+      ],
+      { session },
+    );
+
+    await Transaction.create(
+      [
+        {
+          userId: req.user.id,
+          user: req.user.id,
+          type: "payment",
+          amount: totalAmount,
+          status: "completed",
+          method: "system",
+          booking: booking._id,
+          description: `Payment for boarding booking ${booking.bookingNumber}`,
+        },
+      ],
+      { session },
+    );
+
+    await session.commitTransaction();
+
+    await booking.populate([
+      { path: "customer", select: "name email phone" },
+      { path: "boardingPet", select: "petName petType breed" },
+      { path: "room", select: "name roomNumber type" },
+    ]);
+
+    return res.status(201).json({
+      status: "success",
+      message: "Boarding booking created successfully",
+      data: {
+        booking,
+        summary: {
+          staySubtotal: totalAmount,
+          stayDurationTotal: nights,
+          totalAmount,
+        },
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 });
 
