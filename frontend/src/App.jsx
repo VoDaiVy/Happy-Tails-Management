@@ -31,6 +31,7 @@ import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
 import StaffFeedbackPage from "./pages/dashboard/staff/StaffFeedbackPage";
 import StaffNotificationsManagement from "./pages/dashboard/staff/StaffNotificationsManagement";
 import StaffMedicalRecordManagement from "./pages/dashboard/staff/StaffMedicalRecordManagement";
+import StaffScheduleView from "./pages/dashboard/staff/StaffScheduleView";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/admin/AdminUserManagement";
 import RoomManagement from "./pages/dashboard/admin/AdminRoomManagement";
@@ -154,6 +155,14 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={["staff"]}>
                   <StaffMedicalRecordManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="schedule"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffScheduleView />
                 </PrivateRoute>
               }
             />

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import useScrollLock from "../../../hooks/useScrollLock";
@@ -37,8 +44,6 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { uploadSingleImage } from "../../../api/uploadApi";
 import AdminFilterBar from "../../../components/dashboard/AdminFilterBar";
-
-const ACTIVITY_STORAGE_KEY = "happytails_staff_notification_activity_v1";
 
 const AUDIENCE_OPTIONS = [
   "All Customers",
@@ -102,50 +107,51 @@ const CustomSelect = ({
     });
   }, [isOpen, up]);
 
-  const dropdownContent = isOpen && !disabled ? (
-    <AnimatePresence>
-      <>
-        <div
-          className="fixed inset-0 z-[9998]"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsOpen(false);
-          }}
-        />
-        <Motion.div
-          initial={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
-          transition={{ duration: 0.15 }}
-          style={{
-            position: "fixed",
-            top: up ? undefined : position.top + 8,
-            bottom: up ? window.innerHeight - position.top + 8 : undefined,
-            left: position.left,
-            width: position.width,
-          }}
-          className={`bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-[9999] py-1.5 max-h-60 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
-        >
-          {options.map((opt, idx) => {
-            const isSelected = value === opt;
-            return (
-              <div
-                key={idx}
-                className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange(opt);
-                  setIsOpen(false);
-                }}
-              >
-                {opt}
-              </div>
-            );
-          })}
-        </Motion.div>
-      </>
-    </AnimatePresence>
-  ) : null;
+  const dropdownContent =
+    isOpen && !disabled ? (
+      <AnimatePresence>
+        <>
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+          />
+          <Motion.div
+            initial={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: "fixed",
+              top: up ? undefined : position.top + 8,
+              bottom: up ? window.innerHeight - position.top + 8 : undefined,
+              left: position.left,
+              width: position.width,
+            }}
+            className={`bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-[9999] py-1.5 max-h-60 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+          >
+            {options.map((opt, idx) => {
+              const isSelected = value === opt;
+              return (
+                <div
+                  key={idx}
+                  className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange(opt);
+                    setIsOpen(false);
+                  }}
+                >
+                  {opt}
+                </div>
+              );
+            })}
+          </Motion.div>
+        </>
+      </AnimatePresence>
+    ) : null;
 
   return (
     <div className={`relative flex-col flex ${isOpen ? "z-[60]" : "z-10"}`}>
@@ -172,9 +178,7 @@ const CustomSelect = ({
               className={isOpen ? "text-[#D97853]" : "text-[#2D3436]/40"}
             />
           )}
-          <span className="text-sm font-medium text-[#2D3436]">
-            {value}
-          </span>
+          <span className="text-sm font-medium text-[#2D3436]">{value}</span>
         </div>
         <RightIcon
           size={14}
@@ -182,13 +186,13 @@ const CustomSelect = ({
         />
       </div>
 
-      {isModal && dropdownContent && createPortal(dropdownContent, document.body)}
+      {isModal &&
+        dropdownContent &&
+        createPortal(dropdownContent, document.body)}
       {!isModal && dropdownContent}
     </div>
   );
 };
-
-
 
 const DEFAULT_FORM = {
   title: "",
@@ -229,6 +233,15 @@ const getCurrentStaffName = () => {
   }
 };
 
+const getCurrentStaffId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return String(user?._id || user?.id || "");
+  } catch {
+    return "";
+  }
+};
+
 const getApiErrorMessage = (
   error,
   fallback = "Unable to process notification request",
@@ -250,7 +263,8 @@ const getDateTimeInputValue = (value = null) => {
 };
 
 const toScheduledAtString = (date) => {
-  if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  if (!date || !(date instanceof Date) || Number.isNaN(date.getTime()))
+    return "";
   const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localTime.toISOString().slice(0, 16);
 };
@@ -300,15 +314,22 @@ const getAudienceSize = (audienceMode, specificUsersCount) => {
 
 /** Map an API outbox item (aggregated) to a UI table row */
 const mapOutboxToRow = (item) => {
-  const meta = item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
+  const meta =
+    item?.metadata && typeof item.metadata === "object" ? item.metadata : {};
   const uiType = API_TO_UI_NOTIFICATION_TYPE[item?.type] || "System Update";
-  const total = item?.totalRecipients || 0;
+  const total = Number(item?.totalRecipients || 0);
+  const expectedRecipients = Number(meta?.expectedRecipients || 0);
+  const recipientCount = expectedRecipients > 0 ? expectedRecipients : total;
   const delivered = item?.deliveredCount || 0;
   const read = item?.readCount || 0;
 
   let status = "Sent";
-  let delivery = `Sent to ${total} users`;
-  if (meta.status === "Draft" || meta.status === "Scheduled" || meta.status === "Failed") {
+  let delivery = `Sent to ${recipientCount} users`;
+  if (
+    meta.status === "Draft" ||
+    meta.status === "Scheduled" ||
+    meta.status === "Failed"
+  ) {
     status = meta.status;
     delivery = meta.delivery || meta.status;
   } else if (total > 0 && delivered === 0) {
@@ -332,20 +353,10 @@ const mapOutboxToRow = (item) => {
     delivery,
     priority: meta.priority || "Normal",
     bannerImage: item?.imageUrl || meta.bannerImage || "",
-    totalRecipients: total,
+    totalRecipients: recipientCount,
     deliveredCount: delivered,
     readCount: read,
   };
-};
-
-const buildSeedActivities = (rows) => {
-  return (Array.isArray(rows) ? rows : []).slice(0, 8).map((item) => ({
-    id: `${item.id}-seed`,
-    title: item.title,
-    action: item.status === "Sent" ? "Notification sent" : "Notification loaded",
-    type: item.status === "Sent" ? "sent" : "default",
-    at: item.createdDate,
-  }));
 };
 
 const NotificationSkeletonRow = () => (
@@ -360,7 +371,6 @@ const NotificationSkeletonRow = () => (
 
 const StaffNotificationsManagement = () => {
   const [notifications, setNotifications] = useState([]);
-  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -388,7 +398,6 @@ const StaffNotificationsManagement = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const customerSearchTimer = useRef(null);
 
-  const [hasInitialized, setHasInitialized] = useState(false);
   const bannerInputRef = useRef(null);
 
   // Modal dropdown states
@@ -407,7 +416,14 @@ const StaffNotificationsManagement = () => {
     try {
       const res = await getStaffCustomersApi(search ? { search } : {});
       const data = res?.data?.data ?? [];
-      setCustomerUsers(data.map((u) => ({ id: u._id, name: u.name || u.email, email: u.email, avatar: u.avatar })));
+      setCustomerUsers(
+        data.map((u) => ({
+          id: u._id,
+          name: u.name || u.email,
+          email: u.email,
+          avatar: u.avatar,
+        })),
+      );
     } catch (err) {
       console.error("Failed to load customers", err);
       setCustomerUsers([]);
@@ -446,24 +462,16 @@ const StaffNotificationsManagement = () => {
       );
 
       setNotifications(rows);
-
-      // Load activities from localStorage or build from rows
-      let parsedActivities = null;
-      try {
-        const savedActivities = localStorage.getItem(ACTIVITY_STORAGE_KEY);
-        parsedActivities = savedActivities ? JSON.parse(savedActivities) : null;
-      } catch { parsedActivities = null; }
-
-      setActivities(
-        Array.isArray(parsedActivities) && parsedActivities.length
-          ? parsedActivities
-          : buildSeedActivities(rows),
-      );
       setError(null);
     } catch (apiError) {
       console.error("Failed to load outbox from API", apiError);
       setNotifications([]);
-      setError(getApiErrorMessage(apiError, "Unable to load notifications from server."));
+      setError(
+        getApiErrorMessage(
+          apiError,
+          "Unable to load notifications from server.",
+        ),
+      );
     }
   }, []);
 
@@ -481,7 +489,6 @@ const StaffNotificationsManagement = () => {
       await hydrateNotifications();
       if (!isMounted) return;
       setLoading(false);
-      setHasInitialized(true);
     }, 320);
 
     return () => {
@@ -489,19 +496,6 @@ const StaffNotificationsManagement = () => {
       clearTimeout(timer);
     };
   }, [hydrateNotifications]);
-
-  // Persist only activities to localStorage
-  useEffect(() => {
-    if (!hasInitialized) return;
-    try {
-      localStorage.setItem(
-        ACTIVITY_STORAGE_KEY,
-        JSON.stringify(activities.slice(0, 30)),
-      );
-    } catch (storageError) {
-      console.error("Failed to persist activity data", storageError);
-    }
-  }, [activities, hasInitialized]);
 
   const resetForm = useCallback(() => {
     setSelectedNotification(null);
@@ -568,19 +562,6 @@ const StaffNotificationsManagement = () => {
     setModalMode(null);
     resetForm();
   };
-
-  const pushActivity = useCallback((action, title, type = "default") => {
-    setActivities((prev) => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        action,
-        title,
-        type,
-        at: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-  }, []);
 
   const handleBannerUpload = async (event) => {
     const file = event.target.files?.[0];
@@ -693,17 +674,40 @@ const StaffNotificationsManagement = () => {
     setIsSaving(true);
     try {
       const apiType = UI_TO_API_NOTIFICATION_TYPE[formState.type] || "system";
+      const selectedAudienceUsers =
+        formState.audienceMode === "Specific Users"
+          ? formState.audienceUsers
+          : [];
+      const expectedRecipients = getAudienceSize(
+        formState.audienceMode,
+        selectedAudienceUsers.length,
+      );
+
+      let statusValue = resolveStatusByIntent(intent);
+      const currentStaffId = getCurrentStaffId();
+
+      if (
+        (statusValue === "Draft" || statusValue === "Scheduled") &&
+        !isObjectId(currentStaffId)
+      ) {
+        throw new Error("Cannot identify current staff account");
+      }
+
       const commonMetadata = {
         summary: formState.summary.trim(),
         targetAudience: formState.audienceMode,
-        audienceUsers: formState.audienceMode === "Specific Users" ? formState.audienceUsers : [],
-        scheduledAt: formState.deliveryMode === "Schedule later" ? new Date(formState.scheduledAt).toISOString() : "",
+        audienceUsers: selectedAudienceUsers,
+        scheduledAt:
+          formState.deliveryMode === "Schedule later"
+            ? new Date(formState.scheduledAt).toISOString()
+            : "",
         priority: formState.priority,
         bannerImage: formState.bannerImage,
         createdBy: getCurrentStaffName(),
+        expectedRecipients,
+        status: statusValue,
+        delivery: resolveDeliveryLabel(statusValue),
       };
-
-      let statusValue = resolveStatusByIntent(intent);
 
       const apiPayload = {
         title: formState.title.trim(),
@@ -714,46 +718,35 @@ const StaffNotificationsManagement = () => {
       };
 
       if (statusValue === "Sent") {
-        try {
-          if (formState.audienceMode === "Specific Users") {
-            await Promise.all(
-              formState.audienceUsers.map((userId) =>
-                sendNotificationApi({ ...apiPayload, userId }),
-              ),
-            );
-          } else {
-            await broadcastNotificationApi(apiPayload);
-          }
-          toast.success("Notification sent successfully!");
-          pushActivity("Notification sent", formState.title.trim(), "sent");
-        } catch (apiError) {
-          console.error("Failed to send notification:", apiError);
-          statusValue = "Failed";
-          toast.error(getApiErrorMessage(apiError, "Failed to send notification via API"));
-          pushActivity("Notification failed to send", formState.title.trim(), "deleted");
-        }
-      } else if (statusValue === "Draft") {
-        // Draft: just save metadata for local tracking (API doesn't have draft concept)
-        commonMetadata.status = "Draft";
-        commonMetadata.delivery = "Draft";
-        toast.info("Draft saved locally.");
-        pushActivity("Draft saved", formState.title.trim(), "created");
-      } else if (statusValue === "Scheduled") {
-        // Scheduled: send via API but mark as scheduled in metadata
-        commonMetadata.status = "Scheduled";
-        commonMetadata.delivery = "Pending";
-        try {
+        if (formState.audienceMode === "Specific Users") {
+          await Promise.all(
+            selectedAudienceUsers.map((userId) =>
+              sendNotificationApi({ ...apiPayload, userId }),
+            ),
+          );
+        } else {
           await broadcastNotificationApi(apiPayload);
-          toast.success("Notification scheduled successfully!");
-          pushActivity("Notification scheduled", formState.title.trim(), "created");
-        } catch (apiError) {
-          toast.error(getApiErrorMessage(apiError, "Failed to schedule notification"));
         }
+        toast.success("Notification sent successfully!");
+      } else if (statusValue === "Draft") {
+        await sendNotificationApi({ ...apiPayload, userId: currentStaffId });
+        toast.success("Draft saved to server.");
+      } else if (statusValue === "Scheduled") {
+        await sendNotificationApi({ ...apiPayload, userId: currentStaffId });
+        toast.success("Notification scheduled and saved to server.");
       }
 
       // Refresh list from API to stay in sync
       await hydrateNotifications();
       closeModal();
+    } catch (submitError) {
+      console.error("Failed to save notification", submitError);
+      toast.error(
+        getApiErrorMessage(
+          submitError,
+          "Failed to save notification. Please try again.",
+        ),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -778,10 +771,11 @@ const StaffNotificationsManagement = () => {
     if (deleteTarget._apiId && isObjectId(deleteTarget._apiId)) {
       try {
         await deleteNotificationApi(deleteTarget._apiId);
-      } catch { /* ignore - might be already deleted */ }
+      } catch {
+        /* ignore - might be already deleted */
+      }
     }
 
-    pushActivity("Notification deleted", deleteTarget.title, "deleted");
     setDeleteTarget(null);
     // Refresh from API
     await hydrateNotifications();
@@ -935,20 +929,22 @@ const StaffNotificationsManagement = () => {
             value: dateMode,
             options: ["Created Date", "Scheduled Date"],
             onChange: setDateMode,
-          }
+          },
         ]}
         dateValue={dateFilter ? new Date(dateFilter) : null}
         onDateChange={(date) => {
           if (date) {
             const offsetDate = new Date(
-              date.getTime() - date.getTimezoneOffset() * 60000
+              date.getTime() - date.getTimezoneOffset() * 60000,
             );
             setDateFilter(offsetDate.toISOString().split("T")[0]);
           } else {
             setDateFilter("");
           }
         }}
-        dateLabel={dateMode === "Created Date" ? "CREATED DATE" : "SCHEDULED DATE"}
+        dateLabel={
+          dateMode === "Created Date" ? "CREATED DATE" : "SCHEDULED DATE"
+        }
         extraActions={
           <button
             onClick={handleResetFilters}
@@ -970,7 +966,11 @@ const StaffNotificationsManagement = () => {
               {summary.totalNotifications}
             </p>
           </div>
-          <BellRing size={38} strokeWidth={1.5} className="text-[#D97853] opacity-80" />
+          <BellRing
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#D97853] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -982,7 +982,11 @@ const StaffNotificationsManagement = () => {
               {summary.sentToday}
             </p>
           </div>
-          <Send size={38} strokeWidth={1.5} className="text-[#2F855A] opacity-80" />
+          <Send
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#2F855A] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -994,7 +998,11 @@ const StaffNotificationsManagement = () => {
               {summary.scheduled}
             </p>
           </div>
-          <CalendarClock size={38} strokeWidth={1.5} className="text-[#B7791F] opacity-80" />
+          <CalendarClock
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#B7791F] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -1006,7 +1014,11 @@ const StaffNotificationsManagement = () => {
               {summary.drafts}
             </p>
           </div>
-          <FileText size={38} strokeWidth={1.5} className="text-[#64748B] opacity-80" />
+          <FileText
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#64748B] opacity-80"
+          />
         </div>
       </section>
 
@@ -1249,7 +1261,9 @@ const StaffNotificationsManagement = () => {
                   <div className="space-y-10">
                     <section>
                       <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">1</span>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                          1
+                        </span>
                         BASIC INFORMATION
                       </h4>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1270,7 +1284,9 @@ const StaffNotificationsManagement = () => {
                             placeholder="Example: Vaccination Reminder for Premium Members"
                           />
                           {formErrors.title && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.title}</p>
+                            <p className="mt-1.5 text-xs font-medium text-red-500">
+                              {formErrors.title}
+                            </p>
                           )}
                         </div>
 
@@ -1279,7 +1295,9 @@ const StaffNotificationsManagement = () => {
                             label="Notification Type"
                             options={TYPE_OPTIONS}
                             value={formState.type}
-                            onChange={(val) => setFormState((prev) => ({ ...prev, type: val }))}
+                            onChange={(val) =>
+                              setFormState((prev) => ({ ...prev, type: val }))
+                            }
                             isOpen={isTypeOpen}
                             setIsOpen={setIsTypeOpen}
                             disabled={modalMode === "view"}
@@ -1308,7 +1326,9 @@ const StaffNotificationsManagement = () => {
 
                     <section>
                       <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">2</span>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                          2
+                        </span>
                         CONTENT & AUDIENCE
                       </h4>
                       <div className="grid grid-cols-1 gap-4">
@@ -1330,7 +1350,9 @@ const StaffNotificationsManagement = () => {
                             placeholder="Write clear and concise notification content..."
                           />
                           {formErrors.content && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.content}</p>
+                            <p className="mt-1.5 text-xs font-medium text-red-500">
+                              {formErrors.content}
+                            </p>
                           )}
                         </div>
 
@@ -1346,11 +1368,15 @@ const StaffNotificationsManagement = () => {
                                 accept="image/*"
                                 onChange={handleBannerUpload}
                                 className="hidden"
-                                disabled={modalMode === "view" || isUploadingBanner}
+                                disabled={
+                                  modalMode === "view" || isUploadingBanner
+                                }
                               />
                               <button
                                 type="button"
-                                disabled={modalMode === "view" || isUploadingBanner}
+                                disabled={
+                                  modalMode === "view" || isUploadingBanner
+                                }
                                 onClick={() => bannerInputRef.current?.click()}
                                 className="inline-flex h-[46px] items-center justify-center gap-2 rounded-2xl border border-[#2D3436]/10 bg-white px-4 text-sm font-bold text-[#2D3436]/75 shadow-sm transition-all hover:border-[#D97853]/50 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -1359,7 +1385,9 @@ const StaffNotificationsManagement = () => {
                                 ) : (
                                   <UploadCloud size={16} />
                                 )}
-                                {isUploadingBanner ? "Uploading..." : "Upload Banner"}
+                                {isUploadingBanner
+                                  ? "Uploading..."
+                                  : "Upload Banner"}
                               </button>
 
                               {formState.bannerImage && (
@@ -1380,7 +1408,9 @@ const StaffNotificationsManagement = () => {
                               )}
                             </div>
                             {formErrors.bannerImage && (
-                              <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.bannerImage}</p>
+                              <p className="mt-1.5 text-xs font-medium text-red-500">
+                                {formErrors.bannerImage}
+                              </p>
                             )}
                           </div>
 
@@ -1408,13 +1438,20 @@ const StaffNotificationsManagement = () => {
                             label="Send To (Audience)"
                             options={AUDIENCE_OPTIONS}
                             value={formState.audienceMode}
-                            onChange={(val) => setFormState((prev) => ({ ...prev, audienceMode: val }))}
+                            onChange={(val) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                audienceMode: val,
+                              }))
+                            }
                             isOpen={isAudienceOpen}
                             setIsOpen={setIsAudienceOpen}
                             disabled={modalMode === "view"}
                           />
                           {formErrors.audienceMode && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.audienceMode}</p>
+                            <p className="mt-1.5 text-xs font-medium text-red-500">
+                              {formErrors.audienceMode}
+                            </p>
                           )}
                         </div>
 
@@ -1423,7 +1460,12 @@ const StaffNotificationsManagement = () => {
                             label="Priority"
                             options={PRIORITY_OPTIONS}
                             value={formState.priority}
-                            onChange={(val) => setFormState((prev) => ({ ...prev, priority: val }))}
+                            onChange={(val) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                priority: val,
+                              }))
+                            }
                             isOpen={isPriorityOpen}
                             setIsOpen={setIsPriorityOpen}
                             disabled={modalMode === "view"}
@@ -1438,10 +1480,15 @@ const StaffNotificationsManagement = () => {
                           </label>
                           {/* Search customers */}
                           <div className="relative mb-3">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/40" />
+                            <Search
+                              size={14}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/40"
+                            />
                             <input
                               value={customerSearch}
-                              onChange={(e) => setCustomerSearch(e.target.value)}
+                              onChange={(e) =>
+                                setCustomerSearch(e.target.value)
+                              }
                               placeholder="Search by name or email..."
                               className="w-full rounded-xl border border-[#2D3436]/10 bg-white py-2 pl-9 pr-3 text-xs text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30"
                             />
@@ -1450,7 +1497,10 @@ const StaffNotificationsManagement = () => {
                           {isLoadingCustomers ? (
                             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
                               {Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="animate-pulse rounded-xl border border-[#2D3436]/5 bg-white p-3">
+                                <div
+                                  key={i}
+                                  className="animate-pulse rounded-xl border border-[#2D3436]/5 bg-white p-3"
+                                >
                                   <div className="h-3 w-24 rounded bg-[#EFE6DB]" />
                                   <div className="mt-1.5 h-2.5 w-36 rounded bg-[#F5F0EA]" />
                                 </div>
@@ -1458,12 +1508,15 @@ const StaffNotificationsManagement = () => {
                             </div>
                           ) : customerUsers.length === 0 ? (
                             <p className="py-6 text-center text-xs text-[#2D3436]/45">
-                              {customerSearch ? "No customers found matching your search." : "No customers available."}
+                              {customerSearch
+                                ? "No customers found matching your search."
+                                : "No customers available."}
                             </p>
                           ) : (
                             <div className="grid max-h-48 grid-cols-1 gap-2.5 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] md:grid-cols-2">
                               {customerUsers.map((user) => {
-                                const selected = formState.audienceUsers.includes(user.id);
+                                const selected =
+                                  formState.audienceUsers.includes(user.id);
                                 return (
                                   <label
                                     key={user.id}
@@ -1477,7 +1530,9 @@ const StaffNotificationsManagement = () => {
                                       type="checkbox"
                                       checked={selected}
                                       disabled={modalMode === "view"}
-                                      onChange={() => handleToggleAudienceUser(user.id)}
+                                      onChange={() =>
+                                        handleToggleAudienceUser(user.id)
+                                      }
                                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#D4CDC4] text-[#D97853] focus:ring-[#D97853]/30"
                                     />
                                     <span className="min-w-0">
@@ -1499,7 +1554,9 @@ const StaffNotificationsManagement = () => {
                             </p>
                           )}
                           {formErrors.audienceUsers && (
-                            <p className="mt-2 text-xs font-medium text-red-500">{formErrors.audienceUsers}</p>
+                            <p className="mt-2 text-xs font-medium text-red-500">
+                              {formErrors.audienceUsers}
+                            </p>
                           )}
                         </div>
                       )}
@@ -1507,7 +1564,9 @@ const StaffNotificationsManagement = () => {
 
                     <section>
                       <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">3</span>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                          3
+                        </span>
                         DELIVERY STATUS
                       </h4>
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1516,7 +1575,12 @@ const StaffNotificationsManagement = () => {
                             label="Delivery Mode"
                             options={["Send now", "Schedule later"]}
                             value={formState.deliveryMode}
-                            onChange={(val) => setFormState((prev) => ({ ...prev, deliveryMode: val }))}
+                            onChange={(val) =>
+                              setFormState((prev) => ({
+                                ...prev,
+                                deliveryMode: val,
+                              }))
+                            }
                             isOpen={isDeliveryOpen}
                             setIsOpen={setIsDeliveryOpen}
                             disabled={modalMode === "view"}
@@ -1529,7 +1593,9 @@ const StaffNotificationsManagement = () => {
                           </label>
                           <div className="relative">
                             <DatePicker
-                              selected={toScheduledAtDate(formState.scheduledAt)}
+                              selected={toScheduledAtDate(
+                                formState.scheduledAt,
+                              )}
                               onChange={(date) =>
                                 setFormState((prev) => ({
                                   ...prev,
@@ -1542,7 +1608,8 @@ const StaffNotificationsManagement = () => {
                               dateFormat="dd/MM/yyyy HH:mm"
                               placeholderText="Chọn ngày và giờ"
                               disabled={
-                                modalMode === "view" || formState.deliveryMode !== "Schedule later"
+                                modalMode === "view" ||
+                                formState.deliveryMode !== "Schedule later"
                               }
                               minDate={new Date()}
                               className="w-full rounded-2xl border border-[#2D3436]/10 bg-[#FDFBF7] py-3 pl-4 pr-11 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1554,7 +1621,9 @@ const StaffNotificationsManagement = () => {
                             <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#2D3436]/50" />
                           </div>
                           {formErrors.scheduledAt && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.scheduledAt}</p>
+                            <p className="mt-1.5 text-xs font-medium text-red-500">
+                              {formErrors.scheduledAt}
+                            </p>
                           )}
                         </div>
 
@@ -1563,13 +1632,17 @@ const StaffNotificationsManagement = () => {
                             label="Current Status"
                             options={STATUS_OPTIONS}
                             value={formState.status}
-                            onChange={(val) => setFormState((prev) => ({ ...prev, status: val }))}
+                            onChange={(val) =>
+                              setFormState((prev) => ({ ...prev, status: val }))
+                            }
                             isOpen={isStatusOpen}
                             setIsOpen={setIsStatusOpen}
                             disabled={modalMode === "view"}
                           />
-                        {formErrors.status && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">{formErrors.status}</p>
+                          {formErrors.status && (
+                            <p className="mt-1.5 text-xs font-medium text-red-500">
+                              {formErrors.status}
+                            </p>
                           )}
                         </div>
                       </div>

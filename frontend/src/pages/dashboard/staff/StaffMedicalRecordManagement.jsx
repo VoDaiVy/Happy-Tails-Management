@@ -43,13 +43,24 @@ const recordSchema = z.object({
   visitDate: z.string().min(1, "Visit date is required."),
   assignedStaffId: z.string().min(1, "Assigned staff is required."),
   status: z.string().min(1, "Status is required."),
-  condition: z.string().trim().min(1, "Initial condition is required.").max(500, "Max 500 characters."),
-  diagnosis: z.string().trim().min(1, "Diagnosis is required.").max(500, "Max 500 characters."),
-  treatment: z.string().trim().min(1, "Treatment plan is required.").max(500, "Max 500 characters."),
+  condition: z
+    .string()
+    .trim()
+    .min(1, "Initial condition is required.")
+    .max(500, "Max 500 characters."),
+  diagnosis: z
+    .string()
+    .trim()
+    .min(1, "Diagnosis is required.")
+    .max(500, "Max 500 characters."),
+  treatment: z
+    .string()
+    .trim()
+    .min(1, "Treatment plan is required.")
+    .max(500, "Max 500 characters."),
   notes: z.string().trim().max(1000, "Max 1000 characters.").optional(),
 });
 
-const ARCHIVED_RECORD_STORAGE_KEY = "happytails_staff_archived_records_v1";
 const META_START = "[HT_META]";
 const META_END = "[/HT_META]";
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -112,7 +123,6 @@ const CustomSelect = ({
   isOpen,
   setIsOpen,
   rightIcon: RightIcon = MoreVertical,
-  isModal = true,
   up = false,
   disabled = false,
 }) => (
@@ -139,9 +149,7 @@ const CustomSelect = ({
             className={isOpen ? "text-[#D97853]" : "text-[#2D3436]/40"}
           />
         )}
-        <span className="text-sm font-medium text-[#2D3436]">
-          {value}
-        </span>
+        <span className="text-sm font-medium text-[#2D3436]">{value}</span>
       </div>
       <RightIcon
         size={14}
@@ -248,7 +256,7 @@ const writeMetaToNotes = (cleanNotes, meta) => {
   return `${cleaned}\n${META_START}${payload}${META_END}`;
 };
 
-const formatDateTime = (value) => {
+const _formatDateTime = (value) => {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "-";
@@ -303,9 +311,13 @@ const getStageLatestNote = (record, stage) => {
   return "";
 };
 
-const deriveStatus = (record, archivedIds, cleanNotes, meta) => {
-  const id = String(record?._id || "");
-  if (id && archivedIds.has(id)) return "Archived";
+const deriveStatus = (record, cleanNotes, meta) => {
+  const isArchived =
+    meta?.archived === true ||
+    String(meta?.archived || "").toLowerCase() === "true" ||
+    String(meta?.status || "").toLowerCase() === "archived";
+
+  if (isArchived) return "Archived";
 
   const raw =
     `${record?.condition || ""} ${record?.diagnosis || ""} ${cleanNotes || ""}`.toLowerCase();
@@ -326,7 +338,7 @@ const deriveStatus = (record, archivedIds, cleanNotes, meta) => {
   return "Active";
 };
 
-const normalizeRecord = (record, archivedIds) => {
+const normalizeRecord = (record) => {
   const { cleanNotes, meta } = readMetaFromNotes(record?.notes || "");
 
   const visitDate = meta?.visitDate || record?.createdAt || null;
@@ -341,7 +353,7 @@ const normalizeRecord = (record, archivedIds) => {
     record?.createdBy?.name ||
     "Unassigned";
 
-  const status = deriveStatus(record, archivedIds, cleanNotes, meta);
+  const status = deriveStatus(record, cleanNotes, meta);
 
   return {
     ...record,
@@ -480,7 +492,7 @@ const buildStaffOptions = (records, bookings) => {
   pushOption(current.id, current.name);
 
   records.forEach((record) => {
-    const normalized = normalizeRecord(record, new Set());
+    const normalized = normalizeRecord(record);
     pushOption(normalized._assignedStaffId, normalized._assignedStaffName);
     pushOption(record?.createdBy?._id, record?.createdBy?.name);
     pushOption(record?.updatedBy?._id, record?.updatedBy?.name);
@@ -496,7 +508,6 @@ const buildStaffOptions = (records, bookings) => {
 const StaffMedicalRecordManagement = () => {
   const [records, setRecords] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [archivedIds, setArchivedIds] = useState(new Set());
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -541,25 +552,6 @@ const StaffMedicalRecordManagement = () => {
   const isFormOpen = Boolean(formMode);
   useScrollLock(isFormOpen || detailOpen);
 
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(ARCHIVED_RECORD_STORAGE_KEY);
-      const parsed = cached ? JSON.parse(cached) : [];
-      if (Array.isArray(parsed)) {
-        setArchivedIds(new Set(parsed.map((item) => String(item))));
-      }
-    } catch {
-      setArchivedIds(new Set());
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      ARCHIVED_RECORD_STORAGE_KEY,
-      JSON.stringify([...archivedIds.values()]),
-    );
-  }, [archivedIds]);
-
   const loadMedicalData = useCallback(async (isManualRefresh = false) => {
     try {
       if (isManualRefresh) {
@@ -590,8 +582,8 @@ const StaffMedicalRecordManagement = () => {
   }, [loadMedicalData]);
 
   const normalizedRecords = useMemo(() => {
-    return records.map((record) => normalizeRecord(record, archivedIds));
-  }, [records, archivedIds]);
+    return records.map((record) => normalizeRecord(record));
+  }, [records]);
 
   const petOptions = useMemo(
     () => buildPetOptions(normalizedRecords, bookings),
@@ -692,31 +684,28 @@ const StaffMedicalRecordManagement = () => {
     setDetailRecord(null);
   };
 
-  const openDetailById = useCallback(
-    async (recordId) => {
-      setDetailOpen(true);
-      setDetailLoading(true);
-      try {
-        const response = await getMedicalRecordById(recordId);
-        const raw =
-          response?.data?.data?.record ||
-          response?.data?.record ||
-          response?.data ||
-          null;
-        if (!raw) {
-          throw new Error("Medical record detail not found");
-        }
-        setDetailRecord(normalizeRecord(raw, archivedIds));
-      } catch (detailError) {
-        console.error("Failed to fetch medical record detail", detailError);
-        setError(getApiErrorMessage(detailError, "Cannot load record detail"));
-        closeDetail();
-      } finally {
-        setDetailLoading(false);
+  const openDetailById = useCallback(async (recordId) => {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    try {
+      const response = await getMedicalRecordById(recordId);
+      const raw =
+        response?.data?.data?.record ||
+        response?.data?.record ||
+        response?.data ||
+        null;
+      if (!raw) {
+        throw new Error("Medical record detail not found");
       }
-    },
-    [archivedIds],
-  );
+      setDetailRecord(normalizeRecord(raw));
+    } catch (detailError) {
+      console.error("Failed to fetch medical record detail", detailError);
+      setError(getApiErrorMessage(detailError, "Cannot load record detail"));
+      closeDetail();
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
 
   const openDetailModal = (record) => {
     if (!record?._id) return;
@@ -735,7 +724,11 @@ const StaffMedicalRecordManagement = () => {
 
   const closeFormModal = useCallback(() => {
     if (isFormDirty) {
-      if (!window.confirm("You have unsaved changes. Are you sure you want to discard them?")) {
+      if (
+        !window.confirm(
+          "You have unsaved changes. Are you sure you want to discard them?",
+        )
+      ) {
         return;
       }
     }
@@ -854,7 +847,7 @@ const StaffMedicalRecordManagement = () => {
     }
   };
 
-  const updateStageNote = (stage, value) => {
+  const _updateStageNote = (stage, value) => {
     setFormState((prev) => ({
       ...prev,
       stageDocs: {
@@ -867,7 +860,7 @@ const StaffMedicalRecordManagement = () => {
     }));
   };
 
-  const appendStageFiles = (stage, fileList) => {
+  const _appendStageFiles = (stage, fileList) => {
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
 
@@ -911,7 +904,7 @@ const StaffMedicalRecordManagement = () => {
     }));
   };
 
-  const removeStageFile = (stage, id) => {
+  const _removeStageFile = (stage, id) => {
     setFormState((prev) => {
       const target = prev.stageDocs[stage].files.find((item) => item.id === id);
       if (target?.previewUrl) {
@@ -974,6 +967,10 @@ const StaffMedicalRecordManagement = () => {
         assignedStaffId: selectedStaff.id,
         assignedStaffName: selectedStaff.name,
         reminder: Boolean(formState.reminder),
+        archived: formState.status === "Archived",
+        status: formState.status,
+        archivedAt:
+          formState.status === "Archived" ? new Date().toISOString() : null,
       };
 
       const payload = {
@@ -1056,28 +1053,25 @@ const StaffMedicalRecordManagement = () => {
         currentStage = stageRecord?.workflowStage || stage;
       }
 
-      if (formState.status === "Archived") {
-        setArchivedIds((prev) => new Set([...prev, recordId]));
-      } else {
-        setArchivedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(recordId);
-          return next;
-        });
-      }
-
       await loadMedicalData(true);
 
       if (detailOpen && detailRecord?._id === recordId) {
         await openDetailById(recordId);
       }
 
-      toast.success(formMode === "create" ? "Record created successfully." : "Record updated successfully.");
+      toast.success(
+        formMode === "create"
+          ? "Record created successfully."
+          : "Record updated successfully.",
+      );
       setIsFormDirty(false);
       closeFormModal();
     } catch (submitErr) {
       console.error("Failed to submit medical record", submitErr);
-      const errMsg = getApiErrorMessage(submitErr, "Cannot save medical record");
+      const errMsg = getApiErrorMessage(
+        submitErr,
+        "Cannot save medical record",
+      );
       setSubmitError(errMsg);
       toast.error(errMsg);
     } finally {
@@ -1094,11 +1088,18 @@ const StaffMedicalRecordManagement = () => {
         notes: "Marked completed by staff quick action.",
         photos: [],
       });
-      setArchivedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(String(detailRecord._id));
-        return next;
+
+      const nextMeta = {
+        ...(detailRecord?._meta || {}),
+        archived: false,
+        status: "Completed",
+        archivedAt: null,
+      };
+
+      await updateMedicalRecord(detailRecord._id, {
+        notes: writeMetaToNotes(detailRecord?._cleanNotes || "", nextMeta),
       });
+
       await loadMedicalData(true);
       await openDetailById(detailRecord._id);
     } catch (quickError) {
@@ -1108,18 +1109,33 @@ const StaffMedicalRecordManagement = () => {
     }
   };
 
-  const quickArchive = () => {
+  const quickArchive = async () => {
     if (!detailRecord?._id) return;
-    setArchivedIds((prev) => new Set([...prev, String(detailRecord._id)]));
-    if (detailRecord) {
-      setDetailRecord((prev) =>
-        prev
-          ? normalizeRecord(
-              { ...prev },
-              new Set([...archivedIds, String(prev._id)]),
-            )
-          : prev,
+
+    try {
+      const currentStaff = getCurrentStaff();
+      const nextMeta = {
+        ...(detailRecord?._meta || {}),
+        archived: true,
+        status: "Archived",
+        archivedAt: new Date().toISOString(),
+        archivedBy: currentStaff.id,
+      };
+
+      await updateMedicalRecord(detailRecord._id, {
+        notes: writeMetaToNotes(detailRecord?._cleanNotes || "", nextMeta),
+      });
+
+      await loadMedicalData(true);
+      await openDetailById(detailRecord._id);
+      toast.success("Record archived successfully.");
+    } catch (quickError) {
+      const message = getApiErrorMessage(
+        quickError,
+        "Cannot archive this record",
       );
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -1214,7 +1230,7 @@ const StaffMedicalRecordManagement = () => {
         onDateChange={(date) => {
           if (date) {
             const offsetDate = new Date(
-              date.getTime() - date.getTimezoneOffset() * 60000
+              date.getTime() - date.getTimezoneOffset() * 60000,
             );
             setVisitDateFilter(offsetDate.toISOString().split("T")[0]);
           } else {
@@ -1234,7 +1250,11 @@ const StaffMedicalRecordManagement = () => {
               {summary.total}
             </p>
           </div>
-          <FileText size={38} strokeWidth={1.5} className="text-[#D97853] opacity-80" />
+          <FileText
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#D97853] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -1246,7 +1266,11 @@ const StaffMedicalRecordManagement = () => {
               {summary.todayVisits}
             </p>
           </div>
-          <CalendarClock size={38} strokeWidth={1.5} className="text-[#B7791F] opacity-80" />
+          <CalendarClock
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#B7791F] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -1258,7 +1282,11 @@ const StaffMedicalRecordManagement = () => {
               {summary.inProgress}
             </p>
           </div>
-          <Activity size={38} strokeWidth={1.5} className="text-[#B45309] opacity-80" />
+          <Activity
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#B45309] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -1270,7 +1298,11 @@ const StaffMedicalRecordManagement = () => {
               {summary.followUp}
             </p>
           </div>
-          <Clock3 size={38} strokeWidth={1.5} className="text-[#9A6700] opacity-80" />
+          <Clock3
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#9A6700] opacity-80"
+          />
         </div>
 
         <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
@@ -1282,7 +1314,11 @@ const StaffMedicalRecordManagement = () => {
               {summary.critical}
             </p>
           </div>
-          <AlertTriangle size={38} strokeWidth={1.5} className="text-[#B42318] opacity-80" />
+          <AlertTriangle
+            size={38}
+            strokeWidth={1.5}
+            className="text-[#B42318] opacity-80"
+          />
         </div>
       </section>
 
@@ -1850,7 +1886,9 @@ const StaffMedicalRecordManagement = () => {
               <div className="flex items-center justify-between border-b border-[#EFE6DB] bg-gradient-to-r from-[#FFF5EC] via-[#FFFDFB] to-[#FFF6EE] px-6 py-4">
                 <div>
                   <h3 className="text-xl font-bold text-[#2D3436]">
-                    {formMode === "create" ? "Create Medical Record" : "Update Medical Record"}
+                    {formMode === "create"
+                      ? "Create Medical Record"
+                      : "Update Medical Record"}
                   </h3>
                   <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#D97853]">
                     Medical Record Workspace
@@ -1865,7 +1903,10 @@ const StaffMedicalRecordManagement = () => {
                 </button>
               </div>
 
-              <form onSubmit={submitMedicalRecord} className="flex flex-col max-h-[85vh]">
+              <form
+                onSubmit={submitMedicalRecord}
+                className="flex flex-col max-h-[85vh]"
+              >
                 <div className="space-y-6 overflow-y-auto p-6 md:p-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {submitError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1876,7 +1917,9 @@ const StaffMedicalRecordManagement = () => {
                   {/* Section 1: Record Overview */}
                   <section>
                     <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">1</span>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                        1
+                      </span>
                       RECORD OVERVIEW
                     </h4>
 
@@ -1884,17 +1927,31 @@ const StaffMedicalRecordManagement = () => {
                       <div>
                         <CustomSelect
                           label="Pet"
-                          options={petOptions.map((pet) => ({ value: pet.petId, label: `${pet.petName} (${pet.breed})` }))}
-                          value={petOptions.find((p) => p.petId === formState.petId)?.petName ? `${petOptions.find((p) => p.petId === formState.petId)?.petName} (${petOptions.find((p) => p.petId === formState.petId)?.breed})` : "Select a pet"}
+                          options={petOptions.map((pet) => ({
+                            value: pet.petId,
+                            label: `${pet.petName} (${pet.breed})`,
+                          }))}
+                          value={
+                            petOptions.find((p) => p.petId === formState.petId)
+                              ?.petName
+                              ? `${petOptions.find((p) => p.petId === formState.petId)?.petName} (${petOptions.find((p) => p.petId === formState.petId)?.breed})`
+                              : "Select a pet"
+                          }
                           onChange={(val) => updatePetInForm(val)}
                           isOpen={isPetOpen}
                           setIsOpen={setIsPetOpen}
                         />
-                        {formErrors.petId && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.petId}</p>}
+                        {formErrors.petId && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.petId}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">Owner</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          Owner
+                        </label>
                         <input
                           value={formState.ownerName || ""}
                           readOnly
@@ -1907,23 +1964,46 @@ const StaffMedicalRecordManagement = () => {
                         <CustomSelect
                           label="Record Type"
                           options={RECORD_TYPE_OPTIONS}
-                          value={RECORD_TYPE_OPTIONS.find((o) => o.value === formState.recordType)?.label || "Select type"}
-                          onChange={(val) => handleFormChange("recordType", val)}
+                          value={
+                            RECORD_TYPE_OPTIONS.find(
+                              (o) => o.value === formState.recordType,
+                            )?.label || "Select type"
+                          }
+                          onChange={(val) =>
+                            handleFormChange("recordType", val)
+                          }
                           isOpen={isRecordTypeOpen}
                           setIsOpen={setIsRecordTypeOpen}
                         />
-                        {formErrors.recordType && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.recordType}</p>}
+                        {formErrors.recordType && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.recordType}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">Visit Date</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          Visit Date
+                        </label>
                         <div className="relative mt-1.5">
                           <DatePicker
-                            selected={formState.visitDate ? new Date(formState.visitDate + "T12:00:00") : null}
+                            selected={
+                              formState.visitDate
+                                ? new Date(formState.visitDate + "T12:00:00")
+                                : null
+                            }
                             onChange={(date) =>
                               handleFormChange(
                                 "visitDate",
-                                date ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""
+                                date
+                                  ? new Date(
+                                      date.getTime() -
+                                        date.getTimezoneOffset() * 60000,
+                                    )
+                                      .toISOString()
+                                      .slice(0, 10)
+                                  : "",
                               )
                             }
                             dateFormat="dd/MM/yyyy"
@@ -1936,19 +2016,34 @@ const StaffMedicalRecordManagement = () => {
                           />
                           <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#2D3436]/50" />
                         </div>
-                        {formErrors.visitDate && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.visitDate}</p>}
+                        {formErrors.visitDate && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.visitDate}
+                          </p>
+                        )}
                       </div>
 
                       <div>
                         <CustomSelect
                           label="Assigned Staff"
-                          options={staffOptions.map((staff) => ({ value: staff.id, label: staff.name }))}
-                          value={staffOptions.find((s) => s.id === formState.assignedStaffId)?.name || "Select staff"}
+                          options={staffOptions.map((staff) => ({
+                            value: staff.id,
+                            label: staff.name,
+                          }))}
+                          value={
+                            staffOptions.find(
+                              (s) => s.id === formState.assignedStaffId,
+                            )?.name || "Select staff"
+                          }
                           onChange={(val) => updateAssignedStaffInForm(val)}
                           isOpen={isAssignedStaffOpen}
                           setIsOpen={setIsAssignedStaffOpen}
                         />
-                        {formErrors.assignedStaffId && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.assignedStaffId}</p>}
+                        {formErrors.assignedStaffId && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.assignedStaffId}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -1969,57 +2064,91 @@ const StaffMedicalRecordManagement = () => {
                   {/* Section 2: Clinical Details */}
                   <section>
                     <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">2</span>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                        2
+                      </span>
                       CLINICAL DETAILS
                     </h4>
 
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">Symptoms / Initial Condition</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          Symptoms / Initial Condition
+                        </label>
                         <textarea
                           rows={4}
                           value={formState.condition}
-                          onChange={(e) => handleFormChange("condition", e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange("condition", e.target.value)
+                          }
                           placeholder="Describe the initial condition or symptoms..."
-                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.condition ? 'border-red-300' : 'border-[#2D3436]/10 hover:border-[#D97853]/50'}`}
+                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.condition ? "border-red-300" : "border-[#2D3436]/10 hover:border-[#D97853]/50"}`}
                         />
-                        {formErrors.condition && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.condition}</p>}
+                        {formErrors.condition && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.condition}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">Diagnosis / Assessment</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          Diagnosis / Assessment
+                        </label>
                         <textarea
                           rows={4}
                           value={formState.diagnosis}
-                          onChange={(e) => handleFormChange("diagnosis", e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange("diagnosis", e.target.value)
+                          }
                           placeholder="Enter diagnosis or assessment results..."
-                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.diagnosis ? 'border-red-300' : 'border-[#2D3436]/10 hover:border-[#D97853]/50'}`}
+                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.diagnosis ? "border-red-300" : "border-[#2D3436]/10 hover:border-[#D97853]/50"}`}
                         />
-                        {formErrors.diagnosis && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.diagnosis}</p>}
+                        {formErrors.diagnosis && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.diagnosis}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">Treatment / Service Plan</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          Treatment / Service Plan
+                        </label>
                         <textarea
                           rows={4}
                           value={formState.treatment}
-                          onChange={(e) => handleFormChange("treatment", e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange("treatment", e.target.value)
+                          }
                           placeholder="Detail the treatment or service plan..."
-                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.treatment ? 'border-red-300' : 'border-[#2D3436]/10 hover:border-[#D97853]/50'}`}
+                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.treatment ? "border-red-300" : "border-[#2D3436]/10 hover:border-[#D97853]/50"}`}
                         />
-                        {formErrors.treatment && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.treatment}</p>}
+                        {formErrors.treatment && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.treatment}
+                          </p>
+                        )}
                       </div>
 
                       <div>
-                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">General Notes</label>
+                        <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
+                          General Notes
+                        </label>
                         <textarea
                           rows={4}
                           value={formState.notes}
-                          onChange={(e) => handleFormChange("notes", e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange("notes", e.target.value)
+                          }
                           placeholder="Any additional notes..."
-                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.notes ? 'border-red-300' : 'border-[#2D3436]/10 hover:border-[#D97853]/50'}`}
+                          className={`mt-1.5 w-full resize-y rounded-2xl border bg-[#FDFBF7] px-4 py-3 text-sm text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30 ${formErrors.notes ? "border-red-300" : "border-[#2D3436]/10 hover:border-[#D97853]/50"}`}
                         />
-                        {formErrors.notes && <p className="mt-1 text-xs font-medium text-red-500">{formErrors.notes}</p>}
+                        {formErrors.notes && (
+                          <p className="mt-1 text-xs font-medium text-red-500">
+                            {formErrors.notes}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </section>
