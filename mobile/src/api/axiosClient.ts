@@ -3,6 +3,9 @@ import { env } from "../config/env";
 import { ApiError, extractApiMessage } from "../utils/apiError";
 
 let accessToken: string | null = null;
+let refreshTokenValue: string | null = null;
+let onAuthInvalid: (() => void) | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 export function setAccessToken(token: string | null) {
   accessToken = token;
@@ -10,6 +13,18 @@ export function setAccessToken(token: string | null) {
 
 export function getAccessToken() {
   return accessToken;
+}
+
+export function setRefreshToken(token: string | null) {
+  refreshTokenValue = token;
+}
+
+export function getRefreshToken() {
+  return refreshTokenValue;
+}
+
+export function setAuthInvalidHandler(handler: (() => void) | null) {
+  onAuthInvalid = handler;
 }
 
 export const axiosClient = axios.create({
@@ -27,14 +42,74 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
+async function requestTokenRefresh(): Promise<string | null> {
+  if (!refreshTokenValue) {
+    return null;
+  }
+
+  try {
+    const response = await axios.post<{
+      success: boolean;
+      data?: {
+        accessToken: string;
+        refreshToken?: string;
+      };
+    }>(`${env.apiBaseUrl}/auth/refresh-token`, {
+      refreshToken: refreshTokenValue,
+    });
+
+    const nextAccessToken = response.data?.data?.accessToken;
+    if (!nextAccessToken) {
+      return null;
+    }
+
+    setAccessToken(nextAccessToken);
+    if (response.data?.data?.refreshToken) {
+      setRefreshToken(response.data.data.refreshToken);
+    }
+
+    return nextAccessToken;
+  } catch {
+    return null;
+  }
+}
+
 axiosClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (!error?.response) {
       return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true));
     }
 
     const statusCode = error.response.status as number;
+    const originalRequest = error.config as { _retry?: boolean; url?: string; headers?: Record<string, string> };
+    const requestUrl = originalRequest?.url || "";
+    const isRefreshRequest = requestUrl.includes("/auth/refresh-token");
+
+    if (statusCode === 401 && !originalRequest?._retry && !isRefreshRequest) {
+      originalRequest._retry = true;
+
+      if (!refreshPromise) {
+        refreshPromise = requestTokenRefresh();
+      }
+
+      const newAccessToken = await refreshPromise;
+      refreshPromise = null;
+
+      if (newAccessToken) {
+        originalRequest.headers = {
+          ...(originalRequest.headers || {}),
+          Authorization: `Bearer ${newAccessToken}`,
+        };
+        return axiosClient(originalRequest);
+      }
+
+      setAccessToken(null);
+      setRefreshToken(null);
+      onAuthInvalid?.();
+      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401));
+    }
+
     const backendMessage = extractApiMessage(error.response.data);
     const fallbackMessage = typeof error.message === "string" ? error.message : "Yeu cau that bai";
 

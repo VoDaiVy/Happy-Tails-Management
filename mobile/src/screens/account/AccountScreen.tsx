@@ -1,83 +1,128 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { useState } from "react";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
+import type { AccountStackParamList } from "../../navigation/types";
 
-export function AccountScreen() {
-  const { user, logout, refreshProfile } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+type Props = NativeStackScreenProps<AccountStackParamList, "AccountHome">;
+
+type AccountMenuRoute =
+  | "Profile"
+  | "MyPets"
+  | "ShoppingCart"
+  | "MyBookings"
+  | "Wallet"
+  | "ChangePassword"
+  | "NotificationCenter"
+  | "Feedback";
+
+const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute }> = [
+  { label: "Profile", route: "Profile" },
+  { label: "My Pets", route: "MyPets" },
+  { label: "Shopping Cart", route: "ShoppingCart" },
+  { label: "Bookings", route: "MyBookings" },
+  { label: "Wallet", route: "Wallet" },
+  { label: "Change Password", route: "ChangePassword" },
+  { label: "Notifications", route: "NotificationCenter" },
+  { label: "Feedback", route: "Feedback" },
+];
+
+export function AccountScreen({ navigation }: Props) {
+  const { user, logout } = useAuth();
 
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text>Khong co thong tin nguoi dung.</Text>
+        <Text style={styles.emptyText}>Khong co thong tin nguoi dung.</Text>
       </View>
     );
   }
 
+  const avatarText = (user.name || user.email || "U").trim().charAt(0).toUpperCase();
+
   return (
     <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.title}>Tai khoan</Text>
-      <View style={styles.card}>
-        <Text style={styles.row}>Ho ten: {user.name}</Text>
-        <Text style={styles.row}>Email: {user.email}</Text>
-        <Text style={styles.row}>Role: {user.role}</Text>
+      <Text accessibilityRole="header" style={styles.title}>Account</Text>
+
+      <View style={styles.profileCard}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{avatarText}</Text>
+        </View>
+        <View>
+          <Text style={styles.nameText}>{user.name}</Text>
+          <Text style={styles.emailText}>{user.email}</Text>
+        </View>
       </View>
 
-      <Pressable
-        style={styles.refreshButton}
-        onPress={async () => {
-          setLoading(true);
-          setMessage("");
-          try {
-            await refreshProfile();
-            setMessage("Da dong bo profile moi nhat");
-          } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Khong tai duoc profile");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Tai lai profile</Text>}
-      </Pressable>
+      <View style={styles.menuCard}>
+        {MENU_ITEMS.map((item) => (
+          <Pressable
+            key={item.route}
+            style={styles.menuItem}
+            onPress={() => navigation.navigate(item.route)}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+          >
+            <Text style={styles.menuItemText}>{item.label}</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <Pressable style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.buttonText}>Dang xuat</Text>
+        <Text style={styles.logoutText}>Sign Out</Text>
       </Pressable>
-
-      {message ? <Text style={styles.message}>{message}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
+  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16, gap: 14 },
   title: { fontSize: 26, fontWeight: "700", color: "#111827" },
-  card: {
-    marginTop: 14,
-    backgroundColor: "#fff",
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 12,
     padding: 14,
-    gap: 8,
   },
-  row: { color: "#374151", fontSize: 15 },
-  refreshButton: {
-    marginTop: 20,
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
+  avatarCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FB923C",
     alignItems: "center",
-    paddingVertical: 12,
+    justifyContent: "center",
   },
+  avatarText: { color: "#fff", fontWeight: "800", fontSize: 22 },
+  nameText: { fontSize: 17, fontWeight: "700", color: "#0F172A" },
+  emailText: { marginTop: 2, color: "#64748B", fontSize: 13 },
+  menuCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  menuItemText: { fontSize: 15, fontWeight: "600", color: "#1F2937" },
+  menuArrow: { fontSize: 20, color: "#94A3B8" },
   logoutButton: {
-    marginTop: 10,
     backgroundColor: "#EF4444",
     borderRadius: 10,
     alignItems: "center",
     paddingVertical: 12,
   },
-  buttonText: { color: "#fff", fontWeight: "700" },
-  message: { marginTop: 10, color: "#374151" },
+  logoutText: { color: "#fff", fontWeight: "700" },
+  emptyText: { color: "#64748B" },
 });

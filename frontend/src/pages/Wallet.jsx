@@ -731,6 +731,12 @@ export default function WalletPage() {
                       const TxIcon     = typeConf.icon;
                       const StatusIcon = statusConf.icon;
                       const isIncoming = tx.type === 'deposit' || tx.type === 'refund';
+                      // Show resume button when: pending deposit with PayOS URL still valid
+                      const canResume =
+                        tx.status === 'pending' &&
+                        tx.type === 'deposit' &&
+                        tx.payosCheckoutUrl &&
+                        (!tx.expiredAt || new Date(tx.expiredAt) > new Date());
                       return (
                         <MotionLi
                           key={tx._id || idx}
@@ -752,6 +758,18 @@ export default function WalletPage() {
                             <p className="text-[10px] text-[#1C2B33]/30 font-medium">
                               {new Date(tx.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </p>
+                            {/* Resume payment link for active pending deposits */}
+                            {canResume && (
+                              <a
+                                href={tx.payosCheckoutUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-[#D97853] hover:underline"
+                              >
+                                <ExternalLink size={10} />
+                                Resume payment
+                              </a>
+                            )}
                           </div>
                           <p className={`text-sm font-black tabular-nums shrink-0 ${typeConf.amountColor}`}>
                             {isIncoming ? '+' : '−'}{formatVND(tx.amount)}

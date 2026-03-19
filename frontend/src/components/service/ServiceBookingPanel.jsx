@@ -42,6 +42,34 @@ const SectionLabel = ({ icon, label, step, locked }) => {
 
 const Divider = () => <hr className="border-dashed border-gray-200 my-4" />;
 
+const parsePriceToNumber = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return 0;
+
+  // Keep only digits and decimal separators from formatted values like "$120" or "120,000 VND".
+  const cleaned = raw.replace(/[^\d.,-]/g, "");
+  if (!cleaned) return 0;
+
+  let normalized = cleaned;
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    normalized = cleaned.lastIndexOf(",") > cleaned.lastIndexOf(".")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned.replace(/,/g, "");
+  } else if (cleaned.includes(",") && !cleaned.includes(".")) {
+    const chunks = cleaned.split(",");
+    normalized = chunks[chunks.length - 1]?.length === 3
+      ? cleaned.replace(/,/g, "")
+      : cleaned.replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export default function ServiceBookingPanel({ service }) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
@@ -64,7 +92,11 @@ export default function ServiceBookingPanel({ service }) {
   const today = new Date().toISOString().split("T")[0];
   const hasToken = Boolean(localStorage.getItem("accessToken"));
   const navigate = useNavigate();
-  const servicePrice = Number(service.price) || 0;
+  const servicePrice = useMemo(() => {
+    const priceFromValue = parsePriceToNumber(service.priceValue);
+    if (priceFromValue > 0) return priceFromValue;
+    return parsePriceToNumber(service.price);
+  }, [service.price, service.priceValue]);
   const serviceDurationMinutes = useMemo(() => {
     const parsed = parseInt(String(service.duration || "").replace(/\D/g, ""), 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;

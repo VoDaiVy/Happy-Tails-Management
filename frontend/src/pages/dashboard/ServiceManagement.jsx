@@ -119,7 +119,6 @@ export default function ServiceManagement() {
     petTypes: ["dog", "cat"],
     features: [],
     images: [],
-    maxCapacity: 1,
     isActive: true,
   });
   const [featureInput, setFeatureInput] = useState("");
@@ -237,7 +236,6 @@ export default function ServiceManagement() {
       petTypes: ["dog", "cat"],
       features: [],
       images: [],
-      maxCapacity: 1,
       isActive: true,
     });
     setFeatureInput("");
@@ -259,7 +257,6 @@ export default function ServiceManagement() {
       petTypes: service.petTypes || ["dog", "cat"],
       features: service.features || [],
       images: service.images || [],
-      maxCapacity: service.maxCapacity || 1,
       isActive: service.isActive !== false,
     });
     setFeatureInput("");
@@ -507,7 +504,6 @@ export default function ServiceManagement() {
         petTypes: formData.petTypes,
         features: formData.features,
         images: formData.images,
-        maxCapacity: Number(formData.maxCapacity),
         isActive: formData.isActive,
       };
 
@@ -1009,7 +1005,7 @@ export default function ServiceManagement() {
                       </div>
                     )}
 
-                    {/* Status & Capacity */}
+                    {/* Status & Capacity Source */}
                     <div className="flex items-center justify-between pt-4 border-t">
                       <div>
                         <span className="text-gray-600">Status: </span>
@@ -1023,11 +1019,8 @@ export default function ServiceManagement() {
                           {selectedService.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      <div className="text-gray-600">
-                        Capacity:{" "}
-                        <span className="font-medium">
-                          {selectedService.maxCapacity || 1}
-                        </span>
+                      <div className="text-gray-600 text-sm">
+                        Capacity by group (Wet/Dry) in Room Management modal
                       </div>
                     </div>
                   </div>
@@ -1252,20 +1245,8 @@ export default function ServiceManagement() {
                   </p>
                 </div>
 
-                {/* Max Capacity */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Max Capacity
-                  </label>
-                  <input
-                    type="number"
-                    name="maxCapacity"
-                    value={formData.maxCapacity}
-                    onChange={handleFormChange}
-                    min="1"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500"
-                    placeholder="1"
-                  />
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-700">
+                  Group capacity (Wet/Dry) is managed in <strong>Room Management</strong> via the capacity modal.
                 </div>
 
                 {/* Pet Types */}

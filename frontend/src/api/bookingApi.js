@@ -24,8 +24,8 @@ export const getAvailableSlots = async (date, serviceId, petId) => {
   return response.data;
 };
 
-export const getMyPetsMedicalRecords = async () => {
-  const response = await axiosInstance.get("/medical-records/my-pets");
+export const getMyPetsMedicalRecords = async (params = {}) => {
+  const response = await axiosInstance.get("/medical-records/my-pets", { params });
   return response.data;
 };
 
@@ -57,15 +57,28 @@ export const checkoutBoarding = async (boardingData) => {
   return response.data;
 };
 
+// Pay pending booking from Booking History (Customer)
+export const payPendingBooking = async (id) => {
+  const response = await axiosInstance.put(`/bookings/${id}/pay`);
+  return response.data;
+};
+
 // Create booking for walk-in customer (Staff/Admin)
 export const createGuestBooking = async (guestBookingData) => {
   const response = await axiosInstance.post("/bookings/guest", guestBookingData);
   return response.data;
 };
 
-// Update booking status (Staff/Admin)
-export const updateBookingStatus = async (id, status) => {
-  const response = await axiosInstance.put(`/bookings/${id}/status`, { status });
+// Update booking status (Staff)
+// medicalRecord payload is used for check-in/check-out workflow sync.
+export const updateBookingStatus = async (id, status, medicalRecord = null) => {
+  const payload = { status };
+
+  if (medicalRecord && (medicalRecord.notes || (Array.isArray(medicalRecord.photos) && medicalRecord.photos.length > 0))) {
+    payload.medicalRecord = medicalRecord;
+  }
+
+  const response = await axiosInstance.put(`/bookings/${id}/status`, payload);
   return response.data;
 };
 
@@ -88,6 +101,7 @@ export default {
   createBooking,
   checkoutBooking,
   checkoutBoarding,
+  payPendingBooking,
   createGuestBooking,
   updateBookingStatus,
   cancelBooking,

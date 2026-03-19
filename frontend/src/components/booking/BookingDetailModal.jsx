@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import useScrollLock from '../../hooks/useScrollLock';
+import { getAllMedicalRecords } from "../../api/medicalRecordApi";
 import {
   X,
   Calendar,
@@ -21,6 +22,7 @@ import {
   MapPin,
   History,
   DoorOpen,
+  Camera,
 } from "lucide-react";
 
 // Status configuration
@@ -58,7 +60,16 @@ const STAFF_STATUS_LABELS = {
   confirmed: "Đã nhận",
   "in-progress": "Đang thực hiện",
   completed: "Hoàn thành",
+  cancelled: "Đã hủy",
 };
+
+const STAFF_STATUS_OPTIONS = [
+  { value: "pending", label: STAFF_STATUS_LABELS.pending },
+  { value: "confirmed", label: STAFF_STATUS_LABELS.confirmed },
+  { value: "in-progress", label: STAFF_STATUS_LABELS["in-progress"] },
+  { value: "completed", label: STAFF_STATUS_LABELS.completed },
+  { value: "cancelled", label: STAFF_STATUS_LABELS.cancelled },
+];
 
 // Payment method labels
 const PAYMENT_LABELS = {
@@ -71,6 +82,22 @@ const PAYMENT_LABELS = {
 const SERVICE_GROUP_LABELS = {
   wet: "Wet",
   dry: "Dry",
+};
+
+const getRecordBookingId = (record) => {
+  const raw = record?.booking;
+  if (!raw) return null;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") return raw?._id || raw?.id || null;
+  return null;
+};
+
+const getRecordPetId = (record) => {
+  const raw = record?.userPet;
+  if (!raw) return null;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") return raw?._id || raw?.id || null;
+  return null;
 };
 
 const BookingDetailModal = ({
@@ -88,7 +115,93 @@ const BookingDetailModal = ({
     booking?.assignedStaff?._id || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [nextStatus, setNextStatus] = useState(booking?.status || "");
+  const [medicalRecords, setMedicalRecords] = useState([]);
+  const [medicalLoading, setMedicalLoading] = useState(false);
+  const [medicalError, setMedicalError] = useState(null);
   useScrollLock(isOpen);
+
+  useEffect(() => {
+    setSelectedStaff(booking?.assignedStaff?._id || "");
+    setNextStatus(booking?.status || "");
+  }, [booking?._id, booking?.assignedStaff?._id, booking?.status]);
+
+  useEffect(() => {
+    if (!isOpen || !booking?._id) {
+      setMedicalRecords([]);
+      setMedicalError(null);
+      return;
+    }
+
+    let isMounted = true;
+    const currentBookingId = String(booking._id);
+
+    const fetchBookingMedicalRecords = async () => {
+      setMedicalLoading(true);
+      setMedicalError(null);
+      setMedicalRecords([]);
+
+      try {
+        const response = await getAllMedicalRecords({
+          bookingId: booking._id,
+          page: 1,
+          limit: 50,
+        });
+        const records = Array.isArray(response?.data?.data?.records)
+          ? response.data.data.records
+          : [];
+
+        // Always scope by current booking on client-side to avoid any accidental over-fetch.
+        const scopedRecords = records.filter((record) => {
+          const recordBookingId = getRecordBookingId(record);
+          return recordBookingId && String(recordBookingId) === currentBookingId;
+        });
+
+        // Keep only the latest record per pet for this booking to prevent duplicate history cards.
+        const latestByPet = new Map();
+        for (const record of scopedRecords) {
+          const petKey = String(getRecordPetId(record) || record._id);
+          const previous = latestByPet.get(petKey);
+          if (!previous) {
+            latestByPet.set(petKey, record);
+            continue;
+          }
+
+          const prevTime = new Date(previous.updatedAt || previous.createdAt || 0).getTime();
+          const nextTime = new Date(record.updatedAt || record.createdAt || 0).getTime();
+          if (nextTime >= prevTime) {
+            latestByPet.set(petKey, record);
+          }
+        }
+
+        const normalizedRecords = [...latestByPet.values()].sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.createdAt || 0).getTime() -
+            new Date(a.updatedAt || a.createdAt || 0).getTime(),
+        );
+
+        if (isMounted) {
+          setMedicalRecords(normalizedRecords);
+        }
+      } catch (err) {
+        console.error("Error fetching booking medical records:", err);
+        if (isMounted) {
+          setMedicalError(err.response?.data?.message || "Không thể tải tiến trình ảnh");
+          setMedicalRecords([]);
+        }
+      } finally {
+        if (isMounted) {
+          setMedicalLoading(false);
+        }
+      }
+    };
+
+    fetchBookingMedicalRecords();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, booking?._id]);
 
   if (!booking) return null;
 
@@ -100,8 +213,10 @@ const BookingDetailModal = ({
     booking.assignedStaff?._id === currentUserId ||
     booking.assignedStaff === currentUserId;
 
-  // Check if booking is unclaimed
-  const isUnclaimed = booking.status === "pending" && !booking.assignedStaff;
+  // Check if booking is unclaimed (pending/confirmed can be claimed by staff)
+  const isUnclaimed =
+    (booking.status === "pending" || booking.status === "confirmed") &&
+    !booking.assignedStaff;
 
   // Format date
   const formatDate = (dateString) => {
@@ -132,6 +247,22 @@ const BookingDetailModal = ({
       style: "currency",
       currency: "VND",
     }).format(amount);
+  };
+
+  const getStageNote = (record, stage) => {
+    if (!Array.isArray(record?.stageHistory)) return "";
+
+    const stageEntry = [...record.stageHistory]
+      .filter((item) => item?.stage === stage)
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
+
+    return String(stageEntry?.notes || "").trim();
+  };
+
+  const getStagePhotos = (record, stage) => {
+    if (stage === "received") return Array.isArray(record?.receivedPhotos) ? record.receivedPhotos : [];
+    if (stage === "completed") return Array.isArray(record?.completedPhotos) ? record.completedPhotos : [];
+    return [];
   };
 
   // Get customer info
@@ -180,7 +311,7 @@ const BookingDetailModal = ({
   const handleStatusUpdate = async (newStatus) => {
     setIsUpdating(true);
     try {
-      await onUpdateStatus(booking._id, newStatus);
+      await onUpdateStatus(booking, newStatus);
     } finally {
       setIsUpdating(false);
     }
@@ -209,7 +340,7 @@ const BookingDetailModal = ({
       // Unclaimed booking -> Claim button
       if (isUnclaimed) {
         return (
-          <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-amber-100/50 border-t border-amber-200">
+          <div className="px-6 py-4 bg-linear-to-r from-amber-50 to-amber-100/50 border-t border-amber-200">
             <button
               onClick={handleClaimBooking}
               disabled={isUpdating}
@@ -224,9 +355,11 @@ const BookingDetailModal = ({
 
       // My booking -> Show status actions
       if (isMyBooking) {
-        if (booking.status === "confirmed") {
-          return (
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+        const canSubmitManualStatus = nextStatus && nextStatus !== booking.status;
+
+        return (
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 space-y-3">
+            {booking.status === "confirmed" && (
               <button
                 onClick={() => handleStatusUpdate("in-progress")}
                 disabled={isUpdating}
@@ -235,13 +368,9 @@ const BookingDetailModal = ({
                 <PlayCircle size={20} />
                 Bắt đầu thực hiện
               </button>
-            </div>
-          );
-        }
+            )}
 
-        if (booking.status === "in-progress") {
-          return (
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+            {booking.status === "in-progress" && (
               <button
                 onClick={() => handleStatusUpdate("completed")}
                 disabled={isUpdating}
@@ -250,9 +379,41 @@ const BookingDetailModal = ({
                 <CheckCircle size={20} />
                 Complete
               </button>
+            )}
+
+            <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                Manual Status Update
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select
+                  value={nextStatus}
+                  onChange={(e) => setNextStatus(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
+                  disabled={isUpdating}
+                >
+                  {STAFF_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleStatusUpdate(nextStatus)}
+                  disabled={!canSubmitManualStatus || isUpdating}
+                  className="px-4 py-2 rounded-lg bg-[#5B8C51] text-white text-sm font-medium hover:bg-[#4a7a42] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Update
+                </button>
+              </div>
+              {(nextStatus === "in-progress" || nextStatus === "completed") && (
+                <p className="text-[11px] text-gray-500">
+                  When moving to check-in or checkout, note and photo upload is required.
+                </p>
+              )}
             </div>
-          );
-        }
+          </div>
+        );
       }
     }
 
@@ -283,8 +444,8 @@ const BookingDetailModal = ({
             <div
               className={`px-6 py-4 text-white flex items-center justify-between ${
                 role === "admin"
-                  ? "bg-gradient-to-r from-blue-600 to-blue-700"
-                  : "bg-gradient-to-r from-[#5B8C51] to-[#4a7a42]"
+                  ? "bg-linear-to-r from-blue-600 to-blue-700"
+                  : "bg-linear-to-r from-[#5B8C51] to-[#4a7a42]"
               }`}
             >
               <div>
@@ -459,6 +620,112 @@ const BookingDetailModal = ({
                     <span className="text-gray-700">
                       {formatCurrency(booking.depositAmount)}
                     </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Medical Progress */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-semibold text-[#2D3436] mb-3 flex items-center gap-2">
+                  <Camera size={18} className="text-[#5B8C51]" />
+                  Tiến trình ảnh dịch vụ
+                </h3>
+
+                {medicalLoading ? (
+                  <div className="py-6 flex items-center justify-center">
+                    <div className="w-7 h-7 border-2 border-[#5B8C51] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : medicalError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {medicalError}
+                  </div>
+                ) : medicalRecords.length === 0 ? (
+                  <div className="text-sm text-gray-500 bg-white rounded-lg border border-dashed border-gray-200 px-3 py-4 text-center">
+                    Chưa có ảnh tiến trình cho booking này.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {medicalRecords.map((record) => {
+                      const checkInPhotos = getStagePhotos(record, "received");
+                      const checkoutPhotos = getStagePhotos(record, "completed");
+                      const checkInNote = getStageNote(record, "received");
+                      const checkoutNote = getStageNote(record, "completed");
+
+                      return (
+                        <div key={record._id} className="bg-white border border-gray-200 rounded-xl p-3 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium text-[#2D3436]">
+                              {record.userPet?.petName || "Pet"}
+                            </p>
+                            <span className="text-xs text-gray-500">
+                              Last update: {formatDateTime(record.updatedAt || record.createdAt)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3 space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                Check-in
+                              </p>
+                              {checkInPhotos.length > 0 ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {checkInPhotos.map((photo, index) => (
+                                    <a
+                                      key={`${record._id}-received-${index}`}
+                                      href={photo}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block"
+                                    >
+                                      <img
+                                        src={photo}
+                                        alt={`Check-in ${index + 1}`}
+                                        className="w-full h-20 object-cover rounded-md border border-blue-100"
+                                      />
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-500">No check-in photos</p>
+                              )}
+                              {checkInNote && (
+                                <p className="text-xs text-gray-600">Note: {checkInNote}</p>
+                              )}
+                            </div>
+
+                            <div className="rounded-lg border border-green-100 bg-green-50/40 p-3 space-y-2">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+                                Check-out
+                              </p>
+                              {checkoutPhotos.length > 0 ? (
+                                <div className="grid grid-cols-3 gap-2">
+                                  {checkoutPhotos.map((photo, index) => (
+                                    <a
+                                      key={`${record._id}-completed-${index}`}
+                                      href={photo}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block"
+                                    >
+                                      <img
+                                        src={photo}
+                                        alt={`Check-out ${index + 1}`}
+                                        className="w-full h-20 object-cover rounded-md border border-green-100"
+                                      />
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-500">No check-out photos</p>
+                              )}
+                              {checkoutNote && (
+                                <p className="text-xs text-gray-600">Note: {checkoutNote}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -10,6 +10,7 @@ const {
   assignStaffToBooking,
   checkoutBooking,
   checkoutBoarding,
+  payPendingBooking,
   getAvailableSlots
 
 } = require('../controllers/bookingController');
@@ -26,6 +27,7 @@ router.post('/checkout', restrictTo('customer'), checkoutBooking);  // POST /api
 router.post('/boarding-checkout', restrictTo('customer'), checkoutBoarding);  // POST /api/bookings/boarding-checkout - Checkout standalone boarding booking
 router.post('/', restrictTo('customer'), createBooking);  // POST /api/bookings - Create booking from cart
 router.get('/my', restrictTo('customer'), getMyBookings);  // GET /api/bookings/my - Get my bookings
+router.put('/:id/pay', restrictTo('customer'), payPendingBooking);  // PUT /api/bookings/:id/pay - Retry payment for pending booking
 
 // Staff/Admin routes
 router.post('/guest', restrictTo('staff', 'admin'), createGuestBooking);  // POST /api/bookings/guest - Create guest booking
@@ -35,8 +37,8 @@ router.get('/', restrictTo('staff', 'admin'), getAllBookings);  // GET /api/book
 router.get('/:id', getBookingById);  // GET /api/bookings/:id - Get booking details
 router.put('/:id/cancel', cancelBooking);  // PUT /api/bookings/:id/cancel - Cancel booking
 
-// Staff/Admin only routes
-router.put('/:id/status', restrictTo('staff', 'admin'), updateBookingStatus);  // PUT /api/bookings/:id/status - Update booking status
-router.put('/:id/assign-staff', restrictTo('staff', 'admin'), assignStaffToBooking);  // PUT /api/bookings/:id/assign-staff - Assign staff
+// Staff-only mutation routes (admin is read-only in booking board)
+router.put('/:id/status', restrictTo('staff'), updateBookingStatus);  // PUT /api/bookings/:id/status - Update booking status
+router.put('/:id/assign-staff', restrictTo('staff'), assignStaffToBooking);  // PUT /api/bookings/:id/assign-staff - Assign staff
 
 module.exports = router;

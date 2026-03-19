@@ -13,6 +13,7 @@ import {
   Stethoscope,
   Pill,
   Activity,
+  Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -42,6 +43,18 @@ const RECORD_TYPE_COLORS = {
   emergency: "bg-purple-100 text-purple-800",
   grooming: "bg-pink-100 text-pink-800",
   other: "bg-gray-100 text-gray-800",
+};
+
+const WORKFLOW_STAGE_LABELS = {
+  received: "Check-in",
+  processing: "Processing",
+  completed: "Checkout",
+};
+
+const WORKFLOW_STAGE_COLORS = {
+  received: "bg-blue-100 text-blue-800",
+  processing: "bg-purple-100 text-purple-800",
+  completed: "bg-green-100 text-green-800",
 };
 
 export default function MedicalRecordManagement() {
@@ -608,6 +621,89 @@ export default function MedicalRecordManagement() {
                           <p className="text-gray-800 whitespace-pre-wrap">
                             {selectedRecord.notes}
                           </p>
+                        </div>
+                      )}
+
+                      {/* Workflow Stage */}
+                      {selectedRecord.workflowStage && (
+                        <div className="bg-indigo-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-indigo-800 mb-2">
+                            Workflow Stage
+                          </h4>
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-sm font-semibold ${WORKFLOW_STAGE_COLORS[selectedRecord.workflowStage] || "bg-gray-100 text-gray-800"}`}
+                          >
+                            {WORKFLOW_STAGE_LABELS[selectedRecord.workflowStage] || selectedRecord.workflowStage}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Stage Photos */}
+                      {[
+                        {
+                          key: "receivedPhotos",
+                          title: "Check-in Photos",
+                          photos: selectedRecord.receivedPhotos || [],
+                        },
+                        {
+                          key: "processingPhotos",
+                          title: "Processing Photos",
+                          photos: selectedRecord.processingPhotos || [],
+                        },
+                        {
+                          key: "completedPhotos",
+                          title: "Checkout Photos",
+                          photos: selectedRecord.completedPhotos || [],
+                        },
+                      ].map((section) =>
+                        Array.isArray(section.photos) && section.photos.length > 0 ? (
+                          <div key={section.key} className="bg-gray-50 rounded-xl p-4">
+                            <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <ImageIcon className="w-5 h-5" />
+                              {section.title}
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                              {section.photos.map((url, idx) => (
+                                <a
+                                  key={`${section.key}-${idx}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-lg overflow-hidden border border-gray-200 bg-white"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${section.title} ${idx + 1}`}
+                                    className="w-full h-28 object-cover"
+                                    loading="lazy"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null,
+                      )}
+
+                      {/* Stage History */}
+                      {Array.isArray(selectedRecord.stageHistory) && selectedRecord.stageHistory.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-gray-700 mb-3">Stage History</h4>
+                          <div className="space-y-2">
+                            {selectedRecord.stageHistory
+                              .slice()
+                              .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+                              .map((entry, idx) => (
+                                <div key={`stage-history-${idx}`} className="bg-white rounded-lg border border-gray-100 px-3 py-2">
+                                  <p className="text-sm font-semibold text-gray-800">
+                                    {WORKFLOW_STAGE_LABELS[entry.stage] || entry.stage}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{formatDate(entry.updatedAt)}</p>
+                                  {entry.notes && (
+                                    <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{entry.notes}</p>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
                         </div>
                       )}
 
