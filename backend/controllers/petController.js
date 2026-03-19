@@ -7,6 +7,7 @@
 const mongoose = require('mongoose');
 const UserPet = require('../models/UserPet');
 const User = require('../models/User');
+const MedicalRecord = require('../models/MedicalRecord');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError } = require('../utils/AppError');
 
@@ -274,6 +275,23 @@ const addMedicalRecord = catchAsync(async (req, res, next) => {
     medications,
     notes
   });
+
+  // Sync to standalone MedicalRecord collection for staff view
+  try {
+    await MedicalRecord.create({
+      userPet: petId,
+      user: userID,
+      recordType: type || 'checkup',
+      condition: diagnosis,
+      diagnosis,
+      treatment,
+      medications: medications?.map(m => ({ name: m, dosage: '', frequency: '', duration: '' })) || [],
+      notes: notes || '',
+      createdBy: userID
+    });
+  } catch (syncError) {
+    console.warn('Failed to sync medical record to MedicalRecord collection:', syncError.message);
+  }
 
   res.status(201).json({
     status: 'success',

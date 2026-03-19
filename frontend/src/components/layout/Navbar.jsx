@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   PawPrint,
@@ -12,9 +12,24 @@ import {
   Heart,
   ShoppingCart,
   Wallet,
+  Bell,
+  Check,
+  CheckCheck,
+  Megaphone,
+  CreditCard,
+  Settings,
+  Package,
+  Trash2,
 } from "lucide-react";
 import { logoutApi } from "../../api/authApi";
 import { getCart } from "../../api/cartApi";
+import {
+  getMyNotifications,
+  getUnreadCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification as deleteNotificationApi,
+} from "../../api/notificationApi";
 
 /* ─── SCROLL THRESHOLD (px) before navbar shrinks ─── */
 const SCROLL_THRESHOLD = 60;
@@ -27,6 +42,29 @@ const NAV_LINKS = [
   { label: "News", href: "/news" },
 ];
 
+/* ─── Notification type → icon + color map ─── */
+const NOTIF_TYPE_META = {
+  promotion: { icon: Megaphone, color: "text-pink-500", bg: "bg-pink-50" },
+  order:     { icon: Package,   color: "text-blue-500", bg: "bg-blue-50" },
+  payment:   { icon: CreditCard, color: "text-emerald-500", bg: "bg-emerald-50" },
+  system:    { icon: Settings,  color: "text-slate-500", bg: "bg-slate-100" },
+  account:   { icon: UserCircle, color: "text-amber-500", bg: "bg-amber-50" },
+};
+
+const formatNotifTime = (dateStr) => {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 0) return "Just now";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +73,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const dropdownRef = useRef(null);
+
+  /* ─── Notification state ─── */
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef(null);
 
   // Debug: Log user state
   useEffect(() => {
@@ -120,16 +165,69 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
     return () => window.removeEventListener("cart:updated", handleCartUpdated);
   }, [user]);
 
+  /* ─── Load unread count on mount & when path changes ─── */
+  const loadUnreadCount = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token || !user) { setUnreadCount(0); return; }
+    try {
+      const res = await getUnreadCount();
+      setUnreadCount(res?.data?.data?.count ?? 0);
+    } catch { setUnreadCount(0); }
+  }, [user]);
+
+  useEffect(() => { loadUnreadCount(); }, [loadUnreadCount, location.pathname]);
+
+  const loadNotifications = useCallback(async () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token || !user) return;
+    setNotifLoading(true);
+    try {
+      const res = await getMyNotifications({ page: 1, limit: 20 });
+      const items = res?.data?.data ?? [];
+      setNotifications(items);
+      // also refresh unread badge
+      const cntRes = await getUnreadCount();
+      setUnreadCount(cntRes?.data?.data?.count ?? 0);
+    } catch { /* ignore */ }
+    setNotifLoading(false);
+  }, [user]);
+
+  const handleMarkOneRead = async (id) => {
+    try {
+      await markNotificationAsRead(id);
+      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, isRead: true } : n));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch { /* ignore */ }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch { /* ignore */ }
+  };
+
+  const handleDeleteNotif = async (id) => {
+    try {
+      await deleteNotificationApi(id);
+      const wasUnread = notifications.find((n) => n._id === id && !n.isRead);
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+      if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1));
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        console.log("[Navbar] Click outside dropdown, closing...");
         setIsDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setIsNotifOpen(false);
       }
     };
 
-    if (isDropdownOpen) {
-      // Delay adding listener to prevent immediate trigger
+    if (isDropdownOpen || isNotifOpen) {
       const timer = setTimeout(() => {
         document.addEventListener("mousedown", handleClickOutside);
       }, 100);
@@ -139,7 +237,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [isDropdownOpen]);
+  }, [isDropdownOpen, isNotifOpen]);
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);
@@ -367,6 +465,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {user ? (
               <>
+                {/* ── Cart Button ── */}
                 <button
                   id="navbar-cart-button"
                   onClick={() => navigate("/cart")}
@@ -382,6 +481,177 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                     {cartCount > 99 ? "99+" : cartCount}
                   </span>
                 </button>
+
+                {/* ── Notification Bell ── */}
+                <div className="relative" ref={notifRef} style={{ zIndex: 9999 }}>
+                  <button
+                    id="navbar-notification-button"
+                    onClick={() => {
+                      const willOpen = !isNotifOpen;
+                      setIsNotifOpen(willOpen);
+                      if (willOpen) loadNotifications();
+                    }}
+                    className={`relative p-2 rounded-xl transition-all duration-300 border ${
+                      isScrolled
+                        ? "border-white/20 bg-white/10 text-white hover:bg-white/15 hover:border-white/40"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] hover:border-orange-300 shadow-sm"
+                    }`}
+                    title="Notifications"
+                  >
+                    <Bell size={18} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none border-2 border-white animate-pulse">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* ── Notification Dropdown Panel ── */}
+                  {isNotifOpen && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-full mt-3 w-[380px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-slate-100/80 overflow-hidden"
+                      style={{ animation: "dropIn 0.22s cubic-bezier(.4,0,.2,1) both", zIndex: 10000 }}
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
+                        <div className="flex items-center gap-2">
+                          <Bell size={18} className="text-[#FF8C42]" />
+                          <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={handleMarkAllRead}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-[#FF8C42] hover:text-[#e86b1f] transition-colors"
+                          >
+                            <CheckCheck size={14} />
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e7eb transparent" }}>
+                        {notifLoading ? (
+                          <div className="flex flex-col gap-3 p-4">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="animate-pulse flex gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-slate-100 flex-shrink-0" />
+                                <div className="flex-1 space-y-2">
+                                  <div className="h-3 bg-slate-100 rounded-full w-3/4" />
+                                  <div className="h-2.5 bg-slate-50 rounded-full w-full" />
+                                  <div className="h-2 bg-slate-50 rounded-full w-1/3" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-12 px-6">
+                            <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mb-3">
+                              <Bell size={24} className="text-[#FF8C42]/50" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-600">No notifications yet</p>
+                            <p className="text-xs text-slate-400 mt-1 text-center">You'll see notifications from Happy Tails here</p>
+                          </div>
+                        ) : (
+                          notifications.map((notif) => {
+                            const meta = NOTIF_TYPE_META[notif.type] || NOTIF_TYPE_META.system;
+                            const IconComp = meta.icon;
+                            return (
+                              <div
+                                key={notif._id}
+                                className={`group flex gap-3 px-4 py-3.5 border-b border-slate-50 last:border-b-0 transition-colors cursor-pointer ${
+                                  notif.isRead
+                                    ? "bg-white hover:bg-slate-50/80"
+                                    : "bg-orange-50/40 hover:bg-orange-50/70"
+                                }`}
+                                onClick={() => {
+                                  if (!notif.isRead) handleMarkOneRead(notif._id);
+                                  if (notif.actionUrl) {
+                                    setIsNotifOpen(false);
+                                    navigate(notif.actionUrl);
+                                  }
+                                }}
+                              >
+                                {/* Icon or Image */}
+                                {notif.imageUrl ? (
+                                  <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
+                                    <img
+                                      src={notif.imageUrl}
+                                      alt=""
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = "none";
+                                        e.target.parentElement.classList.add(meta.bg);
+                                        e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="${meta.color}"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>`;
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}>
+                                    <IconComp size={16} className={meta.color} />
+                                  </div>
+                                )}
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className={`text-[13px] leading-snug line-clamp-2 ${
+                                      notif.isRead ? "text-slate-600 font-medium" : "text-slate-800 font-semibold"
+                                    }`}>
+                                      {notif.title}
+                                    </p>
+                                    {!notif.isRead && (
+                                      <span className="w-2 h-2 rounded-full bg-[#FF8C42] flex-shrink-0 mt-1.5" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                                    {notif.body}
+                                  </p>
+                                  <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                      {formatNotifTime(notif.createdAt)}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteNotif(notif._id);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                                      title="Delete"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      {notifications.length > 0 && (
+                        <div className="border-t border-slate-100 px-4 py-2.5 bg-slate-50/50">
+                          <button
+                            onClick={() => {
+                              setIsNotifOpen(false);
+                              // Could navigate to a full notifications page later
+                            }}
+                            className="w-full text-center text-xs font-semibold text-[#FF8C42] hover:text-[#e86b1f] transition-colors py-1"
+                          >
+                            View all notifications
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div
                   className="relative"
@@ -688,6 +958,24 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none">
                     {cartCount > 99 ? "99+" : cartCount}
                   </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    // Open notif dropdown or navigate
+                    setIsNotifOpen(true);
+                    loadNotifications();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all justify-between"
+                >
+                  <span className="inline-flex items-center gap-3">
+                    <Bell size={16} /> Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => {

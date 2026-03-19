@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PrivateRoute from "./components/PrivateRoute";
@@ -24,6 +29,8 @@ import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
 import StaffFeedbackPage from "./pages/dashboard/staff/StaffFeedbackPage";
+import StaffNotificationsManagement from "./pages/dashboard/staff/StaffNotificationsManagement";
+import StaffMedicalRecordManagement from "./pages/dashboard/staff/StaffMedicalRecordManagement";
 import BookingBoard from "./pages/dashboard/BookingBoard";
 import UserManagement from "./pages/dashboard/admin/AdminUserManagement";
 import RoomManagement from "./pages/dashboard/admin/AdminRoomManagement";
@@ -131,6 +138,22 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={["staff"]}>
                   <StaffFeedbackPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="notifications"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffNotificationsManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="medical-records"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffMedicalRecordManagement />
                 </PrivateRoute>
               }
             />
