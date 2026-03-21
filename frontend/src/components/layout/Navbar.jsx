@@ -45,10 +45,10 @@ const NAV_LINKS = [
 /* ─── Notification type → icon + color map ─── */
 const NOTIF_TYPE_META = {
   promotion: { icon: Megaphone, color: "text-pink-500", bg: "bg-pink-50" },
-  order:     { icon: Package,   color: "text-blue-500", bg: "bg-blue-50" },
-  payment:   { icon: CreditCard, color: "text-emerald-500", bg: "bg-emerald-50" },
-  system:    { icon: Settings,  color: "text-slate-500", bg: "bg-slate-100" },
-  account:   { icon: UserCircle, color: "text-amber-500", bg: "bg-amber-50" },
+  order: { icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
+  payment: { icon: CreditCard, color: "text-emerald-500", bg: "bg-emerald-50" },
+  system: { icon: Settings, color: "text-slate-500", bg: "bg-slate-100" },
+  account: { icon: UserCircle, color: "text-amber-500", bg: "bg-amber-50" },
 };
 
 const formatNotifTime = (dateStr) => {
@@ -62,7 +62,10 @@ const formatNotifTime = (dateStr) => {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
@@ -168,14 +171,21 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
   /* ─── Load unread count on mount & when path changes ─── */
   const loadUnreadCount = useCallback(async () => {
     const token = localStorage.getItem("accessToken");
-    if (!token || !user) { setUnreadCount(0); return; }
+    if (!token || !user) {
+      setUnreadCount(0);
+      return;
+    }
     try {
       const res = await getUnreadCount();
       setUnreadCount(res?.data?.data?.count ?? 0);
-    } catch { setUnreadCount(0); }
+    } catch {
+      setUnreadCount(0);
+    }
   }, [user]);
 
-  useEffect(() => { loadUnreadCount(); }, [loadUnreadCount, location.pathname]);
+  useEffect(() => {
+    loadUnreadCount();
+  }, [loadUnreadCount, location.pathname]);
 
   const loadNotifications = useCallback(async () => {
     const token = localStorage.getItem("accessToken");
@@ -188,16 +198,22 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
       // also refresh unread badge
       const cntRes = await getUnreadCount();
       setUnreadCount(cntRes?.data?.data?.count ?? 0);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setNotifLoading(false);
   }, [user]);
 
   const handleMarkOneRead = async (id) => {
     try {
       await markNotificationAsRead(id);
-      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, isRead: true } : n));
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
+      );
       setUnreadCount((c) => Math.max(0, c - 1));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleMarkAllRead = async () => {
@@ -205,7 +221,9 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
       await markAllNotificationsAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleDeleteNotif = async (id) => {
@@ -214,7 +232,9 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
       const wasUnread = notifications.find((n) => n._id === id && !n.isRead);
       setNotifications((prev) => prev.filter((n) => n._id !== id));
       if (wasUnread) setUnreadCount((c) => Math.max(0, c - 1));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   useEffect(() => {
@@ -483,7 +503,11 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                 </button>
 
                 {/* ── Notification Bell ── */}
-                <div className="relative" ref={notifRef} style={{ zIndex: 9999 }}>
+                <div
+                  className="relative"
+                  ref={notifRef}
+                  style={{ zIndex: 9999 }}
+                >
                   <button
                     id="navbar-notification-button"
                     onClick={() => {
@@ -511,13 +535,18 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                     <div
                       onClick={(e) => e.stopPropagation()}
                       className="absolute right-0 top-full mt-3 w-[380px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-slate-100/80 overflow-hidden"
-                      style={{ animation: "dropIn 0.22s cubic-bezier(.4,0,.2,1) both", zIndex: 10000 }}
+                      style={{
+                        animation: "dropIn 0.22s cubic-bezier(.4,0,.2,1) both",
+                        zIndex: 10000,
+                      }}
                     >
                       {/* Header */}
                       <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
                         <div className="flex items-center gap-2">
                           <Bell size={18} className="text-[#FF8C42]" />
-                          <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
+                          <h3 className="text-sm font-bold text-slate-800">
+                            Notifications
+                          </h3>
                           {unreadCount > 0 && (
                             <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
                               {unreadCount}
@@ -536,7 +565,13 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                       </div>
 
                       {/* Body */}
-                      <div className="max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#e5e7eb transparent" }}>
+                      <div
+                        className="max-h-[400px] overflow-y-auto"
+                        style={{
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "#e5e7eb transparent",
+                        }}
+                      >
                         {notifLoading ? (
                           <div className="flex flex-col gap-3 p-4">
                             {[1, 2, 3].map((i) => (
@@ -555,12 +590,18 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                             <div className="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center mb-3">
                               <Bell size={24} className="text-[#FF8C42]/50" />
                             </div>
-                            <p className="text-sm font-semibold text-slate-600">No notifications yet</p>
-                            <p className="text-xs text-slate-400 mt-1 text-center">You'll see notifications from Happy Tails here</p>
+                            <p className="text-sm font-semibold text-slate-600">
+                              No notifications yet
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1 text-center">
+                              You'll see notifications from Happy Tails here
+                            </p>
                           </div>
                         ) : (
                           notifications.map((notif) => {
-                            const meta = NOTIF_TYPE_META[notif.type] || NOTIF_TYPE_META.system;
+                            const meta =
+                              NOTIF_TYPE_META[notif.type] ||
+                              NOTIF_TYPE_META.system;
                             const IconComp = meta.icon;
                             return (
                               <div
@@ -571,7 +612,8 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                                     : "bg-orange-50/40 hover:bg-orange-50/70"
                                 }`}
                                 onClick={() => {
-                                  if (!notif.isRead) handleMarkOneRead(notif._id);
+                                  if (!notif.isRead)
+                                    handleMarkOneRead(notif._id);
                                   if (notif.actionUrl) {
                                     setIsNotifOpen(false);
                                     navigate(notif.actionUrl);
@@ -587,23 +629,34 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
                                         e.target.style.display = "none";
-                                        e.target.parentElement.classList.add(meta.bg);
+                                        e.target.parentElement.classList.add(
+                                          meta.bg,
+                                        );
                                         e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="${meta.color}"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>`;
                                       }}
                                     />
                                   </div>
                                 ) : (
-                                  <div className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}>
-                                    <IconComp size={16} className={meta.color} />
+                                  <div
+                                    className={`w-9 h-9 rounded-xl ${meta.bg} flex items-center justify-center flex-shrink-0`}
+                                  >
+                                    <IconComp
+                                      size={16}
+                                      className={meta.color}
+                                    />
                                   </div>
                                 )}
 
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-2">
-                                    <p className={`text-[13px] leading-snug line-clamp-2 ${
-                                      notif.isRead ? "text-slate-600 font-medium" : "text-slate-800 font-semibold"
-                                    }`}>
+                                    <p
+                                      className={`text-[13px] leading-snug line-clamp-2 ${
+                                        notif.isRead
+                                          ? "text-slate-600 font-medium"
+                                          : "text-slate-800 font-semibold"
+                                      }`}
+                                    >
                                       {notif.title}
                                     </p>
                                     {!notif.isRead && (
@@ -641,7 +694,7 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                           <button
                             onClick={() => {
                               setIsNotifOpen(false);
-                              // Could navigate to a full notifications page later
+                              navigate("/notifications");
                             }}
                             className="w-full text-center text-xs font-semibold text-[#FF8C42] hover:text-[#e86b1f] transition-colors py-1"
                           >
@@ -658,146 +711,146 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   style={{ zIndex: 9999 }}
                   ref={dropdownRef}
                 >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log(
-                      "[Navbar] Avatar clicked, toggling dropdown from",
-                      isDropdownOpen,
-                      "to",
-                      !isDropdownOpen,
-                    );
-                    setIsDropdownOpen(!isDropdownOpen);
-                  }}
-                  className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl border transition-all duration-300
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log(
+                        "[Navbar] Avatar clicked, toggling dropdown from",
+                        isDropdownOpen,
+                        "to",
+                        !isDropdownOpen,
+                      );
+                      setIsDropdownOpen(!isDropdownOpen);
+                    }}
+                    className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl border transition-all duration-300
                     ${
                       isScrolled
                         ? "border-white/20 hover:border-white/40 bg-white/10 hover:bg-white/15"
                         : "border-slate-200 hover:border-orange-300 hover:bg-orange-50/50 bg-white shadow-sm"
                     }`}
-                >
-                  {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt="avatar"
-                      className="w-7 h-7 rounded-lg object-cover shadow"
+                  >
+                    {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt="avatar"
+                        className="w-7 h-7 rounded-lg object-cover shadow"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-xs shadow">
+                        {getInitials(user.name)}
+                      </div>
+                    )}
+                    <span
+                      className={`text-sm font-semibold max-w-[100px] truncate transition-colors duration-300 ${isScrolled ? "text-white" : "text-slate-800"}`}
+                    >
+                      {user.name}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`transition-all duration-300 ${isScrolled ? "text-white/50" : "text-slate-400"} ${isDropdownOpen ? "rotate-180" : ""}`}
                     />
-                  ) : (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-xs shadow">
-                      {getInitials(user.name)}
-                    </div>
-                  )}
-                  <span
-                    className={`text-sm font-semibold max-w-[100px] truncate transition-colors duration-300 ${isScrolled ? "text-white" : "text-slate-800"}`}
-                  >
-                    {user.name}
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-all duration-300 ${isScrolled ? "text-white/50" : "text-slate-400"} ${isDropdownOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
+                  </button>
 
-                {isDropdownOpen && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute right-0 top-full mt-3 w-60 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.14)] border border-slate-100 overflow-hidden"
-                    style={{
-                      animation: "dropIn 0.2s cubic-bezier(.4,0,.2,1) both",
-                      zIndex: 10000,
-                    }}
-                  >
-                    <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
-                      <div className="flex items-center gap-3">
-                        {user.avatar ? (
-                          <img
-                            src={user.avatar}
-                            alt="avatar"
-                            className="w-9 h-9 rounded-xl object-cover shadow"
-                          />
-                        ) : (
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-sm shadow">
-                            {getInitials(user.name)}
+                  {isDropdownOpen && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-full mt-3 w-60 bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.14)] border border-slate-100 overflow-hidden"
+                      style={{
+                        animation: "dropIn 0.2s cubic-bezier(.4,0,.2,1) both",
+                        zIndex: 10000,
+                      }}
+                    >
+                      <div className="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50/50 border-b border-orange-100/60">
+                        <div className="flex items-center gap-3">
+                          {user.avatar ? (
+                            <img
+                              src={user.avatar}
+                              alt="avatar"
+                              className="w-9 h-9 rounded-xl object-cover shadow"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF8C42] to-[#e86b1f] flex items-center justify-center text-white font-bold text-sm shadow">
+                              {getInitials(user.name)}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">
+                              {user.email}
+                            </p>
                           </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-slate-800 truncate">
-                            {user.name}
-                          </p>
-                          <p className="text-xs text-slate-500 truncate">
-                            {user.email}
-                          </p>
                         </div>
                       </div>
+                      <div className="py-1.5 px-2">
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate("/profile");
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
+                        >
+                          <UserCircle
+                            size={16}
+                            className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
+                          />
+                          Profile
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate("/pets");
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
+                        >
+                          <Heart
+                            size={16}
+                            className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
+                          />
+                          My Pets
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate("/bookings");
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
+                        >
+                          <CalendarDays
+                            size={16}
+                            className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
+                          />
+                          Bookings
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            navigate("/wallet");
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
+                        >
+                          <Wallet
+                            size={16}
+                            className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
+                          />
+                          Wallet
+                        </button>
+                      </div>
+                      <div className="px-2 pt-0.5 pb-1.5 border-t border-slate-100 mx-2">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-all mt-1 group"
+                        >
+                          <LogOut
+                            size={16}
+                            className="group-hover:translate-x-0.5 transition-transform"
+                          />
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
-                    <div className="py-1.5 px-2">
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate("/profile");
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
-                      >
-                        <UserCircle
-                          size={16}
-                          className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
-                        />
-                        Profile
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate("/pets");
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
-                      >
-                        <Heart
-                          size={16}
-                          className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
-                        />
-                        My Pets
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate("/bookings");
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
-                      >
-                        <CalendarDays
-                          size={16}
-                          className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
-                        />
-                        Bookings
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate("/wallet");
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-orange-50 hover:text-[#FF8C42] transition-all group"
-                      >
-                        <Wallet
-                          size={16}
-                          className="text-slate-400 group-hover:text-[#FF8C42] transition-colors"
-                        />
-                        Wallet
-                      </button>
-                    </div>
-                    <div className="px-2 pt-0.5 pb-1.5 border-t border-slate-100 mx-2">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-all mt-1 group"
-                      >
-                        <LogOut
-                          size={16}
-                          className="group-hover:translate-x-0.5 transition-transform"
-                        />
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
                 </div>
               </>
             ) : (

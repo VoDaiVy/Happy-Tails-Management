@@ -122,22 +122,22 @@ const CustomSelect = ({
             initial={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: up ? 8 : -8, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.12 }}
             style={{
               position: "fixed",
-              top: up ? undefined : position.top + 8,
-              bottom: up ? window.innerHeight - position.top + 8 : undefined,
+              top: up ? undefined : position.top + 6,
+              bottom: up ? window.innerHeight - position.top + 6 : undefined,
               left: position.left,
               width: position.width,
             }}
-            className={`bg-[#FDFBF7] rounded-[16px] shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#2D3436]/5 overflow-hidden z-[9999] py-1.5 max-h-60 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]`}
+            className={`bg-[#FFFEFB] rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#E8DED2]/70 overflow-hidden z-[9999] py-1 max-h-56 overflow-y-auto [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/50`}
           >
             {options.map((opt, idx) => {
               const isSelected = value === opt;
               return (
                 <div
                   key={idx}
-                  className={`px-4 py-2.5 text-[14px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#2D3436]/5 font-medium" : "border-l-[3px] border-[#D97853] bg-[#D97853]/10 text-[#D97853] font-bold"}`}
+                  className={`px-3.5 py-2.5 text-[13px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#F8F4EF] hover:text-[#2D3436] font-medium" : "border-l-[3px] border-[#D97853] bg-[#FFF5EC] text-[#D97853] font-semibold"}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange(opt);
@@ -156,14 +156,14 @@ const CustomSelect = ({
   return (
     <div className={`relative flex-col flex ${isOpen ? "z-[60]" : "z-10"}`}>
       {label && (
-        <label className="block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60 mb-1.5">
+        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
           {label}
         </label>
       )}
 
       <div
         ref={triggerRef}
-        className={`flex items-center justify-between px-4 py-3 bg-[#FDFBF7] border ${isOpen ? "border-[#D97853]" : "border-[#2D3436]/10"} rounded-2xl cursor-pointer hover:border-[#D97853] transition-all ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+        className={`flex items-center justify-between px-3.5 py-2.5 bg-[#FDFBF7] border ${isOpen ? "border-[#D97853]" : "border-[#D8D0C4]/40"} rounded-xl cursor-pointer transition-all ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-[#D97853]/50"}`}
         onClick={(e) => {
           if (!disabled) {
             e.stopPropagation();
@@ -171,18 +171,18 @@ const CustomSelect = ({
           }
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {Icon && (
             <Icon
-              size={16}
+              size={14}
               className={isOpen ? "text-[#D97853]" : "text-[#2D3436]/40"}
             />
           )}
           <span className="text-sm font-medium text-[#2D3436]">{value}</span>
         </div>
-        <RightIcon
-          size={14}
-          className={`text-[#D97853] transition-transform ${isOpen && RightIcon === MoreVertical ? "rotate-180" : ""}`}
+        <ChevronDown
+          size={13}
+          className={`text-[#D97853] transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </div>
 
@@ -1218,35 +1218,42 @@ const StaffNotificationsManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/52 p-3 backdrop-blur-[2px]"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/45 p-4 backdrop-blur-[3px]"
             onClick={closeModal}
           >
             <Motion.div
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              className="w-full max-w-[1000px] overflow-hidden rounded-[28px] border border-[#E8DED2] bg-[#FFFEFD] shadow-[0_28px_90px_-38px_rgba(15,23,42,0.55)]"
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-[1080px] overflow-hidden rounded-[24px] border border-[#E8DED2]/80 bg-[#FFFEFB] shadow-[0_32px_100px_-40px_rgba(15,23,42,0.5)]"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-[#EFE6DB] bg-gradient-to-r from-[#FFF5EC] via-[#FFFDFB] to-[#FFF6EE] px-6 py-4">
-                <div>
-                  <h3 className="text-xl font-bold text-[#2D3436]">
-                    {modalMode === "create"
-                      ? "Create Notification"
-                      : modalMode === "edit"
-                        ? "Update Notification"
-                        : "Notification Detail"}
-                  </h3>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#D97853]">
-                    Notification Workspace
-                  </p>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-[#EDE6DB] bg-gradient-to-r from-[#FFF8F3] via-[#FFFDFB] to-[#FFF7F1] px-7 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D97853]/10">
+                    <BellRing size={18} className="text-[#D97853]" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#2D3436]">
+                      {modalMode === "create"
+                        ? "Create Notification"
+                        : modalMode === "edit"
+                          ? "Update Notification"
+                          : "Notification Detail"}
+                    </h2>
+                    <p className="text-xs font-medium text-[#2D3436]/45">
+                      Compose and send push notifications to your audience
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={closeModal}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#E8DED2] bg-white text-[#2D3436]/65 transition-colors hover:bg-[#F8F4EF] hover:text-[#2D3436]"
-                  aria-label="Close form"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E8DED2] bg-white text-[#2D3436]/55 transition-all hover:bg-[#F8F4EF] hover:border-[#D97853]/30 hover:text-[#D97853]"
+                  aria-label="Close modal"
                 >
-                  <X size={18} />
+                  <X size={17} />
                 </button>
               </div>
 
@@ -1255,20 +1262,26 @@ const StaffNotificationsManagement = () => {
                   event.preventDefault();
                   handleSubmitForm("send");
                 }}
-                className="flex flex-col max-h-[85vh]"
+                className="flex flex-col max-h-[82vh]"
               >
-                <div className="space-y-6 overflow-y-auto p-6 md:p-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                  <div className="space-y-10">
-                    <section>
-                      <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-7 py-6 [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/40 [&::-webkit-scrollbar-thumb:hover]:bg-[#D8D0C4]/60">
+                  <div className="grid grid-cols-1 gap-7 lg:grid-cols-2 lg:gap-6">
+                    {/* Section 1: Basic Information */}
+                    <div className="mb-8 lg:mb-0">
+                      <div className="mb-5 flex items-center gap-3">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#D97853]/12 text-[11px] font-bold text-[#D97853]">
                           1
                         </span>
-                        BASIC INFORMATION
-                      </h4>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="md:col-span-2">
-                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60">
+                        <h3 className="text-sm font-bold tracking-wide text-[#2D3436]">
+                          BASIC INFORMATION
+                        </h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Notification Title - Full Width */}
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                             Notification Title
                           </label>
                           <input
@@ -1280,8 +1293,8 @@ const StaffNotificationsManagement = () => {
                                 title: event.target.value,
                               }))
                             }
-                            className="w-full rounded-2xl border border-[#2D3436]/10 bg-[#FDFBF7] px-4 py-3 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/50 disabled:cursor-not-allowed disabled:opacity-60"
-                            placeholder="Example: Vaccination Reminder for Premium Members"
+                            className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                            placeholder="e.g. Vaccination Reminder for Premium Members"
                           />
                           {formErrors.title && (
                             <p className="mt-1.5 text-xs font-medium text-red-500">
@@ -1290,50 +1303,46 @@ const StaffNotificationsManagement = () => {
                           )}
                         </div>
 
-                        <div>
-                          <CustomSelect
-                            label="Notification Type"
-                            options={TYPE_OPTIONS}
-                            value={formState.type}
-                            onChange={(val) =>
-                              setFormState((prev) => ({ ...prev, type: val }))
-                            }
-                            isOpen={isTypeOpen}
-                            setIsOpen={setIsTypeOpen}
-                            disabled={modalMode === "view"}
-                          />
+                        {/* Type + Preview - 2 Column Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Notification Type
+                            </label>
+                            <CustomSelect
+                              options={TYPE_OPTIONS}
+                              value={formState.type}
+                              onChange={(val) =>
+                                setFormState((prev) => ({ ...prev, type: val }))
+                              }
+                              isOpen={isTypeOpen}
+                              setIsOpen={setIsTypeOpen}
+                              disabled={modalMode === "view"}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Short Preview
+                            </label>
+                            <input
+                              value={formState.summary}
+                              disabled={modalMode === "view"}
+                              onChange={(event) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  summary: event.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                              placeholder="One-line preview text"
+                            />
+                          </div>
                         </div>
 
+                        {/* Message Content - Move to left below Basic Information */}
                         <div>
-                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60">
-                            Short Preview / Summary
-                          </label>
-                          <input
-                            value={formState.summary}
-                            disabled={modalMode === "view"}
-                            onChange={(event) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                summary: event.target.value,
-                              }))
-                            }
-                            className="w-full rounded-2xl border border-[#2D3436]/10 bg-[#FDFBF7] px-4 py-3 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/50 disabled:cursor-not-allowed disabled:opacity-60"
-                            placeholder="One-line preview for table/list"
-                          />
-                        </div>
-                      </div>
-                    </section>
-
-                    <section>
-                      <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
-                          2
-                        </span>
-                        CONTENT & AUDIENCE
-                      </h4>
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60">
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                             Message Content
                           </label>
                           <textarea
@@ -1345,8 +1354,8 @@ const StaffNotificationsManagement = () => {
                                 content: event.target.value,
                               }))
                             }
-                            rows={4}
-                            className="w-full resize-y rounded-2xl border border-[#2D3436]/10 bg-[#FDFBF7] px-4 py-3 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/50 disabled:cursor-not-allowed disabled:opacity-60"
+                            rows={6}
+                            className="w-full resize-y rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
                             placeholder="Write clear and concise notification content..."
                           />
                           {formErrors.content && (
@@ -1355,13 +1364,28 @@ const StaffNotificationsManagement = () => {
                             </p>
                           )}
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
+                    {/* Section 2: Content & Audience */}
+                    <div className="mt-0 lg:border-l lg:border-[#E8DED2]/65 lg:pl-6">
+                      <div className="mb-5 flex items-center gap-3">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#D97853]/12 text-[11px] font-bold text-[#D97853]">
+                          2
+                        </span>
+                        <h3 className="text-sm font-bold tracking-wide text-[#2D3436]">
+                          CONTENT & AUDIENCE
+                        </h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Banner Upload + Preview - 2 Column Row */}
+                        <div className="grid grid-cols-[1fr_220px] gap-4">
                           <div>
-                            <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60">
-                              Optional Banner Image
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Banner Image
                             </label>
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-3">
                               <input
                                 ref={bannerInputRef}
                                 type="file"
@@ -1378,12 +1402,12 @@ const StaffNotificationsManagement = () => {
                                   modalMode === "view" || isUploadingBanner
                                 }
                                 onClick={() => bannerInputRef.current?.click()}
-                                className="inline-flex h-[46px] items-center justify-center gap-2 rounded-2xl border border-[#2D3436]/10 bg-white px-4 text-sm font-bold text-[#2D3436]/75 shadow-sm transition-all hover:border-[#D97853]/50 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#D8D0C4]/50 bg-white px-4 text-xs font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/50 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {isUploadingBanner ? (
-                                  <Loader2 size={16} className="animate-spin" />
+                                  <Loader2 size={14} className="animate-spin" />
                                 ) : (
-                                  <UploadCloud size={16} />
+                                  <UploadCloud size={14} />
                                 )}
                                 {isUploadingBanner
                                   ? "Uploading..."
@@ -1400,9 +1424,9 @@ const StaffNotificationsManagement = () => {
                                     }))
                                   }
                                   disabled={modalMode === "view"}
-                                  className="inline-flex h-[46px] items-center justify-center gap-1.5 rounded-2xl border border-[#F2D6D6] bg-[#FFF8F8] px-4 text-sm font-bold text-[#B42318] shadow-sm transition-all hover:bg-[#FFF1F1] disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#F2D6D6]/70 bg-[#FFF8F8] px-3 text-xs font-semibold text-[#B42318]/80 transition-all hover:bg-[#FFF1F1] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  <X size={14} />
+                                  <X size={12} />
                                   Remove
                                 </button>
                               )}
@@ -1414,248 +1438,264 @@ const StaffNotificationsManagement = () => {
                             )}
                           </div>
 
+                          {/* Banner Preview */}
                           <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Preview
+                            </label>
                             {formState.bannerImage ? (
-                              <div className="h-[100px] w-full overflow-hidden rounded-2xl border border-[#EFE6DB] bg-white">
+                              <div className="h-[68px] w-full overflow-hidden rounded-xl border border-[#E8DED2]/60 bg-[#F8F6F2]">
                                 <img
                                   src={formState.bannerImage}
-                                  alt="Preview"
+                                  alt="Banner preview"
                                   className="h-full w-full object-cover"
                                 />
                               </div>
                             ) : (
-                              <div className="flex h-[100px] w-full items-center justify-center rounded-2xl border border-dashed border-[#2D3436]/15 bg-[#FDFBF7] px-3 text-center text-[11px] font-bold tracking-widest text-[#2D3436]/30 uppercase">
+                              <div className="flex h-[68px] w-full items-center justify-center rounded-xl border border-dashed border-[#D8D0C4]/40 bg-[#FAF8F5] text-[10px] font-semibold uppercase tracking-widest text-[#2D3436]/25">
                                 No banner
                               </div>
                             )}
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                          <CustomSelect
-                            label="Send To (Audience)"
-                            options={AUDIENCE_OPTIONS}
-                            value={formState.audienceMode}
-                            onChange={(val) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                audienceMode: val,
-                              }))
-                            }
-                            isOpen={isAudienceOpen}
-                            setIsOpen={setIsAudienceOpen}
-                            disabled={modalMode === "view"}
-                          />
-                          {formErrors.audienceMode && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">
-                              {formErrors.audienceMode}
-                            </p>
-                          )}
-                        </div>
-
-                        <div>
-                          <CustomSelect
-                            label="Priority"
-                            options={PRIORITY_OPTIONS}
-                            value={formState.priority}
-                            onChange={(val) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                priority: val,
-                              }))
-                            }
-                            isOpen={isPriorityOpen}
-                            setIsOpen={setIsPriorityOpen}
-                            disabled={modalMode === "view"}
-                          />
-                        </div>
-                      </div>
-
-                      {formState.audienceMode === "Specific Users" && (
-                        <div className="mt-4 rounded-2xl border border-dashed border-[#2D3436]/10 bg-[#FDFBF7] p-4">
-                          <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-[#D97853]">
-                            Select Users
-                          </label>
-                          {/* Search customers */}
-                          <div className="relative mb-3">
-                            <Search
-                              size={14}
-                              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/40"
-                            />
-                            <input
-                              value={customerSearch}
-                              onChange={(e) =>
-                                setCustomerSearch(e.target.value)
-                              }
-                              placeholder="Search by name or email..."
-                              className="w-full rounded-xl border border-[#2D3436]/10 bg-white py-2 pl-9 pr-3 text-xs text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/30"
-                            />
-                          </div>
-
-                          {isLoadingCustomers ? (
-                            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                              {Array.from({ length: 4 }).map((_, i) => (
-                                <div
-                                  key={i}
-                                  className="animate-pulse rounded-xl border border-[#2D3436]/5 bg-white p-3"
-                                >
-                                  <div className="h-3 w-24 rounded bg-[#EFE6DB]" />
-                                  <div className="mt-1.5 h-2.5 w-36 rounded bg-[#F5F0EA]" />
-                                </div>
-                              ))}
-                            </div>
-                          ) : customerUsers.length === 0 ? (
-                            <p className="py-6 text-center text-xs text-[#2D3436]/45">
-                              {customerSearch
-                                ? "No customers found matching your search."
-                                : "No customers available."}
-                            </p>
-                          ) : (
-                            <div className="grid max-h-48 grid-cols-1 gap-2.5 overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] md:grid-cols-2">
-                              {customerUsers.map((user) => {
-                                const selected =
-                                  formState.audienceUsers.includes(user.id);
-                                return (
-                                  <label
-                                    key={user.id}
-                                    className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                                      selected
-                                        ? "border-[#D97853] bg-[#FFF5EC]"
-                                        : "border-[#2D3436]/10 bg-white hover:border-[#D97853]/40"
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selected}
-                                      disabled={modalMode === "view"}
-                                      onChange={() =>
-                                        handleToggleAudienceUser(user.id)
-                                      }
-                                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#D4CDC4] text-[#D97853] focus:ring-[#D97853]/30"
-                                    />
-                                    <span className="min-w-0">
-                                      <p className="truncate text-xs font-bold text-[#2D3436]">
-                                        {user.name}
-                                      </p>
-                                      <p className="truncate text-[11px] font-medium text-[#2D3436]/60">
-                                        {user.email}
-                                      </p>
-                                    </span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {formState.audienceUsers.length > 0 && (
-                            <p className="mt-2 text-[11px] font-semibold text-[#D97853]">
-                              {formState.audienceUsers.length} user(s) selected
-                            </p>
-                          )}
-                          {formErrors.audienceUsers && (
-                            <p className="mt-2 text-xs font-medium text-red-500">
-                              {formErrors.audienceUsers}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </section>
-
-                    <section>
-                      <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
-                          3
-                        </span>
-                        DELIVERY STATUS
-                      </h4>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div>
-                          <CustomSelect
-                            label="Delivery Mode"
-                            options={["Send now", "Schedule later"]}
-                            value={formState.deliveryMode}
-                            onChange={(val) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                deliveryMode: val,
-                              }))
-                            }
-                            isOpen={isDeliveryOpen}
-                            setIsOpen={setIsDeliveryOpen}
-                            disabled={modalMode === "view"}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-[#2D3436]/60">
-                            Scheduled Date/Time
-                          </label>
-                          <div className="relative">
-                            <DatePicker
-                              selected={toScheduledAtDate(
-                                formState.scheduledAt,
-                              )}
-                              onChange={(date) =>
+                        {/* Audience + Priority - 2 Column Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Send To (Audience)
+                            </label>
+                            <CustomSelect
+                              options={AUDIENCE_OPTIONS}
+                              value={formState.audienceMode}
+                              onChange={(val) =>
                                 setFormState((prev) => ({
                                   ...prev,
-                                  scheduledAt: toScheduledAtString(date),
+                                  audienceMode: val,
                                 }))
                               }
-                              showTimeSelect
-                              timeIntervals={15}
-                              timeCaption="Time"
-                              dateFormat="dd/MM/yyyy HH:mm"
-                              placeholderText="Chọn ngày và giờ"
-                              disabled={
-                                modalMode === "view" ||
-                                formState.deliveryMode !== "Schedule later"
-                              }
-                              minDate={new Date()}
-                              className="w-full rounded-2xl border border-[#2D3436]/10 bg-[#FDFBF7] py-3 pl-4 pr-11 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-1 focus:ring-[#D97853]/50 disabled:cursor-not-allowed disabled:opacity-60"
-                              wrapperClassName="w-full"
-                              popperClassName="notification-datepicker-popper"
-                              calendarClassName="notification-datepicker-calendar"
-                              showPopperArrow={false}
+                              isOpen={isAudienceOpen}
+                              setIsOpen={setIsAudienceOpen}
+                              disabled={modalMode === "view"}
                             />
-                            <CalendarClock className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#2D3436]/50" />
+                            {formErrors.audienceMode && (
+                              <p className="mt-1.5 text-xs font-medium text-red-500">
+                                {formErrors.audienceMode}
+                              </p>
+                            )}
                           </div>
-                          {formErrors.scheduledAt && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">
-                              {formErrors.scheduledAt}
-                            </p>
-                          )}
+
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Priority Level
+                            </label>
+                            <CustomSelect
+                              options={PRIORITY_OPTIONS}
+                              value={formState.priority}
+                              onChange={(val) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  priority: val,
+                                }))
+                              }
+                              isOpen={isPriorityOpen}
+                              setIsOpen={setIsPriorityOpen}
+                              disabled={modalMode === "view"}
+                            />
+                          </div>
                         </div>
 
-                        <div>
-                          <CustomSelect
-                            label="Current Status"
-                            options={STATUS_OPTIONS}
-                            value={formState.status}
-                            onChange={(val) =>
-                              setFormState((prev) => ({ ...prev, status: val }))
-                            }
-                            isOpen={isStatusOpen}
-                            setIsOpen={setIsStatusOpen}
-                            disabled={modalMode === "view"}
-                          />
-                          {formErrors.status && (
-                            <p className="mt-1.5 text-xs font-medium text-red-500">
-                              {formErrors.status}
-                            </p>
-                          )}
+                        {/* Delivery Mode + Scheduled Date/Time - 2 Column Row */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Delivery Mode
+                            </label>
+                            <CustomSelect
+                              options={["Send now", "Schedule later"]}
+                              value={formState.deliveryMode}
+                              onChange={(val) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  deliveryMode: val,
+                                }))
+                              }
+                              isOpen={isDeliveryOpen}
+                              setIsOpen={setIsDeliveryOpen}
+                              disabled={modalMode === "view"}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Schedule Date & Time
+                            </label>
+                            <div className="relative">
+                              <DatePicker
+                                selected={toScheduledAtDate(
+                                  formState.scheduledAt,
+                                )}
+                                onChange={(date) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    scheduledAt: toScheduledAtString(date),
+                                  }))
+                                }
+                                showTimeSelect
+                                timeIntervals={15}
+                                timeCaption="Time"
+                                dateFormat="dd/MM/yyyy HH:mm"
+                                placeholderText="Select date and time"
+                                disabled={
+                                  modalMode === "view" ||
+                                  formState.deliveryMode !== "Schedule later"
+                                }
+                                minDate={new Date()}
+                                className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                                wrapperClassName="w-full"
+                                popperClassName="notification-datepicker-popper"
+                                calendarClassName="notification-datepicker-calendar"
+                                showPopperArrow={false}
+                              />
+                              <CalendarClock className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#2D3436]/40" />
+                            </div>
+                            {formErrors.scheduledAt && (
+                              <p className="mt-1.5 text-xs font-medium text-red-500">
+                                {formErrors.scheduledAt}
+                              </p>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Status (for edit mode) */}
+                        {modalMode === "edit" && (
+                          <div className="max-w-[280px]">
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
+                              Status
+                            </label>
+                            <CustomSelect
+                              options={STATUS_OPTIONS}
+                              value={formState.status}
+                              onChange={(val) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  status: val,
+                                }))
+                              }
+                              isOpen={isStatusOpen}
+                              setIsOpen={setIsStatusOpen}
+                              disabled={modalMode === "view"}
+                            />
+                            {formErrors.status && (
+                              <p className="mt-1.5 text-xs font-medium text-red-500">
+                                {formErrors.status}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Specific Users Selection */}
+                        {formState.audienceMode === "Specific Users" && (
+                          <div className="rounded-xl border border-dashed border-[#D8D0C4]/50 bg-[#FAF8F5] p-4">
+                            <label className="mb-3 block text-[11px] font-bold uppercase tracking-widest text-[#D97853]">
+                              Select Specific Users
+                            </label>
+
+                            {/* Search customers */}
+                            <div className="relative mb-3">
+                              <Search
+                                size={13}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2D3436]/35"
+                              />
+                              <input
+                                value={customerSearch}
+                                onChange={(e) =>
+                                  setCustomerSearch(e.target.value)
+                                }
+                                placeholder="Search by name or email..."
+                                className="w-full rounded-lg border border-[#D8D0C4]/40 bg-white py-2 pl-8 pr-3 text-xs text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15"
+                              />
+                            </div>
+
+                            {isLoadingCustomers ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className="animate-pulse rounded-lg border border-[#E8DED2]/30 bg-white p-2.5"
+                                  >
+                                    <div className="h-2.5 w-20 rounded bg-[#EDE6DB]" />
+                                    <div className="mt-1.5 h-2 w-28 rounded bg-[#F5F0EA]" />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : customerUsers.length === 0 ? (
+                              <p className="py-4 text-center text-xs text-[#2D3436]/40">
+                                {customerSearch
+                                  ? "No customers found matching your search."
+                                  : "No customers available."}
+                              </p>
+                            ) : (
+                              <div className="grid max-h-36 grid-cols-2 gap-2 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/40">
+                                {customerUsers.map((user) => {
+                                  const selected =
+                                    formState.audienceUsers.includes(user.id);
+                                  return (
+                                    <label
+                                      key={user.id}
+                                      className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-2.5 py-2 transition-colors ${
+                                        selected
+                                          ? "border-[#D97853] bg-[#FFF5EC]"
+                                          : "border-[#E8DED2]/50 bg-white hover:border-[#D97853]/40"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        disabled={modalMode === "view"}
+                                        onChange={() =>
+                                          handleToggleAudienceUser(user.id)
+                                        }
+                                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-[#D4CDC4] text-[#D97853] focus:ring-[#D97853]/25"
+                                      />
+                                      <span className="min-w-0">
+                                        <p className="truncate text-xs font-semibold text-[#2D3436]">
+                                          {user.name}
+                                        </p>
+                                        <p className="truncate text-[10px] text-[#2D3436]/50">
+                                          {user.email}
+                                        </p>
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {formState.audienceUsers.length > 0 && (
+                              <p className="mt-2.5 text-[11px] font-semibold text-[#D97853]">
+                                {formState.audienceUsers.length} user(s)
+                                selected
+                              </p>
+                            )}
+                            {formErrors.audienceUsers && (
+                              <p className="mt-2 text-xs font-medium text-red-500">
+                                {formErrors.audienceUsers}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </section>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[#EFE6DB] bg-[#FFFCF8] px-6 py-4">
+                {/* Footer - Sticky */}
+                <div className="flex items-center justify-end gap-3 border-t border-[#EDE6DB] bg-[#FFFDFB] px-7 py-4">
                   <button
                     type="button"
                     onClick={closeModal}
                     disabled={isSaving}
-                    className="rounded-2xl border border-[#2D3436]/10 bg-white px-5 py-2.5 text-sm font-bold text-[#2D3436]/80 shadow-sm transition-all hover:border-[#D97853]/50 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl border border-[#E8DED2] bg-white px-5 py-2.5 text-sm font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/40 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1665,7 +1705,7 @@ const StaffNotificationsManagement = () => {
                       type="button"
                       onClick={() => handleSubmitForm("draft")}
                       disabled={isSaving}
-                      className="rounded-2xl border border-[#D8DEE9] bg-white px-5 py-2.5 text-sm font-bold text-[#475569] shadow-sm transition-all hover:border-[#A7B6C7] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-xl border border-[#D8DEE9] bg-white px-5 py-2.5 text-sm font-semibold text-[#64748B] shadow-sm transition-all hover:border-[#A7B6C7] hover:text-[#475569] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Save Draft
                     </button>
@@ -1675,12 +1715,12 @@ const StaffNotificationsManagement = () => {
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#D97853] px-6 py-2.5 text-sm font-bold text-white shadow-[0_4px_14px_rgba(217,120,83,0.35)] transition-all hover:bg-[#C86A46] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#D97853] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(217,120,83,0.3)] transition-all hover:bg-[#C86A46] hover:shadow-[0_6px_18px_rgba(217,120,83,0.4)] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSaving ? (
-                        <Loader2 size={16} className="animate-spin" />
+                        <Loader2 size={15} className="animate-spin" />
                       ) : (
-                        <Send size={16} />
+                        <Send size={15} />
                       )}
                       Send Notification
                     </button>
@@ -1688,9 +1728,9 @@ const StaffNotificationsManagement = () => {
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#2D3436] px-6 py-2.5 text-sm font-bold text-white shadow-[0_4px_14px_rgba(45,52,54,0.35)] transition-all hover:bg-[#1D2224]"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#2D3436] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(45,52,54,0.25)] transition-all hover:bg-[#1D2224]"
                     >
-                      <CheckCircle2 size={16} />
+                      <CheckCircle2 size={15} />
                       Close
                     </button>
                   )}

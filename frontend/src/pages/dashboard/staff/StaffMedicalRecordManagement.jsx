@@ -1873,14 +1873,14 @@ const StaffMedicalRecordManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/55 p-3 backdrop-blur-[2px]"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/55 p-2 md:p-1.5 backdrop-blur-[2px]"
             onClick={closeFormModal}
           >
             <Motion.div
               initial={{ opacity: 0, y: 16, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              className="w-full max-w-[1000px] overflow-hidden rounded-[28px] border border-[#E8DED2] bg-[#FFFEFD] shadow-[0_28px_90px_-38px_rgba(15,23,42,0.55)]"
+              className="w-full max-w-[1180px] overflow-hidden rounded-[28px] border border-[#E8DED2] bg-[#FFFEFD] shadow-[0_28px_90px_-38px_rgba(15,23,42,0.55)]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-[#EFE6DB] bg-gradient-to-r from-[#FFF5EC] via-[#FFFDFB] to-[#FFF6EE] px-6 py-4">
@@ -1905,9 +1905,9 @@ const StaffMedicalRecordManagement = () => {
 
               <form
                 onSubmit={submitMedicalRecord}
-                className="flex flex-col max-h-[85vh]"
+                className="flex flex-col max-h-[93vh]"
               >
-                <div className="space-y-6 overflow-y-auto p-6 md:p-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="space-y-4 overflow-y-auto p-4 md:p-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {submitError && (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                       {submitError}
@@ -1916,14 +1916,14 @@ const StaffMedicalRecordManagement = () => {
 
                   {/* Section 1: Record Overview */}
                   <section>
-                    <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
+                    <h4 className="mb-2.5 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
                         1
                       </span>
                       RECORD OVERVIEW
                     </h4>
 
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-3">
                       <div>
                         <CustomSelect
                           label="Pet"
@@ -2063,20 +2063,20 @@ const StaffMedicalRecordManagement = () => {
 
                   {/* Section 2: Clinical Details */}
                   <section>
-                    <h4 className="mb-4 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
+                    <h4 className="mb-2.5 flex items-center gap-2 text-sm font-bold tracking-wide text-[#2D3436]">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#D97853]/10 text-[#D97853]">
                         2
                       </span>
                       CLINICAL DETAILS
                     </h4>
 
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <div>
                         <label className="text-[11px] font-bold uppercase tracking-widest text-[#2D3436]/50">
                           Symptoms / Initial Condition
                         </label>
                         <textarea
-                          rows={4}
+                          rows={3}
                           value={formState.condition}
                           onChange={(e) =>
                             handleFormChange("condition", e.target.value)
@@ -2096,7 +2096,7 @@ const StaffMedicalRecordManagement = () => {
                           Diagnosis / Assessment
                         </label>
                         <textarea
-                          rows={4}
+                          rows={3}
                           value={formState.diagnosis}
                           onChange={(e) =>
                             handleFormChange("diagnosis", e.target.value)
@@ -2116,7 +2116,7 @@ const StaffMedicalRecordManagement = () => {
                           Treatment / Service Plan
                         </label>
                         <textarea
-                          rows={4}
+                          rows={3}
                           value={formState.treatment}
                           onChange={(e) =>
                             handleFormChange("treatment", e.target.value)
@@ -2136,7 +2136,7 @@ const StaffMedicalRecordManagement = () => {
                           General Notes
                         </label>
                         <textarea
-                          rows={4}
+                          rows={3}
                           value={formState.notes}
                           onChange={(e) =>
                             handleFormChange("notes", e.target.value)
@@ -2154,7 +2154,7 @@ const StaffMedicalRecordManagement = () => {
                   </section>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[#EFE6DB] bg-[#FFFCF8] px-6 py-4">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[#EFE6DB] bg-[#FFFCF8] px-6 py-3.5">
                   <button
                     type="button"
                     onClick={closeFormModal}

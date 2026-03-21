@@ -45,6 +45,7 @@ const send = async (userId, payload) => {
       type: notification.type,
       isRead: false,
       actionUrl: notification.actionUrl,
+      imageUrl: notification.imageUrl,
       metadata: notification.metadata,
       createdAt: notification.createdAt
     })
@@ -83,6 +84,7 @@ const sendToMany = async (userIds, payload) => {
       body: payload.body,
       type: payload.type,
       actionUrl: payload.actionUrl || null,
+      imageUrl: payload.imageUrl || null,
       metadata: payload.metadata || {},
       isRead: false,
       createdAt: new Date()

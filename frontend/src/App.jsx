@@ -23,6 +23,7 @@ import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
 import PetDetailPage from "./pages/PetDetailPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
 import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
@@ -93,6 +94,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BookingHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />
