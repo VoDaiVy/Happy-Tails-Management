@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, Clock, Video, Lock, XCircle, Bed } from "lucide-react";
 import Navbar from "../layout/Navbar";
 import Footer from "../layout/Footer";
 import { AuthModal } from "../AuthModal";
 import BoardingBookingPanel from "./BoardingBookingPanel";
+import { getRoomById, getRoomsList } from "../../api/roomApi";
 
-/* ─── Gallery Images ─── */
-const galleryImages = {
+/* ─── Gallery Fallbacks ─── */
+const fallbackGalleryImages = {
   standard: [
     "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=800",
     "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400",
@@ -25,48 +26,19 @@ const galleryImages = {
   ],
 };
 
-const roomData = {
-  standard: {
-    title: "Standard Room",
-    price: 10,
-    description:
-      "Cozy, private suites designed for a peaceful and relaxing stay. Perfect for pets who need a quiet and comfortable environment.",
-    features: [
-      "Comfortable bedding",
-      "Daily cleaning",
-      "Quiet sleeping area",
-      "2 playtime sessions",
-      "Fresh water & feeding",
-      "24/7 camera monitoring",
-    ],
-    pills: [
-      "⭐ 4.8 (128 reviews)",
-      "🛏 Cozy bedding",
-      "📹 24/7 camera",
-      "🐾 Pet-safe",
-    ],
-  },
-  vip: {
-    title: "VIP Penthouse",
-    price: 25,
-    description:
-      "Spacious luxury suites with exclusive amenities, elegant decor, and a premium window view for the ultimate pet hotel experience.",
-    features: [
-      "Private luxury suite",
-      "Window view",
-      "Premium bedding",
-      "Extra playtime sessions",
-      "Daily photo updates",
-      "24/7 camera monitoring",
-    ],
-    pills: [
-      "⭐ 4.9 (96 reviews)",
-      "🏨 Luxury suite",
-      "📹 24/7 camera",
-      "🐾 Premium care",
-    ],
-  },
-};
+const fallbackFeatures = [
+  "Comfortable bedding",
+  "Daily cleaning",
+  "Quiet sleeping area",
+  "24/7 camera monitoring",
+];
+
+const toTitle = (value = "") =>
+  String(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 
 /* ─── Mock active booking for camera demo ─── */
 const mockActiveBooking = {
@@ -219,10 +191,17 @@ const CameraAccessPanel = ({ booking }) => {
 /* ════════════════════════════════════════════════════════════ */
 const BoardingDetail = () => {
   const { roomType } = useParams();
-  const type = roomType === "vip" ? "vip" : "standard";
-  const room = roomData[type];
-  const images = galleryImages[type];
-  const pricePerNight = room.price;
+  const location = useLocation();
+  const roomIdFromState = location.state?.roomId;
+  const roomTypeFromState = location.state?.roomType;
+  const roomIdFromQuery = new URLSearchParams(location.search).get("roomId");
+  const selectedRoomId = roomIdFromQuery || roomIdFromState || "";
+  const typeFallback =
+    roomTypeFromState || (roomType === "vip" ? "vip" : "standard");
+
+  const [roomDetail, setRoomDetail] = useState(null);
+  const [roomLoading, setRoomLoading] = useState(true);
+  const [roomLoadError, setRoomLoadError] = useState("");
 
   // Auth
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -232,13 +211,93 @@ const BoardingDetail = () => {
     return stored ? JSON.parse(stored) : null;
   });
 
-  // Gallery
-  const [activeImage, setActiveImage] = useState(images[0]);
+  const [activeImage, setActiveImage] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadRoom = async () => {
+      setRoomLoading(true);
+      setRoomLoadError("");
+      try {
+        if (selectedRoomId) {
+          const detailRes = await getRoomById(selectedRoomId);
+          const detail = detailRes?.data?.room || detailRes?.room || null;
+          if (alive) setRoomDetail(detail);
+          return;
+        }
+
+        const listRes = await getRoomsList({
+          type: typeFallback,
+          isActive: "true",
+          isAvailable: "true",
+        });
+        const rooms = Array.isArray(listRes?.data?.rooms)
+          ? listRes.data.rooms
+          : Array.isArray(listRes?.rooms)
+            ? listRes.rooms
+            : [];
+
+        if (alive) setRoomDetail(rooms[0] || null);
+      } catch {
+        if (alive) {
+          setRoomLoadError("Unable to load room details.");
+          setRoomDetail(null);
+        }
+      } finally {
+        if (alive) setRoomLoading(false);
+      }
+    };
+
+    loadRoom();
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedRoomId, typeFallback]);
+
+  const effectiveType =
+    String(roomDetail?.type || typeFallback || "standard").toLowerCase() === "vip"
+      ? "vip"
+      : "standard";
+
+  const images =
+    Array.isArray(roomDetail?.images) && roomDetail.images.length > 0
+      ? roomDetail.images
+      : fallbackGalleryImages[effectiveType];
+
   const displayedImage = images.includes(activeImage) ? activeImage : images[0];
+
+  const roomTitle =
+    roomDetail?.name || `${toTitle(effectiveType)} Room`;
+  const pricePerNight = Number(roomDetail?.pricePerNight || 0);
+  const roomDescription =
+    roomDetail?.description ||
+    "Comfortable and secure boarding space with attentive pet care and monitoring.";
+  const roomFeatures =
+    Array.isArray(roomDetail?.amenities) && roomDetail.amenities.length > 0
+      ? roomDetail.amenities
+      : fallbackFeatures;
+  const roomPetTypes =
+    Array.isArray(roomDetail?.petTypes) && roomDetail.petTypes.length > 0
+      ? roomDetail.petTypes.map((pet) => toTitle(pet))
+      : ["All Pets"];
+  const roomPills = [
+    `Room ${roomDetail?.roomNumber || "-"}`,
+    `Type: ${toTitle(roomDetail?.type || effectiveType)}`,
+    `Capacity: ${Number(roomDetail?.capacity || 1)}`,
+    `Pets: ${roomPetTypes.join(", ")}`,
+  ];
+
+  useEffect(() => {
+    if (images.length > 0) {
+      setActiveImage(images[0]);
+    }
+  }, [images]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [type]);
+  }, [roomType, selectedRoomId]);
 
   return (
     <div className="bg-[#F5F1EB] min-h-screen font-sans text-[#1F2A37]">
@@ -275,7 +334,7 @@ const BoardingDetail = () => {
                 <Motion.img
                   key={displayedImage}
                   src={displayedImage}
-                  alt={room.title}
+                  alt={roomTitle}
                   initial={{ opacity: 0, scale: 1.03 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -298,69 +357,72 @@ const BoardingDetail = () => {
                 >
                   <img
                     src={img}
-                    alt={`${room.title} ${i + 2}`}
+                    alt={`${roomTitle} ${i + 2}`}
                     className="w-full h-full object-cover"
                   />
                 </div>
               ))}
             </div>
+
+            <div className="mt-5 bg-white rounded-[20px] border border-[#E8E3DB] shadow-[0_8px_28px_rgba(0,0,0,0.06)] p-5 space-y-4">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-[#E07A5F]/10 text-[#E07A5F] px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest mb-3">
+                  <Bed size={11} /> Pet Hotel
+                </div>
+                <h1 className="text-2xl font-serif font-black text-[#1F2A37] mb-2">
+                  {roomTitle}
+                </h1>
+                <p className="text-[#1F2A37]/60 text-[13px] leading-relaxed">
+                  {roomDescription}
+                </p>
+                {roomLoadError && (
+                  <p className="text-xs text-amber-600 mt-2">{roomLoadError}</p>
+                )}
+                {roomLoading && (
+                  <p className="text-xs text-[#1F2A37]/50 mt-2">Loading room details...</p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {roomPills.map((feat, i) => (
+                  <span
+                    key={i}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-[#1F2A37]/70 bg-[#F8F5F1] border border-gray-100 px-2.5 py-1 rounded-full"
+                  >
+                    {feat}
+                  </span>
+                ))}
+              </div>
+
+              <div>
+                <h2 className="text-base font-serif font-black text-[#1F2A37] mb-2.5">
+                  What's Included
+                </h2>
+                <div className="grid grid-cols-1 gap-2">
+                  {roomFeatures.map((f, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 text-[13px] text-[#1F2A37]/80"
+                    >
+                      <div className="w-4 h-4 rounded-full bg-[#E07A5F]/10 flex items-center justify-center shrink-0">
+                        <CheckCircle size={10} className="text-[#E07A5F]" />
+                      </div>
+                      {f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* ── RIGHT: Booking Card ── */}
-          <div className="lg:sticky lg:top-24">
+          <div className="space-y-5 lg:sticky lg:top-24">
             <BoardingBookingPanel
-              roomType={type}
-              roomTitle={room.title}
+              roomType={effectiveType}
+              roomTitle={roomTitle}
               pricePerNight={pricePerNight}
+              preferredRoomId={roomDetail?._id || selectedRoomId}
             />
-          </div>
-        </div>
-
-        {/* ════════ BOTTOM: Service Info (full width) ════════ */}
-        <div className="mt-14 space-y-8">
-          {/* Badge + Title + Description */}
-          <div>
-            <div className="inline-flex items-center gap-2 bg-[#E07A5F]/10 text-[#E07A5F] px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest mb-3">
-              <Bed size={12} /> Pet Hotel
-            </div>
-            <h1 className="text-3xl md:text-4xl font-serif font-black text-[#1F2A37] mb-3">
-              {room.title}
-            </h1>
-            <p className="text-[#1F2A37]/60 text-[15px] leading-relaxed max-w-2xl">
-              {room.description}
-            </p>
-          </div>
-
-          {/* Feature pills */}
-          <div className="flex flex-wrap gap-3">
-            {room.pills.map((feat, i) => (
-              <span
-                key={i}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[#1F2A37]/70 bg-white border border-gray-100 px-3 py-1.5 rounded-full shadow-sm"
-              >
-                {feat}
-              </span>
-            ))}
-          </div>
-
-          {/* What's Included */}
-          <div>
-            <h2 className="text-xl font-serif font-black text-[#1F2A37] mb-4">
-              What's Included
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {room.features.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 text-[14px] text-[#1F2A37]/80"
-                >
-                  <div className="w-5 h-5 rounded-full bg-[#E07A5F]/10 flex items-center justify-center shrink-0">
-                    <CheckCircle size={12} className="text-[#E07A5F]" />
-                  </div>
-                  {f}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </main>

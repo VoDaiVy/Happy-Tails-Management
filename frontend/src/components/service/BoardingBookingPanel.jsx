@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -9,10 +10,12 @@ import {
   AlertCircle,
   ChevronRight,
   ArrowRightLeft,
+  ShoppingCart,
 } from "lucide-react";
 import { getMyPets } from "../../api/petApi";
 import { getMyBookings, checkoutBoarding } from "../../api/bookingApi";
 import { getRoomsList } from "../../api/roomApi";
+import { addStayToCart } from "../../api/cartApi";
 import CalendarPicker from "./CalendarPicker";
 import TimeSlotPicker from "./TimeSlotPicker";
 
@@ -83,6 +86,32 @@ const rangesOverlap = (startA, endA, startB, endB) => {
   return startA < endB && startB < endA;
 };
 
+const normalizePetType = (value = "") => {
+  const raw = String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  const map = {
+    cho: "dog",
+    dog: "dog",
+    meo: "cat",
+    cat: "cat",
+    chim: "bird",
+    bird: "bird",
+    ca: "fish",
+    fish: "fish",
+    tho: "rabbit",
+    rabbit: "rabbit",
+    hamster: "hamster",
+    khac: "other",
+    other: "other",
+  };
+
+  return map[raw] || raw;
+};
+
 
 const StepLabel = ({ icon, label, step, locked }) => {
   const IconComponent = icon;
@@ -105,6 +134,7 @@ export default function BoardingBookingPanel({
   roomType,
   roomTitle,
   pricePerNight,
+  preferredRoomId = "",
 }) {
   const [checkInDate, setCheckInDate] = useState("");
   const [checkInTime, setCheckInTime] = useState("");
@@ -121,6 +151,9 @@ export default function BoardingBookingPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [addToCartMessage, setAddToCartMessage] = useState("");
+  const [flyToCartItems, setFlyToCartItems] = useState([]);
 
   const todayStr = toIsoDate(new Date());
   const hasToken = Boolean(localStorage.getItem("accessToken"));
@@ -152,7 +185,6 @@ export default function BoardingBookingPanel({
   );
 
   const nights = stayNightDates.length;
-  const totalPrice = nights * pricePerNight;
 
   const unavailableNights = useMemo(() => [], []);
 
@@ -192,13 +224,53 @@ export default function BoardingBookingPanel({
     !selectedPetOverlaps &&
     !isSubmitting;
 
+  const canAddToCart =
+    hasToken &&
+    !isAddingToCart &&
+    !selectedPet &&
+    Boolean(selectedRoomId);
+
+  const selectedRoomData = roomChoices.find((room) => room._id === selectedRoomId);
+
+  const allowedPetTypes = useMemo(() => {
+    const values = Array.isArray(selectedRoomData?.petTypes)
+      ? selectedRoomData.petTypes
+      : [];
+    return values
+      .map((value) => normalizePetType(value))
+      .filter(Boolean);
+  }, [selectedRoomData]);
+
+  const eligiblePets = useMemo(() => {
+    if (allowedPetTypes.length === 0) return pets;
+    const allowedSet = new Set(allowedPetTypes);
+
+    return pets.filter((pet) => {
+      const petType = normalizePetType(pet?.type);
+      return allowedSet.has(petType);
+    });
+  }, [pets, allowedPetTypes]);
+
+  const selectedPetCompatible = useMemo(
+    () => !selectedPet || eligiblePets.some((pet) => String(pet.id) === String(selectedPet)),
+    [eligiblePets, selectedPet],
+  );
+
+  useEffect(() => {
+    if (selectedPet && !selectedPetCompatible) {
+      setSelectedPet("");
+      setSubmitError("Selected pet is not supported for this room type.");
+    }
+  }, [selectedPet, selectedPetCompatible]);
+
   const blockingReason = useMemo(() => {
     if (!selectedPet) return "Missing field: please select a pet.";
     if (!checkInDate) return "Missing field: please select a check-in date.";
     if (!checkOutDate) return "Missing field: please select a check-out date.";
     if (!checkInTime) return "Missing field: please select a check-in time.";
     if (checkOutDate <= checkInDate) return "Check-out must be after check-in (minimum 1 night).";
-    if (!selectedRoomId) return "Missing field: please choose an available room.";
+    if (!selectedRoomId) return "This room is currently unavailable for booking.";
+    if (!selectedPetCompatible) return "Selected pet type is not supported by this room.";
     if (selectedPetOverlaps) return "Selected pet has an overlapping booking in this stay range.";
     if (!roomAvailabilityPass) return `${roomTitle} is unavailable for one or more nights in your selected stay.`;
     if (nights > 30) return "Maximum stay is 30 nights.";
@@ -209,6 +281,7 @@ export default function BoardingBookingPanel({
     checkOutDate,
     checkInTime,
     selectedRoomId,
+    selectedPetCompatible,
     selectedPetOverlaps,
     roomAvailabilityPass,
     roomTitle,
@@ -346,7 +419,12 @@ export default function BoardingBookingPanel({
               : [];
         setRoomChoices(rows);
 
+        const preferredRoom = preferredRoomId
+          ? rows.find((room) => String(room?._id) === String(preferredRoomId))
+          : null;
+
         const firstAvailable =
+          preferredRoom?._id ||
           rows.find((room) => Number(room?.remainingCapacity ?? room?.capacity ?? 0) > 0)?._id ||
           rows[0]?._id ||
           "";
@@ -366,7 +444,7 @@ export default function BoardingBookingPanel({
     return () => {
       alive = false;
     };
-  }, [roomType, checkInDate, checkOutDate, checkInTime]);
+  }, [roomType, checkInDate, checkOutDate, checkInTime, preferredRoomId]);
 
   useEffect(() => {
     if (checkInTime && !visibleCheckInSlots.includes(checkInTime)) {
@@ -443,21 +521,150 @@ export default function BoardingBookingPanel({
     }
   };
 
-  const selectedPetData = pets.find((pet) => pet.id === selectedPet);
-  const selectedRoomData = roomChoices.find((room) => room._id === selectedRoomId);
+  const triggerFlyToCart = (sourceElement) => {
+    const sourceRect = sourceElement?.getBoundingClientRect?.();
+    const targetRect = document
+      .getElementById("navbar-cart-button")
+      ?.getBoundingClientRect?.();
+
+    if (!sourceRect || !targetRect) return;
+
+    const id = `${Date.now()}-${Math.random()}`;
+    setFlyToCartItems((prev) => [
+      ...prev,
+      {
+        id,
+        startX: sourceRect.left + sourceRect.width / 2,
+        startY: sourceRect.top + sourceRect.height / 2,
+        endX: targetRect.left + targetRect.width / 2,
+        endY: targetRect.top + targetRect.height / 2,
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setFlyToCartItems((prev) => prev.filter((item) => item.id !== id));
+    }, 720);
+  };
+
+  const handleAddRoomToCart = async (event) => {
+    const sourceElement = event?.currentTarget;
+    setAddToCartMessage("");
+
+    if (!hasToken) {
+      setAddToCartMessage("Please sign in to add boarding to cart.");
+      return;
+    }
+
+    if (!selectedRoomId) {
+      setAddToCartMessage("This room is currently unavailable for cart setup.");
+      return;
+    }
+
+    try {
+      setIsAddingToCart(true);
+
+      await addStayToCart({
+        roomId: selectedRoomId,
+        metadata: {
+          source: "boarding-detail",
+          roomType,
+          roomName: roomTitle,
+          presetFromService: true,
+          needConfirmInCart: true,
+        },
+      });
+
+      window.dispatchEvent(new CustomEvent("cart:updated"));
+      triggerFlyToCart(sourceElement);
+      setAddToCartMessage("Added to cart. Complete your stay date/time in Cart.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        "Unable to add this room to cart right now.";
+      setAddToCartMessage(message);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const selectedPetData = eligiblePets.find((pet) => pet.id === selectedPet);
+  const effectivePricePerNight = Number(
+    selectedRoomData?.pricePerNight ?? pricePerNight ?? 0,
+  );
+  const totalPrice = nights * effectivePricePerNight;
 
   return (
-    <div className="bg-white rounded-[24px] shadow-[0_15px_50px_rgba(0,0,0,0.08)] p-6 space-y-5">
+    <>
+      <AnimatePresence>
+        {flyToCartItems.map((item) => (
+          <Motion.div
+            key={item.id}
+            className="fixed left-0 top-0 z-[90] pointer-events-none"
+            initial={{
+              x: item.startX - 18,
+              y: item.startY - 18,
+              scale: 1.15,
+              opacity: 1,
+            }}
+            animate={{
+              x: [item.startX - 18, item.startX + 28, item.endX - 18],
+              y: [item.startY - 18, item.startY - 36, item.endY - 18],
+              scale: [1.15, 1, 0.68],
+              opacity: [1, 0.95, 0.3],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85, ease: "easeInOut" }}
+          >
+            <div className="w-9 h-9 rounded-full bg-[#E07A5F] text-white flex items-center justify-center shadow-[0_10px_22px_rgba(224,122,95,0.45)] ring-2 ring-white/70">
+              <ShoppingCart size={17} />
+            </div>
+          </Motion.div>
+        ))}
+      </AnimatePresence>
+
+      <div className="bg-white rounded-[24px] shadow-[0_15px_50px_rgba(0,0,0,0.08)] p-6 space-y-5">
       <div className="border-b border-gray-100 pb-4">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
           From
         </p>
         <div className="flex items-baseline gap-2">
           <span className="text-4xl font-black text-[#1F2A37]">
-            ${pricePerNight}
+            ${effectivePricePerNight}
           </span>
           <span className="text-gray-400 font-medium text-sm">/ night</span>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3.5 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+            Quick Add to Cart
+          </p>
+          {selectedPet && (
+            <span className="text-[10px] font-semibold text-amber-600">
+              Disabled after selecting pet
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleAddRoomToCart}
+          disabled={!canAddToCart}
+          className={`w-full rounded-xl border py-2.5 text-sm font-semibold transition ${
+            canAddToCart
+              ? "border-[#E07A5F]/35 bg-[#E07A5F]/10 text-[#E07A5F] hover:bg-[#E07A5F]/15"
+              : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-55"
+          }`}
+        >
+          {isAddingToCart ? "Adding..." : "+ Add Service To Cart"}
+        </button>
+
+        {addToCartMessage && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            {addToCartMessage}
+          </div>
+        )}
       </div>
 
       <StepLabel icon={PawPrint} step={1} label="Select Pet" />
@@ -472,9 +679,13 @@ export default function BoardingBookingPanel({
         <div className="text-xs text-gray-500 py-2">
           No pets found in your account.
         </div>
+      ) : eligiblePets.length === 0 ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          No pets in your account match this room's supported pet types.
+        </div>
       ) : (
         <div className="space-y-2">
-          {pets.map((pet) => {
+          {eligiblePets.map((pet) => {
             const blocked = overlappingPetIds.has(String(pet.id));
             const selected = selectedPet === String(pet.id);
 
@@ -531,34 +742,26 @@ export default function BoardingBookingPanel({
 
       <div className={step2Locked ? "opacity-40 pointer-events-none" : ""}>
         <StepLabel icon={Calendar} step={2} label="Select Stay Dates" locked={step2Locked} />
-        {roomChoices.length > 0 && (
-          <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3 mb-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Available room</p>
-            <select
-              value={selectedRoomId}
-              onChange={(e) => setSelectedRoomId(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#1F2A37]"
-            >
-              {roomChoices.map((room) => (
-                <option
-                  key={room._id}
-                  value={room._id}
-                  disabled={Number(room?.remainingCapacity ?? room?.capacity ?? 0) <= 0}
-                >
-                  {room.roomNumber} - {room.name}
-                  {Number.isFinite(Number(room?.remainingCapacity))
-                    ? ` (${Number(room.remainingCapacity)}/${Number(room.capacity || 0)} left)`
-                    : ""}
-                </option>
-              ))}
-            </select>
-            {selectedRoomData && (
-              <p className="text-xs text-gray-500 mt-1">
-                {selectedRoomData.type} · Remaining {selectedRoomData.remainingCapacity ?? selectedRoomData.capacity}/{selectedRoomData.capacity}
+        <div className="rounded-xl border border-[#E8E3DB] bg-[#F9F7F4] p-3 mb-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1">Room capacity</p>
+          {selectedRoomData ? (
+            <>
+              <p className="text-sm text-[#1F2A37] font-semibold">
+                {selectedRoomData.roomNumber} - {selectedRoomData.name}
               </p>
-            )}
-          </div>
-        )}
+              <p className="text-xs text-gray-500 mt-1">
+                Capacity {selectedRoomData.capacity} · Remaining {selectedRoomData.remainingCapacity ?? selectedRoomData.capacity}
+              </p>
+              {allowedPetTypes.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported pet types: {allowedPetTypes.join(", ")}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-amber-700">This room is currently unavailable.</p>
+          )}
+        </div>
         <div className="rounded-2xl border border-[#E8E3DB] bg-[#F9F7F4] p-3.5">
           <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] gap-2.5 items-center">
             <div className="space-y-1">
@@ -711,7 +914,7 @@ export default function BoardingBookingPanel({
               <span className="font-semibold text-[#1F2A37]">
                 Price per night:
               </span>{" "}
-              ${pricePerNight}
+              ${effectivePricePerNight}
             </p>
             <p>
               <span className="font-semibold text-[#1F2A37]">Total:</span> $
@@ -761,6 +964,7 @@ export default function BoardingBookingPanel({
           <ChevronRight size={16} />
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

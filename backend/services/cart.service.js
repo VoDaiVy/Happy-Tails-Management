@@ -109,6 +109,7 @@ const addToCart = async (userId, payload) => {
     const stayMetadata = {
       ...metadata,
       roomType: room.type,
+      roomPetTypes: Array.isArray(room.petTypes) ? room.petTypes : [],
       checkInDate: hasFullStayDate ? checkIn.toISOString() : null,
       checkOutDate: hasFullStayDate ? checkOut.toISOString() : null,
       nights: calculatedNights,

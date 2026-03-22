@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion as Motion } from "framer-motion";
+import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
   CalendarDays,
   Clock,
   PawPrint,
+  ShoppingCart,
   CreditCard,
   Lock,
   CheckCircle2,
@@ -88,6 +89,7 @@ export default function ServiceBookingPanel({ service }) {
   const [confirmedData, setConfirmedData] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [flyToCartItems, setFlyToCartItems] = useState([]);
 
   const today = new Date().toISOString().split("T")[0];
   const hasToken = Boolean(localStorage.getItem("accessToken"));
@@ -324,7 +326,33 @@ export default function ServiceBookingPanel({ service }) {
     return `${endH}:${endM}`;
   }, [selectedDate, selectedSlot, service.duration]);
 
-  const handleAddToCart = async () => {
+  const triggerFlyToCart = (sourceElement) => {
+    const sourceRect = sourceElement?.getBoundingClientRect?.();
+    const targetRect = document
+      .getElementById("navbar-cart-button")
+      ?.getBoundingClientRect?.();
+
+    if (!sourceRect || !targetRect) return;
+
+    const id = `${Date.now()}-${Math.random()}`;
+    setFlyToCartItems((prev) => [
+      ...prev,
+      {
+        id,
+        startX: sourceRect.left + sourceRect.width / 2,
+        startY: sourceRect.top + sourceRect.height / 2,
+        endX: targetRect.left + targetRect.width / 2,
+        endY: targetRect.top + targetRect.height / 2,
+      },
+    ]);
+
+    window.setTimeout(() => {
+      setFlyToCartItems((prev) => prev.filter((item) => item.id !== id));
+    }, 720);
+  };
+
+  const handleAddToCart = async (event) => {
+    const sourceElement = event?.currentTarget;
     setSubmitError("");
     setSubmitSuccess("");
     setCartMessage("");
@@ -347,6 +375,8 @@ export default function ServiceBookingPanel({ service }) {
       setCartMessage(
         "Service added to cart. You can complete checkout in Cart with multiple services.",
       );
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
     } catch (error) {
       const errPayload = error?.response?.data?.error || error?.response?.data || {};
       const errMsg = errPayload.message || error?.message || "Unable to add this service to cart.";
@@ -464,11 +494,39 @@ export default function ServiceBookingPanel({ service }) {
 
   if (confirmedData) {
     return (
-      <Motion.aside
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-      >
+      <>
+        <AnimatePresence>
+          {flyToCartItems.map((item) => (
+            <Motion.div
+              key={item.id}
+              className="fixed left-0 top-0 z-[90] pointer-events-none"
+              initial={{
+                x: item.startX - 18,
+                y: item.startY - 18,
+                scale: 1.15,
+                opacity: 1,
+              }}
+              animate={{
+                x: [item.startX - 18, item.startX + 28, item.endX - 18],
+                y: [item.startY - 18, item.startY - 36, item.endY - 18],
+                scale: [1.15, 1, 0.68],
+                opacity: [1, 0.95, 0.3],
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.85, ease: "easeInOut" }}
+            >
+              <div className="w-9 h-9 rounded-full bg-[#E07A5F] text-white flex items-center justify-center shadow-[0_10px_22px_rgba(224,122,95,0.45)] ring-2 ring-white/70">
+                <ShoppingCart size={17} />
+              </div>
+            </Motion.div>
+          ))}
+        </AnimatePresence>
+
+        <Motion.aside
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+        >
         <div className="text-center mb-6">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E07A5F]/10 mb-4">
             <CheckCircle2 size={32} className="text-[#E07A5F]" />
@@ -530,17 +588,46 @@ export default function ServiceBookingPanel({ service }) {
         >
           Book Another Session
         </button>
-      </Motion.aside>
+        </Motion.aside>
+      </>
     );
   }
 
   return (
-    <Motion.aside
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.15 }}
-      className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-    >
+    <>
+      <AnimatePresence>
+        {flyToCartItems.map((item) => (
+          <Motion.div
+            key={item.id}
+            className="fixed left-0 top-0 z-[90] pointer-events-none"
+            initial={{
+              x: item.startX - 18,
+              y: item.startY - 18,
+              scale: 1.15,
+              opacity: 1,
+            }}
+            animate={{
+              x: [item.startX - 18, item.startX + 28, item.endX - 18],
+              y: [item.startY - 18, item.startY - 36, item.endY - 18],
+              scale: [1.15, 1, 0.68],
+              opacity: [1, 0.95, 0.3],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.85, ease: "easeInOut" }}
+          >
+            <div className="w-9 h-9 rounded-full bg-[#E07A5F] text-white flex items-center justify-center shadow-[0_10px_22px_rgba(224,122,95,0.45)] ring-2 ring-white/70">
+              <ShoppingCart size={17} />
+            </div>
+          </Motion.div>
+        ))}
+      </AnimatePresence>
+
+      <Motion.aside
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+      >
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-lg font-bold text-[#1F2A37]">Book This Service</h3>
@@ -819,6 +906,7 @@ export default function ServiceBookingPanel({ service }) {
           <ChevronRight size={16} />
         </button>
       </div>
-    </Motion.aside>
+      </Motion.aside>
+    </>
   );
 }

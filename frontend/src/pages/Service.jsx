@@ -333,6 +333,29 @@ const extractServicesFromApiResponse = (result) => {
   return [];
 };
 
+const looksLikeBoardingRoom = (room = {}) => {
+  const serviceType = String(room?.serviceType || "").toLowerCase();
+  const group = String(room?.group || "").toLowerCase();
+  const type = String(room?.type || "").toLowerCase();
+  const name = String(room?.name || "").toLowerCase();
+
+  if (serviceType === "boarding") return true;
+  if (serviceType === "service") return false;
+
+  if (group === "wet" || group === "dry") return false;
+  if (["standard", "deluxe", "suite", "vip"].includes(type)) return true;
+
+  return (
+    name.includes("boarding") ||
+    name.includes("hotel") ||
+    name.includes("penthouse") ||
+    name.includes("room")
+  );
+};
+
+const toBoardingRouteType = (room = {}) =>
+  String(room?.type || "").toLowerCase() === "vip" ? "vip" : "standard";
+
 const ServicePage = () => {
   const navigate = useNavigate();
   const [category, setCategory] = useState("All Categories");
@@ -381,13 +404,26 @@ const ServicePage = () => {
 
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [searchMode, setSearchMode] = useState("services");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchedKeyword, setSearchedKeyword] = useState("");
   const [searchError, setSearchError] = useState("");
   const [spaServices, setSpaServices] = useState([]);
   const [spaLoading, setSpaLoading] = useState(true);
+  const [boardingRooms, setBoardingRooms] = useState([]);
+  const [boardingLoading, setBoardingLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
   const [flyToCartItems, setFlyToCartItems] = useState([]);
+  const boardingSliderRef = useRef(null);
+
+  const scrollBoardingSlider = (direction = "right") => {
+    const node = boardingSliderRef.current;
+    if (!node) return;
+
+    const step = Math.max(280, Math.round(node.clientWidth * 0.75));
+    const offset = direction === "left" ? -step : step;
+    node.scrollBy({ left: offset, behavior: "smooth" });
+  };
 
   const triggerFlyToCart = (sourceElement) => {
     const sourceRect = sourceElement?.getBoundingClientRect?.();
@@ -562,9 +598,123 @@ const ServicePage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadBoardingRooms = async () => {
+      setBoardingLoading(true);
+      try {
+        const result = await getRoomsList({ isActive: "true" });
+        const rooms = Array.isArray(result?.data?.rooms)
+          ? result.data.rooms
+          : Array.isArray(result?.rooms)
+            ? result.rooms
+            : Array.isArray(result?.data)
+              ? result.data
+              : [];
+
+        const looksLikeBoardingRoom = (room = {}) => {
+          const serviceType = String(room?.serviceType || "").toLowerCase();
+          const group = String(room?.group || "").toLowerCase();
+          const type = String(room?.type || "").toLowerCase();
+          const name = String(room?.name || "").toLowerCase();
+
+          if (serviceType === "boarding") return true;
+          if (serviceType === "service") return false;
+
+          // Legacy records may miss serviceType; infer boarding by type/name.
+          if (group === "wet" || group === "dry") return false;
+          if (["standard", "deluxe", "suite", "vip"].includes(type)) return true;
+          return (
+            name.includes("boarding") ||
+            name.includes("hotel") ||
+            name.includes("penthouse") ||
+            name.includes("room")
+          );
+        };
+
+        const sortedBoardingRooms = rooms
+          .filter((room) => looksLikeBoardingRoom(room))
+          .sort((a, b) => {
+            const typeA = String(a?.type || "").toLowerCase();
+            const typeB = String(b?.type || "").toLowerCase();
+            if (typeA !== typeB) return typeA.localeCompare(typeB);
+            return String(a?.roomNumber || "").localeCompare(
+              String(b?.roomNumber || ""),
+            );
+          });
+
+        if (alive) setBoardingRooms(sortedBoardingRooms);
+      } catch {
+        if (alive) setBoardingRooms([]);
+      } finally {
+        if (alive) setBoardingLoading(false);
+      }
+    };
+
+    loadBoardingRooms();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const handleSearch = async () => {
     setIsSearching(true);
     try {
+      if (category === "Boarding") {
+        const roomResult = await getRoomsList({ isActive: "true" });
+        const roomList = Array.isArray(roomResult?.data?.rooms)
+          ? roomResult.data.rooms
+          : Array.isArray(roomResult?.rooms)
+            ? roomResult.rooms
+            : Array.isArray(roomResult?.data)
+              ? roomResult.data
+              : [];
+
+        let rooms = roomList.filter((room) => looksLikeBoardingRoom(room));
+
+        if (searchQuery.trim()) {
+          const needle = searchQuery.trim().toLowerCase();
+          rooms = rooms.filter((room) => {
+            const name = String(room?.name || "").toLowerCase();
+            const roomNumber = String(room?.roomNumber || "").toLowerCase();
+            const type = String(room?.type || "").toLowerCase();
+            const amenities = Array.isArray(room?.amenities)
+              ? room.amenities.join(" ").toLowerCase()
+              : "";
+
+            return (
+              name.includes(needle) ||
+              roomNumber.includes(needle) ||
+              type.includes(needle) ||
+              amenities.includes(needle)
+            );
+          });
+        }
+
+        if (sortBy === "Price (Low - High)") {
+          rooms.sort(
+            (a, b) => Number(a?.pricePerNight || 0) - Number(b?.pricePerNight || 0),
+          );
+        } else if (sortBy === "Price (High - Low)") {
+          rooms.sort(
+            (a, b) => Number(b?.pricePerNight || 0) - Number(a?.pricePerNight || 0),
+          );
+        } else if (sortBy === "Name (A - Z)") {
+          rooms.sort((a, b) => String(a?.name || "").localeCompare(String(b?.name || "")));
+        } else if (sortBy === "Name (Z - A)") {
+          rooms.sort((a, b) => String(b?.name || "").localeCompare(String(a?.name || "")));
+        }
+
+        setSearchResults(rooms);
+        setSearchMode("boarding");
+        setShowSearchResults(true);
+        setSearchedKeyword(searchQuery.trim());
+        setSearchError("");
+        return;
+      }
+
       // Fetch ALL active services, filter client-side for reliability
       const params = { isActive: "true", limit: 100 };
 
@@ -605,6 +755,7 @@ const ServicePage = () => {
       }
 
       setSearchResults(services);
+      setSearchMode("services");
       setShowSearchResults(true);
       setSearchedKeyword(searchQuery.trim());
       setSearchError("");
@@ -627,7 +778,47 @@ const ServicePage = () => {
     setSearchQuery("");
     setCategory("All Categories");
     setSortBy("Default");
+    setSearchMode("services");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleOpenBoardingRoom = (room) => {
+    const roomTypeSlug = toBoardingRouteType(room);
+    navigate(`/boarding/${roomTypeSlug}?roomId=${encodeURIComponent(room._id)}`, {
+      state: { roomId: room._id, roomType: roomTypeSlug },
+    });
+  };
+
+  const handleAddBoardingRoomToCart = async (event, room) => {
+    event.stopPropagation();
+    const sourceElement = event.currentTarget;
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      openLoginModal();
+      return;
+    }
+
+    try {
+      await addStayToCart({
+        roomId: room._id,
+        metadata: {
+          source: "service-search",
+          roomType: toBoardingRouteType(room),
+          roomName: room?.name,
+          presetFromService: true,
+          needConfirmInCart: true,
+        },
+      });
+
+      triggerFlyToCart(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
+      showCartMessage(`Da them phong \"${room?.name || "boarding"}\" vao gio hang.`);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || "Khong the them phong boarding vao gio hang.";
+      showCartMessage(message);
+    }
   };
 
   const activeSpaService = spaServices[activeSpa] || null;
@@ -788,7 +979,7 @@ const ServicePage = () => {
             <div className="flex items-start justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-serif font-black text-[#1F2A37] mb-2">
-                  {searchResults.length} Service
+                  {searchResults.length} {searchMode === "boarding" ? "Room" : "Service"}
                   {searchResults.length !== 1 ? "s" : ""} Found
                 </h2>
                 {searchedKeyword && (
@@ -821,7 +1012,72 @@ const ServicePage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {searchResults.map((service) => (
+                {searchMode === "boarding"
+                  ? searchResults.map((room) => {
+                      const roomType = toBoardingRouteType(room);
+                      const roomImage =
+                        room?.images?.[0] ||
+                        (roomType === "vip" ? "/viproom.jpg" : "/standard.webp");
+
+                      return (
+                        <Motion.div
+                          key={room._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          onClick={() => handleOpenBoardingRoom(room)}
+                          className="bg-white rounded-[20px] overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-[#1F2A37]/5 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                        >
+                          <div className="relative h-48 overflow-hidden bg-[#F5F2EB]">
+                            <img
+                              src={roomImage}
+                              alt={room?.name || "Boarding room"}
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute top-3 right-3 bg-[#7FB069]/90 text-white px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide">
+                              Boarding
+                            </span>
+                            <div className="absolute bottom-3 left-3 w-9 h-9 rounded-full bg-[#7FB069]/80 text-white flex items-center justify-center shadow-md">
+                              <Bed size={16} />
+                            </div>
+                          </div>
+
+                          <div className="p-5 flex flex-col flex-grow">
+                            <h3 className="font-bold text-[#1F2A37] text-[16px] mb-1.5">
+                              {room?.name || `Room ${room?.roomNumber || ""}`}
+                            </h3>
+                            <p className="text-[#1F2A37]/60 text-[13px] leading-relaxed mb-1 line-clamp-2">
+                              {room?.description || "Comfortable boarding room for your pet."}
+                            </p>
+                            <p className="text-[#1F2A37]/45 text-[12px] mb-4">
+                              Room {room?.roomNumber || "-"} · Capacity {Number(room?.capacity || 1)}
+                            </p>
+                            <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1F2A37]/5 gap-2">
+                              <span className="text-[#E07A5F] font-black text-[16px]">
+                                ${Number(room?.pricePerNight || 0)}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => handleAddBoardingRoomToCart(e, room)}
+                                  className="bg-white border border-[#E07A5F]/35 text-[#E07A5F] text-[12px] font-bold px-3 py-2 rounded-full hover:bg-[#E07A5F]/10 transition-colors shadow-sm inline-flex items-center gap-1.5"
+                                >
+                                  <ShoppingCart size={13} /> Add to Cart
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenBoardingRoom(room);
+                                  }}
+                                  className="bg-[#E07A5F] text-white text-[12px] font-bold px-5 py-2 rounded-full hover:bg-[#c56a52] transition-colors shadow-md"
+                                >
+                                  Book Now
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </Motion.div>
+                      );
+                    })
+                  : searchResults.map((service) => (
                   <Motion.div
                     key={service._id}
                     initial={{ opacity: 0, y: 20 }}
@@ -893,7 +1149,7 @@ const ServicePage = () => {
 
                     </div>
                   </Motion.div>
-                ))}
+                  ))}
               </div>
             )}
           </section>
@@ -1251,148 +1507,190 @@ const ServicePage = () => {
                   </div>
                 </div>
 
-                {/* Room Cards Grid */}
-                <div className="grid md:grid-cols-2 gap-8 mb-14">
-                  {/* Standard Room */}
-                  <div
-                    onClick={() => navigate("/service/standard-room")}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-300 relative flex flex-col cursor-pointer"
-                  >
-                    <div className="relative h-48 bg-gray-800 overflow-hidden">
-                      <img
-                        src="/standard.webp"
-                        alt="Standard Room"
-                        className="w-full h-full object-cover opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-transparent to-transparent opacity-90"></div>
-                      <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-white/90 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-[#7FB069]/30 shadow-lg">
-                        <Monitor size={12} className="text-[#7FB069]" />{" "}
-                        Standard
-                      </div>
+                {/* Room Cards Horizontal Slider */}
+                <div className="mb-14">
+                  {boardingLoading ? (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-6 text-white/70 text-sm">
+                      Loading boarding rooms...
                     </div>
-                    <div className="p-5 flex-grow flex flex-col relative z-10 -mt-6">
-                      <div className="flex justify-between items-end mb-2">
-                        <h3 className="text-white text-[18px] md:text-[20px] font-serif font-bold drop-shadow-md">
-                          Standard Room
-                        </h3>
-                        <div className="flex items-end gap-1 transition-opacity">
-                          <span className="text-[#7FB069] font-black text-xl leading-none">
-                            $10
-                          </span>
-                          <span className="text-[10px] text-white/40 font-medium pb-0.5 uppercase tracking-widest">
-                            / night
-                          </span>
+                  ) : boardingRooms.length === 0 ? (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-6 text-white/70 text-sm">
+                      Chua co phong boarding duoc cau hinh trong database.
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => scrollBoardingSlider("left")}
+                        className="hidden md:flex absolute left-[-16px] top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border border-white/20 bg-[#0F172A]/80 text-white/90 hover:bg-white/20 transition-colors items-center justify-center text-lg leading-none"
+                        aria-label="Scroll boarding rooms left"
+                      >
+                        &lt;
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => scrollBoardingSlider("right")}
+                        className="hidden md:flex absolute right-[-16px] top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full border border-white/20 bg-[#0F172A]/80 text-white/90 hover:bg-white/20 transition-colors items-center justify-center text-lg leading-none"
+                        aria-label="Scroll boarding rooms right"
+                      >
+                        &gt;
+                      </button>
+
+                      <div
+                        ref={boardingSliderRef}
+                        className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      >
+                      {boardingRooms.map((room) => {
+                      const isVipType = String(room?.type || "").toLowerCase() === "vip";
+                      const roomTypeSlug = isVipType ? "vip" : "standard";
+                      const roomImage =
+                        room?.images?.[0] ||
+                        (isVipType ? "/viproom.jpg" : "/standard.webp");
+                      const roomAmenities = Array.isArray(room?.amenities)
+                        ? room.amenities.filter(Boolean).slice(0, 5)
+                        : [];
+                      const roomPetTypes = Array.isArray(room?.petTypes)
+                        ? room.petTypes.filter(Boolean)
+                        : [];
+
+                      const fallbackAmenities = isVipType
+                        ? [
+                            "Private luxury suite",
+                            "Window view",
+                            "Premium bedding",
+                            "Extra playtime",
+                          ]
+                        : [
+                            "Comfortable bedding",
+                            "Daily cleaning",
+                            "Quiet sleeping area",
+                            "2 playtime sessions",
+                          ];
+
+                      const featureList =
+                        roomAmenities.length > 0 ? roomAmenities : fallbackAmenities;
+
+                      return (
+                        <div
+                          key={room._id}
+                          onClick={() =>
+                            navigate(`/boarding/${roomTypeSlug}?roomId=${encodeURIComponent(room._id)}`, {
+                              state: { roomId: room._id, roomType: roomTypeSlug },
+                            })
+                          }
+                          className={`bg-[#1E293B] group rounded-[24px] overflow-hidden relative transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-2 hover:scale-[1.02] snap-start flex-none w-[88%] sm:w-[70%] md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-1.5rem)/2)] ${
+                            isVipType
+                              ? "border border-[#E07A5F]/30 hover:border-[#E07A5F] shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)]"
+                              : "border border-white/5 hover:border-[#7FB069]/30 hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)]"
+                          }`}
+                        >
+                          {isVipType && (
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/10 via-transparent to-transparent pointer-events-none z-10"></div>
+                          )}
+
+                          <div className="relative h-48 bg-gray-800 overflow-hidden">
+                            <img
+                              src={roomImage}
+                              alt={room?.name || "Boarding room"}
+                              className="w-full h-full object-cover opacity-90 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent opacity-90"></div>
+
+                            <div
+                              className={`absolute top-4 left-4 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
+                                isVipType
+                                  ? "bg-white/10 border border-white/20 text-white"
+                                  : "bg-black/40 border border-[#7FB069]/30 text-white/90"
+                              }`}
+                            >
+                              {isVipType ? (
+                                <Award size={12} className="text-[#E07A5F]" />
+                              ) : (
+                                <Monitor size={12} className="text-[#7FB069]" />
+                              )}
+                              {String(room?.type || "standard")}
+                            </div>
+                          </div>
+
+                          <div className="p-5 flex-grow flex flex-col relative z-20 -mt-6">
+                            <div className="flex justify-between items-end mb-2 gap-2">
+                              <h3 className="text-white text-[18px] md:text-[20px] font-serif font-bold drop-shadow-md">
+                                {room?.name || `Room ${room?.roomNumber || ""}`}
+                              </h3>
+                              <div className="flex items-end gap-1 transition-opacity shrink-0">
+                                <span className={`font-black text-xl leading-none ${isVipType ? "text-[#E07A5F]" : "text-[#7FB069]"}`}>
+                                  ${Number(room?.pricePerNight || 0)}
+                                </span>
+                                <span className="text-[10px] text-white/40 font-medium pb-0.5 uppercase tracking-widest">
+                                  / night
+                                </span>
+                              </div>
+                            </div>
+
+                            <p className="text-white/50 text-[12px] mb-2 leading-relaxed">
+                              {room?.description || "Comfortable boarding room with dedicated care and monitoring."}
+                            </p>
+                            <p className="text-white/35 text-[11px] mb-6 flex-grow leading-relaxed">
+                              Room {room?.roomNumber || "-"} • Capacity {Number(room?.capacity || 1)}
+                            </p>
+
+                            <div className="mb-4 flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
+                                Pet types:
+                              </span>
+                              {roomPetTypes.length > 0 ? (
+                                roomPetTypes.map((petType) => (
+                                  <span
+                                    key={`${room._id}-${petType}`}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
+                                      isVipType
+                                        ? "bg-[#E07A5F]/10 text-[#EAB7A8] border-[#E07A5F]/30"
+                                        : "bg-[#7FB069]/10 text-[#B4D7AE] border-[#7FB069]/30"
+                                    }`}
+                                  >
+                                    {String(petType)}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-white/55">All pets</span>
+                              )}
+                            </div>
+
+                            <div
+                              className={`rounded-2xl p-4 border transition-colors duration-300 ${
+                                isVipType
+                                  ? "bg-[#E07A5F]/5 border-[#E07A5F]/10 group-hover:bg-[#E07A5F]/10"
+                                  : "bg-white/5 border-white/5 group-hover:bg-white/10"
+                              }`}
+                            >
+                              <ul className="space-y-3">
+                                {featureList.map((feature, index) => (
+                                  <li
+                                    key={`${room._id}-feature-${index}`}
+                                    className="flex items-center gap-3 text-white/80 text-[12px]"
+                                  >
+                                    <div
+                                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                        isVipType
+                                          ? "bg-[#E07A5F]/20 text-[#E07A5F]"
+                                          : "bg-[#7FB069]/20 text-[#7FB069]"
+                                      }`}
+                                    >
+                                      {isVipType ? <Award size={10} /> : <Bed size={10} />}
+                                    </div>
+                                    {feature}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-white/50 text-[12px] mb-6 flex-grow leading-relaxed">
-                        Cozy, private suites designed for a peaceful and
-                        relaxing stay. Perfect for a short getaway.
-                      </p>
-
-                      <div className="bg-white/5 rounded-2xl p-4 border border-white/5 group-hover:bg-white/10 transition-colors duration-300">
-                        <ul className="space-y-3">
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Bed size={10} />
-                            </div>{" "}
-                            Comfortable bedding
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Sparkles size={10} />
-                            </div>{" "}
-                            Daily cleaning
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Moon size={10} />
-                            </div>{" "}
-                            Quiet sleeping area
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Gamepad2 size={10} />
-                            </div>{" "}
-                            2 playtime sessions
-                          </li>
-                        </ul>
+                      );
+                    })}
                       </div>
                     </div>
-                  </div>
-
-                  {/* VIP Penthouse */}
-                  <div
-                    onClick={() => navigate("/service/vip-penthouse")}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-300 flex flex-col cursor-pointer"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/10 via-transparent to-transparent pointer-events-none z-10"></div>
-                    <div className="relative h-48 bg-gray-800 overflow-hidden">
-                      <img
-                        src="/viproom.jpg"
-                        alt="VIP Penthouse"
-                        className="w-full h-full object-cover opacity-90 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent opacity-90"></div>
-                      <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xl">
-                        <Award size={12} className="text-[#E07A5F]" />{" "}
-                        <span className="text-white">VIP</span>
-                      </div>
-                    </div>
-                    <div className="p-5 flex-grow flex flex-col relative z-20 -mt-6">
-                      <div className="flex justify-between items-end mb-2">
-                        <h3 className="text-white text-[18px] md:text-[20px] font-serif font-bold drop-shadow-md">
-                          VIP Penthouse
-                        </h3>
-                        <div className="flex items-end gap-1 transition-opacity">
-                          <span className="text-[#E07A5F] font-black text-xl leading-none">
-                            $25
-                          </span>
-                          <span className="text-[10px] text-white/40 font-medium pb-0.5 uppercase tracking-widest">
-                            / night
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-[12px] mb-6 flex-grow leading-relaxed">
-                        Spacious luxury suites with exclusive amenities, elegant
-                        decor, and a premium window view.
-                      </p>
-
-                      <div className="bg-[#E07A5F]/5 rounded-2xl p-4 border border-[#E07A5F]/10 group-hover:bg-[#E07A5F]/10 transition-colors duration-300">
-                        <ul className="space-y-3">
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Award size={10} />
-                            </div>{" "}
-                            Private luxury suite
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Eye size={10} />
-                            </div>{" "}
-                            Window view
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Heart size={10} />
-                            </div>{" "}
-                            Premium bedding
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Gamepad2 size={10} />
-                            </div>{" "}
-                            Extra playtime
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Upload size={10} />
-                            </div>{" "}
-                            Daily photo updates
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Meal Plan & Add-ons Section */}

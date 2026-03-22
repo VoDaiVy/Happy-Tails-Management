@@ -43,6 +43,13 @@ const minutesToSlot = (minutes) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+const normalizePetType = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
 export default function CartPage() {
   const [user, setUser] = useState(() => {
     try {
@@ -70,10 +77,10 @@ export default function CartPage() {
   const [stayCheckInDate, setStayCheckInDate] = useState("");
   const [stayCheckOutDate, setStayCheckOutDate] = useState("");
   const [stayCheckInTime, setStayCheckInTime] = useState("09:00");
-  const [stayCheckOutTime, setStayCheckOutTime] = useState("10:00");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
+  const stayCheckOutTime = "10:00";
 
   const hasToken = Boolean(localStorage.getItem("accessToken"));
 
@@ -95,11 +102,54 @@ export default function CartPage() {
     () => items.find((item) => (item.type || "service") === "stay") || null,
     [items],
   );
+  const checkoutMode = stayItem
+    ? serviceItems.length > 0
+      ? "service-stay"
+      : "stay-only"
+    : "service-only";
 
-  const checkoutMode = stayItem ? "service-stay" : "service-only";
-  const effectiveAppointmentDate = checkoutMode === "service-stay" ? stayCheckInDate : selectedDate;
-  const effectiveAppointmentTime = checkoutMode === "service-stay" ? stayCheckInTime : selectedTime;
-  const canCheckout = Boolean(effectiveAppointmentDate && effectiveAppointmentTime && selectedPet && serviceItems.length > 0);
+  const allowedStayPetTypes = useMemo(() => {
+    if (!stayItem) return [];
+
+    const roomPetTypes = Array.isArray(stayItem?.roomId?.petTypes)
+      ? stayItem.roomId.petTypes
+      : Array.isArray(stayItem?.metadata?.roomPetTypes)
+        ? stayItem.metadata.roomPetTypes
+        : [];
+
+    return roomPetTypes
+      .map((type) => normalizePetType(type))
+      .filter(Boolean);
+  }, [stayItem]);
+
+  const eligiblePets = useMemo(() => {
+    if (checkoutMode === "service-only" || allowedStayPetTypes.length === 0) {
+      return pets;
+    }
+
+    const allowedSet = new Set(allowedStayPetTypes);
+    return pets.filter((pet) => {
+      const currentPetType = normalizePetType(pet?.petType || pet?.breed || "");
+      return currentPetType && allowedSet.has(currentPetType);
+    });
+  }, [pets, checkoutMode, allowedStayPetTypes]);
+
+  const selectedPetCompatible = useMemo(() => {
+    if (!selectedPet) return true;
+    if (checkoutMode === "service-only") return true;
+    if (allowedStayPetTypes.length === 0) return true;
+    return eligiblePets.some((pet) => String(pet._id) === String(selectedPet));
+  }, [selectedPet, checkoutMode, allowedStayPetTypes, eligiblePets]);
+
+  const effectiveAppointmentDate = checkoutMode !== "service-only" ? stayCheckInDate : selectedDate;
+  const effectiveAppointmentTime = checkoutMode !== "service-only" ? stayCheckInTime : selectedTime;
+  const canCheckout = Boolean(
+    effectiveAppointmentDate &&
+      effectiveAppointmentTime &&
+      selectedPet &&
+      selectedPetCompatible &&
+      items.length > 0,
+  );
   const stayUnitPrice = Number(stayItem?.unitPrice ?? stayItem?.price ?? 0);
 
   const calculatedStayNights = useMemo(() => {
@@ -145,7 +195,7 @@ export default function CartPage() {
       const result = await getCart();
       setCart(result.data);
     } catch (err) {
-      setError(err?.response?.data?.message || "Không tải được giỏ hàng.");
+      setError(err?.response?.data?.message || "Unable to load cart.");
     } finally {
       setLoading(false);
     }
@@ -179,8 +229,14 @@ export default function CartPage() {
     setStayCheckInDate(metadata.checkInDate ? toISODate(new Date(metadata.checkInDate)) : "");
     setStayCheckOutDate(metadata.checkOutDate ? toISODate(new Date(metadata.checkOutDate)) : "");
     setStayCheckInTime(metadata.checkInTime || "09:00");
-    setStayCheckOutTime(metadata.checkOutTime || "10:00");
   }, [stayItem?._id]);
+
+  useEffect(() => {
+    if (selectedPet && !selectedPetCompatible) {
+      setSelectedPet("");
+      setCheckoutError("The selected pet is not compatible with this stay room type.");
+    }
+  }, [selectedPet, selectedPetCompatible]);
 
   const firstServiceId = serviceItems[0]?.serviceId?._id || serviceItems[0]?.serviceId;
   const serviceTimeSlots = useMemo(() => generateTimeSlots(15), []);
@@ -241,7 +297,7 @@ export default function CartPage() {
       const result = await updateCartItem(itemId, nextQty);
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không cập nhật được số lượng.");
+      setCheckoutError(err?.response?.data?.message || "Unable to update quantity.");
     } finally {
       setActionBusy(false);
     }
@@ -254,7 +310,7 @@ export default function CartPage() {
       const result = await removeCartItem(itemId);
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không xóa được sản phẩm.");
+      setCheckoutError(err?.response?.data?.message || "Unable to remove item.");
     } finally {
       setActionBusy(false);
     }
@@ -267,7 +323,7 @@ export default function CartPage() {
       const result = await clearCart();
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không xóa được giỏ hàng.");
+      setCheckoutError(err?.response?.data?.message || "Unable to clear cart.");
     } finally {
       setActionBusy(false);
     }
@@ -278,17 +334,22 @@ export default function CartPage() {
     setCheckoutSuccess("");
 
     if (!canCheckout) {
-      setCheckoutError("Vui lòng chọn thời gian và thú cưng trước khi thanh toán.");
+      setCheckoutError("Please select time and pet before checkout.");
       return;
     }
 
-    if (checkoutMode === "service-stay" && (!stayCheckInDate || !stayCheckOutDate || !stayCheckOutTime)) {
-      setCheckoutError("Vui lòng nhập ngày nhận/trả phòng hợp lệ cho gói lưu trú.");
+    if (checkoutMode !== "service-only" && (!stayCheckInDate || !stayCheckOutDate)) {
+      setCheckoutError("Please provide valid check-in/check-out dates for your stay.");
       return;
     }
 
-    if (checkoutMode === "service-stay" && calculatedStayNights <= 0) {
-      setCheckoutError("Vui lòng chọn from/to hợp lệ để tính số đêm lưu trú.");
+    if (checkoutMode !== "service-only" && calculatedStayNights <= 0) {
+      setCheckoutError("Please select a valid stay range to calculate nights.");
+      return;
+    }
+
+    if (!selectedPetCompatible) {
+      setCheckoutError("Selected pet is not supported by this stay room type.");
       return;
     }
 
@@ -298,7 +359,7 @@ export default function CartPage() {
         appointmentDate: splitDateTime(effectiveAppointmentDate, effectiveAppointmentTime),
         petId: selectedPet,
         notes,
-        ...(checkoutMode === "service-stay"
+        ...(checkoutMode !== "service-only"
           ? {
               stayCheckInDate,
               stayCheckInTime,
@@ -312,8 +373,8 @@ export default function CartPage() {
       const bookingNo = result?.data?.booking?.bookingNumber;
       setCheckoutSuccess(
         bookingNo
-          ? `Đặt lịch thành công (#${bookingNo}). Booking summary đã được chốt.`
-          : "Đặt lịch thành công.",
+          ? `Booking placed successfully (#${bookingNo}).`
+          : "Booking placed successfully.",
       );
 
       setSelectedTime("");
@@ -321,7 +382,7 @@ export default function CartPage() {
       setNotes("");
       await loadCart();
     } catch (err) {
-      setCheckoutError(getErrorMessage(err) || "Thanh toán thất bại. Vui lòng thử lại.");
+      setCheckoutError(getErrorMessage(err) || "Checkout failed. Please try again.");
     } finally {
       setCheckoutBusy(false);
     }
@@ -359,19 +420,19 @@ export default function CartPage() {
             <ShoppingCart size={20} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-[#1F2A37]">Giỏ hàng & Booking</h1>
-            <p className="text-sm text-[#1F2A37]/60">Chọn dịch vụ, lưu trú và xác nhận lịch hẹn</p>
+            <h1 className="text-2xl font-black text-[#1F2A37]">Cart & Booking</h1>
+            <p className="text-sm text-[#1F2A37]/60">Choose services, stay options, and confirm your booking</p>
           </div>
         </div>
 
         {!hasToken && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-5 text-amber-800 text-sm">
-            Vui lòng đăng nhập để sử dụng giỏ hàng và thanh toán booking.
+            Please sign in to use the cart and complete checkout.
           </div>
         )}
 
         {loading ? (
-          <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center text-[#1F2A37]/60">Đang tải giỏ hàng...</div>
+          <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center text-[#1F2A37]/60">Loading your cart...</div>
         ) : error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 text-sm">{error}</div>
         ) : (
@@ -380,8 +441,8 @@ export default function CartPage() {
               {items.length === 0 ? (
                 <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center">
                   <ShoppingCart size={24} className="mx-auto text-[#1F2A37]/40 mb-2" />
-                  <p className="text-[#1F2A37]/70 font-semibold">Giỏ hàng đang trống</p>
-                  <p className="text-sm text-[#1F2A37]/50 mt-1">Hãy thêm dịch vụ hoặc phòng lưu trú để bắt đầu.</p>
+                  <p className="text-[#1F2A37]/70 font-semibold">Your cart is empty</p>
+                  <p className="text-sm text-[#1F2A37]/50 mt-1">Add a service or stay room to get started.</p>
                 </div>
               ) : (
                 <>
@@ -403,8 +464,8 @@ export default function CartPage() {
                               <p className="font-bold text-[#1F2A37]">{item.name}</p>
                               <p className="text-xs text-[#1F2A37]/60 mt-1">
                                 {type === "stay"
-                                  ? `${calculatedStayNights || item.duration || item.metadata?.nights || 0} đêm`
-                                  : `${item.duration || 0} phút x ${item.quantity || 1}`}
+                                  ? `${calculatedStayNights || item.duration || item.metadata?.nights || 0} night(s)`
+                                  : `${item.duration || 0} minutes x ${item.quantity || 1}`}
                               </p>
                               {type === "stay" && stayCheckInDate && stayCheckOutDate && (
                                 <p className="text-xs text-[#1F2A37]/55 mt-1">
@@ -412,10 +473,10 @@ export default function CartPage() {
                                 </p>
                               )}
                               {type === "stay" && !stayCheckInDate && !stayCheckOutDate && (
-                                <p className="text-xs text-[#1F2A37]/55 mt-1">Chưa chọn from/to lưu trú</p>
+                                <p className="text-xs text-[#1F2A37]/55 mt-1">Stay date range not selected yet</p>
                               )}
                               {!!item.note && (
-                                <p className="text-xs text-[#1F2A37]/60 italic mt-1">Ghi chú: {item.note}</p>
+                                <p className="text-xs text-[#1F2A37]/60 italic mt-1">Note: {item.note}</p>
                               )}
                             </div>
                           </div>
@@ -424,7 +485,7 @@ export default function CartPage() {
                             <p className="text-sm font-bold text-[#E07A5F]">
                               {VND.format(type === "stay" ? effectiveSummary.staySubtotal : item.subtotal || 0)}đ
                             </p>
-                            <p className="text-xs text-[#1F2A37]/50 mt-0.5">{VND.format(item.unitPrice || item.price || 0)}đ / đơn vị</p>
+                            <p className="text-xs text-[#1F2A37]/50 mt-0.5">{VND.format(item.unitPrice || item.price || 0)}đ / unit</p>
                           </div>
                         </div>
 
@@ -448,7 +509,7 @@ export default function CartPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-[#1F2A37]/55">Số lượng cố định theo kỳ lưu trú</span>
+                            <span className="text-xs text-[#1F2A37]/55">Quantity is fixed for stay booking</span>
                           )}
 
                           <button
@@ -456,7 +517,7 @@ export default function CartPage() {
                             onClick={() => handleRemove(item._id)}
                             className="inline-flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600"
                           >
-                            <Trash2 size={14} /> Xóa
+                            <Trash2 size={14} /> Remove
                           </button>
                         </div>
                       </motion.div>
@@ -468,7 +529,7 @@ export default function CartPage() {
                     onClick={handleClear}
                     className="text-sm text-red-600 hover:text-red-700 font-semibold"
                   >
-                    Xóa toàn bộ giỏ hàng
+                    Clear entire cart
                   </button>
                 </>
               )}
@@ -479,24 +540,24 @@ export default function CartPage() {
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Phí dịch vụ</span>
+                  <span>Service fee</span>
                   <span>{VND.format(effectiveSummary.serviceSubtotal)}đ</span>
                 </div>
                 <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Thời gian dịch vụ</span>
-                  <span>{effectiveSummary.serviceDurationTotal} phút</span>
+                  <span>Service duration</span>
+                  <span>{effectiveSummary.serviceDurationTotal} minutes</span>
                 </div>
                 <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Phí lưu trú</span>
+                  <span>Stay fee</span>
                   <span>{VND.format(effectiveSummary.staySubtotal)}đ</span>
                 </div>
                 <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Thời gian lưu trú</span>
-                  <span>{effectiveSummary.stayDurationTotal} đêm</span>
+                  <span>Stay duration</span>
+                  <span>{effectiveSummary.stayDurationTotal} night(s)</span>
                 </div>
                 <hr className="border-dashed border-[#1F2A37]/15" />
                 <div className="flex justify-between font-black text-[#1F2A37]">
-                  <span>Tổng thanh toán</span>
+                  <span>Total</span>
                   <span className="text-[#E07A5F]">{VND.format(effectiveSummary.grandTotal)}đ</span>
                 </div>
               </div>
@@ -504,12 +565,12 @@ export default function CartPage() {
               {items.length > 0 && (
                 <>
                   <div className="rounded-xl bg-[#F9F6F1] border border-[#1F2A37]/10 p-3 space-y-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-[#1F2A37]/60">Checkout Form ({checkoutMode === "service-only" ? "Service only" : "Service + Stay"})</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#1F2A37]/60">Checkout Form ({checkoutMode === "service-only" ? "Service only" : checkoutMode === "stay-only" ? "Stay only" : "Service + Stay"})</p>
 
                     {checkoutMode === "service-only" && (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày hẹn</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Appointment date</label>
                           <CalendarPicker
                             selectedDate={selectedDate}
                             onChange={(d) => {
@@ -522,9 +583,9 @@ export default function CartPage() {
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ hẹn</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Appointment time</label>
                           {slotLoading ? (
-                            <div className="text-xs text-[#1F2A37]/60 py-2">Đang kiểm tra slot...</div>
+                            <div className="text-xs text-[#1F2A37]/60 py-2">Checking available slots...</div>
                           ) : (
                             <TimeSlotPicker
                               selectedDate={selectedDate}
@@ -540,9 +601,14 @@ export default function CartPage() {
                     )}
 
                     <div>
-                      <label className="text-xs font-semibold text-[#1F2A37]/70">Thú cưng</label>
+                      <label className="text-xs font-semibold text-[#1F2A37]/70">Pet</label>
+                      {checkoutMode !== "service-only" && allowedStayPetTypes.length > 0 && (
+                        <p className="mt-1 text-[11px] text-[#1F2A37]/55">
+                          This room only supports pet types: {allowedStayPetTypes.join(", ")}
+                        </p>
+                      )}
                       <div className="grid grid-cols-2 gap-2 mt-1">
-                        {pets.map((pet) => (
+                        {eligiblePets.map((pet) => (
                           <button
                             type="button"
                             key={pet._id}
@@ -553,14 +619,19 @@ export default function CartPage() {
                             <p className="text-[11px] opacity-70">{pet.breed || pet.petType}</p>
                           </button>
                         ))}
-                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">Bạn chưa có pet khả dụng.</p>}
+                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">You do not have any available pets yet.</p>}
+                        {pets.length > 0 && eligiblePets.length === 0 && checkoutMode !== "service-only" && (
+                          <p className="text-xs text-amber-700">
+                            No pets match this room's supported pet types.
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {checkoutMode === "service-stay" && (
+                    {checkoutMode !== "service-only" && (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày nhận phòng</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-in date</label>
                           <CalendarPicker
                             selectedDate={stayCheckInDate}
                             onChange={(d) => {
@@ -572,7 +643,7 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ nhận phòng (khung giờ lưu trú)</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-in time (stay slots)</label>
                           <TimeSlotPicker
                             selectedDate={stayCheckInDate}
                             slots={stayTimeSlots}
@@ -583,33 +654,24 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày trả phòng</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-out date</label>
                           <CalendarPicker
                             selectedDate={stayCheckOutDate}
                             onChange={setStayCheckOutDate}
                             minDate={stayCheckInDate || toISODate(new Date())}
                           />
                         </div>
-                        <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ trả phòng</label>
-                          <input
-                            type="time"
-                            value={stayCheckOutTime}
-                            onChange={(e) => setStayCheckOutTime(e.target.value)}
-                            className="mt-1 w-full rounded-lg border border-[#1F2A37]/15 px-3 py-2 text-xs outline-none focus:border-[#E07A5F]"
-                          />
-                        </div>
                       </>
                     )}
 
                     <div>
-                      <label className="text-xs font-semibold text-[#1F2A37]/70">Ghi chú</label>
+                      <label className="text-xs font-semibold text-[#1F2A37]/70">Notes</label>
                       <textarea
                         rows={2}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-[#1F2A37]/15 px-3 py-2 text-xs outline-none focus:border-[#E07A5F]"
-                        placeholder="Ví dụ: thú cưng nhạy cảm với tiếng ồn"
+                        placeholder="Example: pet is sensitive to loud noise"
                       />
                     </div>
                   </div>
@@ -627,20 +689,20 @@ export default function CartPage() {
                   )}
 
                   <button
-                    disabled={!canCheckout || checkoutBusy || checkoutMode === "service-stay" && (!stayCheckInDate || !stayCheckInTime || !stayCheckOutDate || !stayCheckOutTime || calculatedStayNights <= 0)}
+                    disabled={!canCheckout || checkoutBusy || checkoutMode !== "service-only" && (!stayCheckInDate || !stayCheckInTime || !stayCheckOutDate || calculatedStayNights <= 0)}
                     onClick={handleCheckout}
                     className="w-full rounded-xl bg-[#E07A5F] text-white font-bold py-3 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#cb6d55]"
                   >
-                    {checkoutBusy ? "Đang xử lý..." : "Thanh toán & Tạo booking"}
+                    {checkoutBusy ? "Processing..." : "Pay & Create Booking"}
                   </button>
 
                   <p className="text-[11px] text-[#1F2A37]/55 flex items-center gap-1">
-                    <CalendarDays size={12} /> Không chọn được ngày quá khứ, slot hết chỗ sẽ tự khóa.
+                    <CalendarDays size={12} /> Past dates are disabled, and fully booked slots are automatically blocked.
                   </p>
                   <p className="text-[11px] text-[#1F2A37]/55 flex items-center gap-1">
-                    <Clock3 size={12} /> {checkoutMode === "service-stay"
-                      ? "Giờ nhận phòng dùng khung giờ lưu trú của phòng, không lấy theo slot dịch vụ."
-                      : "Slot đang kiểm tra theo dịch vụ cụ thể, tránh chặn nhầm toàn hệ thống."}
+                    <Clock3 size={12} /> {checkoutMode !== "service-only"
+                      ? "Check-in time follows the room stay slots, not service time slots."
+                      : "Time slots are validated per selected service to avoid overblocking."}
                   </p>
                 </>
               )}
