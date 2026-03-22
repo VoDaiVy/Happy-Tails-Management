@@ -158,14 +158,50 @@ const buildSlotKey = (group, slotStart) => `${group}:${slotStart.toISOString()}`
 
 const buildServiceSlotKey = (serviceId, slotStart) => `${serviceId}:${slotStart.toISOString()}`;
 
+const getGroupRoomPool = (group, roomCount) => {
+  const basePool = ROOM_CONFIG[group] || ROOM_CONFIG.dry;
+  const normalizedRoomCount = Math.max(1, Number(roomCount) || basePool.length || 1);
+  return basePool.slice(0, normalizedRoomCount);
+};
+
+const buildServiceRoomRuntime = async () => {
+  const rows = await Room.find({
+    isActive: true,
+    isAvailable: true,
+    serviceType: "service",
+    group: { $in: ["wet", "dry"] },
+  })
+    .select("group roomNumber capacity")
+    .sort({ roomNumber: 1 })
+    .lean();
+
+  const runtime = {
+    wet: { roomPool: [], assignmentPool: [] },
+    dry: { roomPool: [], assignmentPool: [] },
+  };
+
+  for (const row of rows) {
+    const group = row.group === "wet" ? "wet" : "dry";
+    const roomNumber = String(row.roomNumber || "").trim();
+    if (!roomNumber) continue;
+
+    runtime[group].roomPool.push(roomNumber);
+    const roomCapacity = Math.max(1, Number(row.capacity) || 1);
+    for (let i = 0; i < roomCapacity; i += 1) {
+      runtime[group].assignmentPool.push(roomNumber);
+    }
+  }
+
+  return runtime;
+};
+
 const buildLockTargets = (scheduledItems) => {
   const map = new Map();
   for (const item of scheduledItems) {
     const slots = buildSlotStarts(item.startTime, item.endTime);
     for (const slotStart of slots) {
-      const key = item.serviceId
-        ? buildServiceSlotKey(item.serviceId, slotStart)
-        : buildSlotKey(item.group, slotStart);
+      // Lock by group+slot to serialize capacity checks across different services in the same group.
+      const key = buildSlotKey(item.group, slotStart);
       if (!map.has(key)) {
         map.set(key, { key, group: item.group, slotStart });
       }
@@ -232,7 +268,24 @@ const getDefaultGroupConfig = (group) => ({
   slotsPerRoom: SLOTS_PER_ROOM,
 });
 
-const getActiveGroupConfig = async (group) => {
+const applyRuntimeToGroupConfig = (group, baseConfig, serviceRoomRuntime = null) => {
+  const fallback = getDefaultGroupConfig(group);
+  const runtimeByGroup = serviceRoomRuntime?.[group] || { roomPool: [], assignmentPool: [] };
+  const runtimeRoomCount = runtimeByGroup.roomPool.length;
+  const runtimeCapacity = runtimeByGroup.assignmentPool.length;
+
+  const roomCount = runtimeRoomCount || Math.max(1, Number(baseConfig.roomCount) || fallback.roomCount);
+  const slotsPerRoom = Math.max(1, Number(baseConfig.slotsPerRoom) || fallback.slotsPerRoom);
+  const maxCapacity = runtimeCapacity > 0 ? runtimeCapacity : 0;
+
+  return {
+    maxCapacity,
+    roomCount,
+    slotsPerRoom,
+  };
+};
+
+const getActiveGroupConfig = async (group, serviceRoomRuntime = null) => {
   const fallback = getDefaultGroupConfig(group);
 
   try {
@@ -240,15 +293,9 @@ const getActiveGroupConfig = async (group) => {
       .select("maxCapacity roomCount slotsPerRoom")
       .lean();
 
-    if (!config) return fallback;
-
-    return {
-      maxCapacity: Math.max(1, Number(config.maxCapacity) || fallback.maxCapacity),
-      roomCount: Math.max(1, Number(config.roomCount) || fallback.roomCount),
-      slotsPerRoom: Math.max(1, Number(config.slotsPerRoom) || fallback.slotsPerRoom),
-    };
+    return applyRuntimeToGroupConfig(group, config || fallback, serviceRoomRuntime);
   } catch (_) {
-    return fallback;
+    return applyRuntimeToGroupConfig(group, fallback, serviceRoomRuntime);
   }
 };
 
@@ -312,12 +359,23 @@ const validateServiceCapacityAndAssignRooms = async (scheduledItems) => {
   }
 };
 
-const getServiceDayDisabledSlots = async (service, date) => {
+const getServiceDayDisabledSlots = async (service, date, serviceRoomRuntime = null) => {
   const dayStart = startOfDay(date);
   const now = new Date();
   const slots = [];
   const serviceGroup = inferServiceGroup(service);
-  const groupConfig = await getActiveGroupConfig(serviceGroup);
+  const groupConfig = await getActiveGroupConfig(serviceGroup, serviceRoomRuntime);
+
+  if (groupConfig.maxCapacity <= 0) {
+    for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
+      for (let m = 0; m < 60; m += 15) {
+        const slotStart = new Date(dayStart);
+        slotStart.setHours(h, m, 0, 0);
+        slots.push(formatBookingTime(slotStart));
+      }
+    }
+    return slots;
+  }
 
   for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
     for (let m = 0; m < 60; m += 15) {
@@ -394,14 +452,14 @@ const getPetDayConflictSlots = async ({ petId, date, serviceDurationMin }) => {
   return conflictSlots;
 };
 
-const validateCapacityAndAssignRooms = async (scheduledItems) => {
+const validateCapacityAndAssignRooms = async (scheduledItems, serviceRoomRuntime = null) => {
   const occupancyCache = new Map();
   const requestAdds = new Map();
   const groupConfigCache = new Map();
 
   const getGroupConfig = async (group) => {
     if (!groupConfigCache.has(group)) {
-      groupConfigCache.set(group, await getActiveGroupConfig(group));
+      groupConfigCache.set(group, await getActiveGroupConfig(group, serviceRoomRuntime));
     }
     return groupConfigCache.get(group);
   };
@@ -418,7 +476,21 @@ const validateCapacityAndAssignRooms = async (scheduledItems) => {
     const slots = buildSlotStarts(item.startTime, item.endTime);
     const startSlot = slots[0];
     const groupConfig = await getGroupConfig(item.group);
-    const roomPool = ROOM_CONFIG[item.group] || ROOM_CONFIG.dry;
+    const runtimeByGroup = serviceRoomRuntime?.[item.group] || { roomPool: [], assignmentPool: [] };
+    const roomPool = runtimeByGroup.roomPool.length
+      ? runtimeByGroup.roomPool
+      : getGroupRoomPool(item.group, groupConfig.roomCount);
+    const assignmentPool = runtimeByGroup.assignmentPool.length
+      ? runtimeByGroup.assignmentPool
+      : roomPool;
+
+    if (groupConfig.maxCapacity <= 0 || assignmentPool.length === 0) {
+      throw new AppError(
+        `No active service rooms configured for group \"${item.group}\"`,
+        409,
+        "GROUP_ROOM_NOT_CONFIGURED",
+      );
+    }
 
     for (const slotStart of slots) {
       const key = buildSlotKey(item.group, slotStart);
@@ -438,9 +510,9 @@ const validateCapacityAndAssignRooms = async (scheduledItems) => {
     const startBase = await getBaseOccupancy(item.group, startSlot);
     const startRequestAdds = requestAdds.get(startKey) || 0;
     const position = startBase + startRequestAdds;
-    const roomIndex = Math.min(roomPool.length - 1, Math.floor(position / groupConfig.slotsPerRoom));
+    const roomIndex = Math.min(assignmentPool.length - 1, position);
 
-    item.assignedRoom = roomPool[roomIndex];
+    item.assignedRoom = assignmentPool[roomIndex];
 
     for (const slotStart of slots) {
       const key = buildSlotKey(item.group, slotStart);
@@ -706,13 +778,14 @@ exports.createGuestBooking = catchAsync(async (req, res, next) => {
 
   const sortedItems = sortWetBeforeDry(expandedItems);
   const scheduledItems = buildScheduledItems(sortedItems, appointment);
+  const serviceRoomRuntime = await buildServiceRoomRuntime();
 
   const lockHolder = `guest:${req.user.id}:${randomUUID()}`;
   const lockTargets = buildLockTargets(scheduledItems);
 
   try {
     await acquireSlotLocks(lockTargets, lockHolder);
-    await validateCapacityAndAssignRooms(scheduledItems);
+    await validateCapacityAndAssignRooms(scheduledItems, serviceRoomRuntime);
 
     const petKey = buildGuestPetKey({
       phone: guestInfo.phone,
@@ -1371,9 +1444,10 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
     return next(new AppError('Dịch vụ không tồn tại hoặc không còn hoạt động', 404, 'SERVICE_NOT_FOUND'));
   }
 
-  const serviceDisabledSlots = await getServiceDayDisabledSlots(service, day);
+  const serviceRoomRuntime = await buildServiceRoomRuntime();
+  const serviceDisabledSlots = await getServiceDayDisabledSlots(service, day, serviceRoomRuntime);
   const serviceGroup = inferServiceGroup(service);
-  const groupConfig = await getActiveGroupConfig(serviceGroup);
+  const groupConfig = await getActiveGroupConfig(serviceGroup, serviceRoomRuntime);
 
   let petConflictSlots = [];
   if (petId) {
@@ -1520,13 +1594,14 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   const sortedItems = sortWetBeforeDry(expandedItems);
   const scheduledItems = buildScheduledItems(sortedItems, apptDate);
+  const serviceRoomRuntime = await buildServiceRoomRuntime();
 
   const lockHolder = `customer:${req.user.id}:${randomUUID()}`;
   const lockTargets = buildLockTargets(scheduledItems);
 
   try {
     await acquireSlotLocks(lockTargets, lockHolder);
-    await validateCapacityAndAssignRooms(scheduledItems);
+    await validateCapacityAndAssignRooms(scheduledItems, serviceRoomRuntime);
 
     let stayInfo = null;
     let bookingRoomId = null;

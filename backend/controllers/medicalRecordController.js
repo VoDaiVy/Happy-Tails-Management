@@ -1,9 +1,3 @@
-/**
- * Medical Record Controller
- * Staff/Admin: create, update, view all records
- * Customer: view only their own pets' records
- */
-
 const MedicalRecord  = require('../models/MedicalRecord');
 const UserPet        = require('../models/UserPet');
 const User           = require('../models/User');

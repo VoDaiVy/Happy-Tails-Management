@@ -15,6 +15,7 @@ import { getMyBookings, checkoutBoarding } from "../../api/bookingApi";
 import { getRoomsList } from "../../api/roomApi";
 import CalendarPicker from "./CalendarPicker";
 import TimeSlotPicker from "./TimeSlotPicker";
+import { useAuth } from "../../context/AuthContext";
 
 const BOARDING_OPEN_MINUTES = 8 * 60; // 08:00
 const BOARDING_CLOSE_MINUTES = 23 * 60; // 23:00 (exclusive start)
@@ -106,6 +107,7 @@ export default function BoardingBookingPanel({
   roomTitle,
   pricePerNight,
 }) {
+  const { isAuthenticated, user, token } = useAuth();
   const [checkInDate, setCheckInDate] = useState("");
   const [checkInTime, setCheckInTime] = useState("");
   const [checkOutDate, setCheckOutDate] = useState("");
@@ -123,7 +125,7 @@ export default function BoardingBookingPanel({
   const [submitSuccess, setSubmitSuccess] = useState("");
 
   const todayStr = toIsoDate(new Date());
-  const hasToken = Boolean(localStorage.getItem("accessToken"));
+  const hasValidSession = Boolean(isAuthenticated && user && token);
 
   const minCheckOutDate = checkInDate
     ? addDaysIso(checkInDate, 1)
@@ -193,6 +195,7 @@ export default function BoardingBookingPanel({
     !isSubmitting;
 
   const blockingReason = useMemo(() => {
+    if (!hasValidSession) return "Please sign in to continue boarding booking.";
     if (!selectedPet) return "Missing field: please select a pet.";
     if (!checkInDate) return "Missing field: please select a check-in date.";
     if (!checkOutDate) return "Missing field: please select a check-out date.";
@@ -213,14 +216,14 @@ export default function BoardingBookingPanel({
     roomAvailabilityPass,
     roomTitle,
     nights,
+    hasValidSession,
   ]);
 
   useEffect(() => {
     let alive = true;
 
     const loadData = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
+      if (!hasValidSession) {
         if (alive) {
           setPets([]);
           setPetStays([]);
@@ -316,7 +319,7 @@ export default function BoardingBookingPanel({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [hasValidSession]);
 
   useEffect(() => {
     let alive = true;
@@ -407,6 +410,11 @@ export default function BoardingBookingPanel({
     setSubmitError("");
     setSubmitSuccess("");
 
+    if (!hasValidSession) {
+      setSubmitError("Please sign in to continue boarding booking.");
+      return;
+    }
+
     const error = validate();
     if (error) {
       setSubmitError(error);
@@ -462,7 +470,7 @@ export default function BoardingBookingPanel({
 
       <StepLabel icon={PawPrint} step={1} label="Select Pet" />
 
-      {!hasToken ? (
+      {!hasValidSession ? (
         <div className="text-xs text-gray-500 py-2">
           Please sign in to load your pets.
         </div>

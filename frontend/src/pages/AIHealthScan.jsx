@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Camera, Upload, Loader2, AlertCircle, CheckCircle, FileImage, Star } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
@@ -8,18 +9,30 @@ import AuthModal from '../components/AuthModal';
 const GUEST_SCAN_KEY = 'ht_guest_scans_used';
 
 const AIHealthScan = () => {
+  const navigate = useNavigate();
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [symptoms, setSymptoms] = useState('');
   const [diagnosisResult, setDiagnosisResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
   const [guestScansDone, setGuestScansDone] = useState(() => parseInt(localStorage.getItem(GUEST_SCAN_KEY) || '0', 10));
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('user'));
+
+  const openLoginModal = () => {
+    setAuthModalMode('login');
+    setShowAuthModal(true);
+  };
+
+  const openRegisterModal = () => {
+    setAuthModalMode('register');
+    setShowAuthModal(true);
+  };
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -67,6 +80,14 @@ const AIHealthScan = () => {
     setUser(userData);
     setIsAuthenticated(true);
     setShowAuthModal(false);
+
+    if (userData?.role === 'admin') {
+      navigate('/admin');
+      return;
+    }
+    if (userData?.role === 'staff') {
+      navigate('/staff');
+    }
   };
 
   const handleReset = () => {
@@ -78,7 +99,12 @@ const AIHealthScan = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50">
-      <Navbar user={user} onLogout={() => setUser(null)} />
+      <Navbar
+        user={user}
+        onLogout={() => setUser(null)}
+        onLoginClick={openLoginModal}
+        onRegisterClick={openRegisterModal}
+      />
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
         {/* Header */}
@@ -385,7 +411,7 @@ const AIHealthScan = () => {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        initialMode="login"
+        initialMode={authModalMode}
         onLoginSuccess={handleLoginSuccess}
       />
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarCheck,
   CheckCircle2,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import AuthModal from "../components/AuthModal";
 
 const HERO_IMAGES = {
   main: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=1200&q=80",
@@ -243,6 +244,9 @@ const AccordionItem = ({
 };
 
 const Policy = () => {
+  const navigate = useNavigate();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState("login");
   const [user, setUser] = useState(() => {
     const stored = localStorage.getItem("user");
     return stored ? JSON.parse(stored) : null;
@@ -256,6 +260,29 @@ const Policy = () => {
 
   const toggleFaq = (id) => {
     setOpenFaqId((current) => (current === id ? "" : id));
+  };
+
+  const openLoginModal = () => {
+    setAuthModalMode("login");
+    setIsAuthModalOpen(true);
+  };
+
+  const openRegisterModal = () => {
+    setAuthModalMode("register");
+    setIsAuthModalOpen(true);
+  };
+
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+
+    if (userData?.role === "admin") {
+      navigate("/admin");
+      return;
+    }
+    if (userData?.role === "staff") {
+      navigate("/staff");
+    }
   };
 
   const handleSupportClick = (event) => {
@@ -339,7 +366,19 @@ const Policy = () => {
         }
       `}</style>
 
-      <Navbar user={user} onLogout={() => setUser(null)} />
+      <Navbar
+        user={user}
+        onLogout={() => setUser(null)}
+        onLoginClick={openLoginModal}
+        onRegisterClick={openRegisterModal}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authModalMode}
+        onLoginSuccess={handleLoginSuccess}
+      />
 
       <main className="relative bg-white pb-10">
         <section className="relative px-4 pb-20 pt-32 sm:px-6 lg:pb-32 lg:pt-40 min-h-[650px] flex items-center">

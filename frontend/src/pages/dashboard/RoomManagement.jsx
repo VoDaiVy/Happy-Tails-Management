@@ -24,15 +24,12 @@ import {
   Settings,
   Droplets,
   Wind,
-  Save,
-  RotateCcw,
 } from "lucide-react";
 import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
 import { getRoomsList, createRoom, updateRoom, deleteRoom } from "../../api/roomApi";
 import {
   getGroupCapacities,
   initGroupCapacities,
-  updateGroupCapacity,
 } from "../../api/groupCapacityApi";
 import { getErrorMessage } from "../../utils/apiResponseHandler";
 
@@ -112,10 +109,8 @@ const RoomManagement = () => {
   const [roomToDelete, setRoomToDelete] = useState(null);
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [capacityConfigs, setCapacityConfigs] = useState([]);
-  const [capacityEdits, setCapacityEdits] = useState({});
   const [capacityLoading, setCapacityLoading] = useState(false);
   const [capacityError, setCapacityError] = useState(null);
-  const [capacitySaving, setCapacitySaving] = useState({});
   useScrollLock(showModal || showDeleteModal || showCapacityModal);
   
   // Form state
@@ -314,15 +309,6 @@ const RoomManagement = () => {
           : [];
 
       setCapacityConfigs(list);
-      const initialEdits = {};
-      list.forEach((cfg) => {
-        initialEdits[cfg.group] = {
-          maxCapacity: cfg.maxCapacity,
-          roomCount: cfg.roomCount,
-          slotsPerRoom: cfg.slotsPerRoom,
-        };
-      });
-      setCapacityEdits(initialEdits);
     } catch (err) {
       setCapacityError(err?.response?.data?.message || "Failed to load capacity configs");
       setCapacityConfigs([]);
@@ -342,65 +328,6 @@ const RoomManagement = () => {
       await fetchCapacityConfigs();
     } catch (err) {
       setCapacityError(err?.response?.data?.message || "Failed to initialize default configs");
-    }
-  };
-
-  const isCapacityDirty = (group) => {
-    const cfg = capacityConfigs.find((item) => item.group === group);
-    const edit = capacityEdits[group];
-    if (!cfg || !edit) return false;
-
-    return (
-      Number(edit.maxCapacity) !== Number(cfg.maxCapacity) ||
-      Number(edit.roomCount) !== Number(cfg.roomCount) ||
-      Number(edit.slotsPerRoom) !== Number(cfg.slotsPerRoom)
-    );
-  };
-
-  const handleResetCapacityGroup = (group) => {
-    const cfg = capacityConfigs.find((item) => item.group === group);
-    if (!cfg) return;
-
-    setCapacityEdits((prev) => ({
-      ...prev,
-      [group]: {
-        maxCapacity: cfg.maxCapacity,
-        roomCount: cfg.roomCount,
-        slotsPerRoom: cfg.slotsPerRoom,
-      },
-    }));
-  };
-
-  const handleSaveCapacityGroup = async (group) => {
-    const edit = capacityEdits[group];
-    if (!edit) return;
-
-    const maxCapacity = Number(edit.maxCapacity);
-    const roomCount = Number(edit.roomCount);
-    const slotsPerRoom = Number(edit.slotsPerRoom);
-
-    if (!maxCapacity || maxCapacity < 1 || maxCapacity > 20) {
-      setCapacityError("Max capacity must be between 1 and 20");
-      return;
-    }
-    if (!roomCount || roomCount < 1) {
-      setCapacityError("Room count must be at least 1");
-      return;
-    }
-    if (!slotsPerRoom || slotsPerRoom < 1) {
-      setCapacityError("Slots per room must be at least 1");
-      return;
-    }
-
-    setCapacitySaving((prev) => ({ ...prev, [group]: true }));
-    setCapacityError(null);
-    try {
-      await updateGroupCapacity(group, { maxCapacity, roomCount, slotsPerRoom });
-      await fetchCapacityConfigs();
-    } catch (err) {
-      setCapacityError(err?.response?.data?.message || "Failed to save capacity config");
-    } finally {
-      setCapacitySaving((prev) => ({ ...prev, [group]: false }));
     }
   };
 
@@ -976,13 +903,11 @@ const RoomManagement = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(["wet", "dry"]).map((group) => {
                       const config = capacityConfigs.find((item) => item.group === group);
-                      const edit = capacityEdits[group] || {};
                       const meta = CAPACITY_GROUP_META[group];
                       if (!config || !meta) return null;
 
                       const Icon = meta.icon;
-                      const dirty = isCapacityDirty(group);
-                      const saving = capacitySaving[group];
+                      const totalSlots = Math.max(0, Number(config.roomCount) || 0) * Math.max(0, Number(config.slotsPerRoom) || 0);
 
                       return (
                         <div key={group} className={`rounded-xl border ${meta.border} overflow-hidden`}>
@@ -1000,73 +925,30 @@ const RoomManagement = () => {
 
                           <div className="p-4 space-y-3">
                             <div>
-                              <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Max Capacity</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="20"
-                                value={edit.maxCapacity ?? ""}
-                                onChange={(e) =>
-                                  setCapacityEdits((prev) => ({
-                                    ...prev,
-                                    [group]: { ...prev[group], maxCapacity: e.target.value },
-                                  }))
-                                }
-                                className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
-                              />
+                              <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Total Slots</label>
+                              <div className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg bg-[#F8F9FA] text-sm text-[#2D3436]/75">
+                                {totalSlots}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Room Count</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={edit.roomCount ?? ""}
-                                  onChange={(e) =>
-                                    setCapacityEdits((prev) => ({
-                                      ...prev,
-                                      [group]: { ...prev[group], roomCount: e.target.value },
-                                    }))
-                                  }
-                                  className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
-                                />
+                                <div className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg bg-[#F8F9FA] text-sm text-[#2D3436]/75">
+                                  {Number(config.roomCount) || 0}
+                                </div>
                               </div>
                               <div>
                                 <label className="block text-xs font-bold text-[#2D3436] mb-1.5">Slots/Room</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={edit.slotsPerRoom ?? ""}
-                                  onChange={(e) =>
-                                    setCapacityEdits((prev) => ({
-                                      ...prev,
-                                      [group]: { ...prev[group], slotsPerRoom: e.target.value },
-                                    }))
-                                  }
-                                  className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
-                                />
+                                <div className="w-full px-3 py-2 border border-[#2D3436]/10 rounded-lg bg-[#F8F9FA] text-sm text-[#2D3436]/75">
+                                  {Number(config.slotsPerRoom) || 0}
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 pt-1">
-                              <button
-                                onClick={() => handleSaveCapacityGroup(group)}
-                                disabled={!dirty || saving}
-                                className="inline-flex items-center gap-2 px-3 py-2 bg-[#D97853] text-white rounded-lg hover:bg-[#C26843] transition-colors text-sm disabled:opacity-50"
-                              >
-                                {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                                Save
-                              </button>
-                              {dirty && (
-                                <button
-                                  onClick={() => handleResetCapacityGroup(group)}
-                                  className="inline-flex items-center gap-2 px-3 py-2 border border-[#2D3436]/10 rounded-lg text-sm text-[#2D3436]/70 hover:bg-[#F8F9FA]"
-                                >
-                                  <RotateCcw size={14} /> Reset
-                                </button>
-                              )}
-                            </div>
+                            <p className="text-xs text-[#2D3436]/55">
+                              Slot capacity is calculated automatically from Room Count x Slots/Room.
+                            </p>
                           </div>
                         </div>
                       );

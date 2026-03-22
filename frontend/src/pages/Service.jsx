@@ -49,6 +49,7 @@ import AuthModal from "../components/AuthModal";
 import CameraFeatureModal from "../components/CameraFeatureModal";
 import { slugifyServiceName } from "../data/servicesData";
 import ServicePreviewModal from "../components/service/ServicePreviewModal";
+import { useAuth } from "../context/AuthContext";
 
 const resolveServiceIcon = (name = "") => {
   const n = name.toLowerCase();
@@ -335,6 +336,7 @@ const extractServicesFromApiResponse = (result) => {
 
 const ServicePage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, token } = useAuth();
   const [category, setCategory] = useState("All Categories");
   const [sortBy, setSortBy] = useState("Default");
   const [searchQuery, setSearchQuery] = useState("");
@@ -388,6 +390,7 @@ const ServicePage = () => {
   const [spaLoading, setSpaLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
   const [flyToCartItems, setFlyToCartItems] = useState([]);
+  const hasValidSession = Boolean(isAuthenticated && token && user);
 
   const triggerFlyToCart = (sourceElement) => {
     const sourceRect = sourceElement?.getBoundingClientRect?.();
@@ -868,12 +871,14 @@ const ServicePage = () => {
                           ${service.price}
                         </span>
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => handleAddToCart(e, service)}
-                            className="bg-white border border-[#E07A5F]/35 text-[#E07A5F] text-[12px] font-bold px-3 py-2 rounded-full hover:bg-[#E07A5F]/10 transition-colors shadow-sm inline-flex items-center gap-1.5"
-                          >
-                            <ShoppingCart size={13} /> Add to Cart
-                          </button>
+                          {hasValidSession && (
+                            <button
+                              onClick={(e) => handleAddToCart(e, service)}
+                              className="bg-white border border-[#E07A5F]/35 text-[#E07A5F] text-[12px] font-bold px-3 py-2 rounded-full hover:bg-[#E07A5F]/10 transition-colors shadow-sm inline-flex items-center gap-1.5"
+                            >
+                              <ShoppingCart size={13} /> Add to Cart
+                            </button>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1200,12 +1205,14 @@ const ServicePage = () => {
                             </p>
                             {isActive && (
                               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                <button
-                                  onClick={(e) => handleAddToCart(e, service.apiService || service)}
-                                  className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
-                                >
-                                  <ShoppingCart size={12} /> Add to Cart
-                                </button>
+                                {hasValidSession && (
+                                  <button
+                                    onClick={(e) => handleAddToCart(e, service.apiService || service)}
+                                    className="px-3 py-1.5 bg-white/90 text-[#E07A5F] rounded-lg font-bold text-[10px] uppercase tracking-wide hover:bg-white shadow-sm transition-colors whitespace-nowrap inline-flex items-center gap-1"
+                                  >
+                                    <ShoppingCart size={12} /> Add to Cart
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();

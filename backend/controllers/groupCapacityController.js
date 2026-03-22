@@ -67,11 +67,15 @@ exports.createGroupCapacity = catchAsync(async (req, res, next) => {
     return next(new AppError(`Group capacity config for "${group}" already exists`, 409, 'CONFIG_EXISTS'));
   }
 
+  const normalizedMaxCapacity = Number(maxCapacity) || 6;
+  const normalizedRoomCount = Number(roomCount) || 2;
+  const normalizedSlotsPerRoom = Number(slotsPerRoom) || 3;
+
   const config = await GroupCapacityConfig.create({
     group,
-    maxCapacity: maxCapacity || 6,
-    roomCount: roomCount || 2,
-    slotsPerRoom: slotsPerRoom || 3,
+    maxCapacity: normalizedMaxCapacity,
+    roomCount: normalizedRoomCount,
+    slotsPerRoom: normalizedSlotsPerRoom,
     description,
     createdBy: req.user.id
   });

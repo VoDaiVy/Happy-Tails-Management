@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ShoppingCart,
@@ -26,6 +27,7 @@ import {
 } from "../api/cartApi";
 import { checkoutBooking, getAvailableSlots } from "../api/bookingApi";
 import { getMyPets } from "../api/petApi";
+import { getWallet } from "../api/walletApi";
 import { getErrorMessage } from "../utils/apiResponseHandler";
 
 const VND = new Intl.NumberFormat("vi-VN");
@@ -44,6 +46,8 @@ const minutesToSlot = (minutes) => {
 };
 
 export default function CartPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem("user");
@@ -74,6 +78,8 @@ export default function CartPage() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const hasToken = Boolean(localStorage.getItem("accessToken"));
 
@@ -99,7 +105,6 @@ export default function CartPage() {
   const checkoutMode = stayItem ? "service-stay" : "service-only";
   const effectiveAppointmentDate = checkoutMode === "service-stay" ? stayCheckInDate : selectedDate;
   const effectiveAppointmentTime = checkoutMode === "service-stay" ? stayCheckInTime : selectedTime;
-  const canCheckout = Boolean(effectiveAppointmentDate && effectiveAppointmentTime && selectedPet && serviceItems.length > 0);
   const stayUnitPrice = Number(stayItem?.unitPrice ?? stayItem?.price ?? 0);
 
   const calculatedStayNights = useMemo(() => {
@@ -131,6 +136,21 @@ export default function CartPage() {
       totalItems: Number(summary.totalItems || 0),
     };
   }, [summary, stayItem?._id, stayUnitPrice, calculatedStayNights]);
+
+  const requiredTopUpAmount = useMemo(() => {
+    if (walletBalance === null) return 0;
+    return Math.max(0, Math.ceil(Number(effectiveSummary.grandTotal || 0) - Number(walletBalance || 0)));
+  }, [effectiveSummary.grandTotal, walletBalance]);
+
+  const canAffordCheckout = walletBalance === null || requiredTopUpAmount <= 0;
+
+  const canCheckout = Boolean(
+    effectiveAppointmentDate &&
+    effectiveAppointmentTime &&
+    selectedPet &&
+    serviceItems.length > 0 &&
+    canAffordCheckout
+  );
 
   const loadCart = async () => {
     if (!hasToken) {
@@ -167,6 +187,32 @@ export default function CartPage() {
       .catch(() => {
         if (!alive) return;
         setPets([]);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [hasToken]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!hasToken) {
+      setWalletBalance(null);
+      return;
+    }
+
+    setWalletLoading(true);
+    getWallet()
+      .then((res) => {
+        if (!alive) return;
+        setWalletBalance(res?.data?.balance ?? null);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setWalletBalance(null);
+      })
+      .finally(() => {
+        if (alive) setWalletLoading(false);
       });
 
     return () => {
@@ -276,6 +322,11 @@ export default function CartPage() {
   const handleCheckout = async () => {
     setCheckoutError("");
     setCheckoutSuccess("");
+
+    if (!canAffordCheckout) {
+      setCheckoutError("Số dư ví không đủ. Vui lòng nạp thêm để tiếp tục thanh toán.");
+      return;
+    }
 
     if (!canCheckout) {
       setCheckoutError("Vui lòng chọn thời gian và thú cưng trước khi thanh toán.");
@@ -479,6 +530,16 @@ export default function CartPage() {
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-[#1F2A37]/70">
+                  <span>Số dư ví</span>
+                  <span>
+                    {walletLoading
+                      ? "Đang tải..."
+                      : walletBalance !== null
+                        ? `${VND.format(walletBalance)}đ`
+                        : "Không khả dụng"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[#1F2A37]/70">
                   <span>Phí dịch vụ</span>
                   <span>{VND.format(effectiveSummary.serviceSubtotal)}đ</span>
                 </div>
@@ -500,6 +561,28 @@ export default function CartPage() {
                   <span className="text-[#E07A5F]">{VND.format(effectiveSummary.grandTotal)}đ</span>
                 </div>
               </div>
+
+              {!walletLoading && walletBalance !== null && requiredTopUpAmount > 0 && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <p>
+                    Số dư không đủ. Cần nạp thêm <span className="font-bold">{VND.format(requiredTopUpAmount)}đ</span> để thanh toán đơn này.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentPath = `${location.pathname}${location.search || ""}${location.hash || ""}`;
+                      const params = new URLSearchParams();
+                      params.set("topupAmount", String(requiredTopUpAmount));
+                      params.set("returnTo", currentPath);
+                      params.set("source", "cart-checkout");
+                      navigate(`/wallet?${params.toString()}`);
+                    }}
+                    className="mt-2 underline font-semibold"
+                  >
+                    Top up your wallet
+                  </button>
+                </div>
+              )}
 
               {items.length > 0 && (
                 <>
