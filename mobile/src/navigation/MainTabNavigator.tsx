@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   brandText: { fontWeight: "900", fontSize: 31, lineHeight: 33 },
-  brandTextPrimary: { color: "#18243A" },
+  brandTextPrimary: { color: "#c7d1e2" },
   brandTextAccent: { color: "#F08A40" },
   menuBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   menuBtnText: { color: "#344054", fontWeight: "700", fontSize: 24, lineHeight: 26 },
