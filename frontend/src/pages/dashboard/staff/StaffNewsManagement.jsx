@@ -304,7 +304,14 @@ const StaffNewsManagement = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  useScrollLock(isModalOpen || isDetailOpen || isEditOpen || isDeleteOpen);
+  const [previewImageUrl, setPreviewImageUrl] = useState("");
+  useScrollLock(
+    isModalOpen ||
+      isDetailOpen ||
+      isEditOpen ||
+      isDeleteOpen ||
+      Boolean(previewImageUrl),
+  );
   const [newsRows, setNewsRows] = useState([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -798,7 +805,7 @@ const StaffNewsManagement = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D3436] mb-1">
+          <h1 className="text-2xl font-bold text-[#D97853] mb-1">
             News Management
           </h1>
           <p className="text-sm text-[#2D3436]/60">
@@ -1219,7 +1226,7 @@ const StaffNewsManagement = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[700px] h-[90vh] md:h-auto max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[94%] max-w-[1120px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 flex flex-col overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between px-6 py-4 md:px-8 border-b border-[#2D3436]/10 bg-white sticky top-0 z-30">
@@ -1248,153 +1255,166 @@ const StaffNewsManagement = () => {
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 md:p-8 flex-1 space-y-6">
-                {/* Thumbnail Upload */}
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Cover Thumbnail <span className="text-[#D97853]">*</span>
-                  </label>
-                  <input
-                    ref={createImageInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                    className="hidden"
-                    onChange={(e) =>
-                      uploadCoverImage(e.target.files?.[0], "create")
-                    }
-                  />
-                  <div
-                    onClick={() => createImageInputRef.current?.click()}
-                    className="w-full h-[180px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-3 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-[#2D3436]/5 group-hover:bg-white flex items-center justify-center shadow-sm transition-colors">
-                      {isUploadingCreateImage ? (
-                        <Loader2
-                          size={24}
-                          className="text-[#D97853] animate-spin"
-                        />
-                      ) : (
-                        <UploadCloud size={24} className="text-[#D97853]" />
+              <div className="p-6 md:p-8 flex-1">
+                <div className="grid grid-cols-1 gap-7 lg:grid-cols-12">
+                  <div className="lg:col-span-7 space-y-6">
+                    {/* Thumbnail Upload */}
+                    <div>
+                      <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                        Cover Thumbnail{" "}
+                        <span className="text-[#D97853]">*</span>
+                      </label>
+                      <input
+                        ref={createImageInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                        className="hidden"
+                        onChange={(e) =>
+                          uploadCoverImage(e.target.files?.[0], "create")
+                        }
+                      />
+                      <div
+                        onClick={() => createImageInputRef.current?.click()}
+                        className="w-full h-[116px] bg-white border-2 border-dashed border-[#2D3436]/15 rounded-[20px] flex flex-col items-center justify-center gap-2 hover:border-[#D97853]/50 hover:bg-[#D97853]/5 transition-colors cursor-pointer group"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-[#2D3436]/5 group-hover:bg-white flex items-center justify-center shadow-sm transition-colors">
+                          {isUploadingCreateImage ? (
+                            <Loader2
+                              size={24}
+                              className="text-[#D97853] animate-spin"
+                            />
+                          ) : (
+                            <UploadCloud size={24} className="text-[#D97853]" />
+                          )}
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-[#2D3436]">
+                            {isUploadingCreateImage
+                              ? "Uploading image..."
+                              : "Click to upload or drag & drop"}
+                          </p>
+                          <p className="text-xs text-[#2D3436]/40 mt-1">
+                            PNG, JPG, WEBP or GIF (max. 5MB)
+                          </p>
+                        </div>
+                      </div>
+                      {createForm.coverImage && (
+                        <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
+                          <img
+                            src={createForm.coverImage}
+                            alt="Cover preview"
+                            className="h-20 w-full object-cover"
+                            onClick={() =>
+                              setPreviewImageUrl(createForm.coverImage)
+                            }
+                            title="Click to preview"
+                          />
+                        </div>
                       )}
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-[#2D3436]">
-                        {isUploadingCreateImage
-                          ? "Uploading image..."
-                          : "Click to upload or drag & drop"}
-                      </p>
-                      <p className="text-xs text-[#2D3436]/40 mt-1">
-                        PNG, JPG, WEBP or GIF (max. 5MB)
+                      <p className="mt-3 text-xs font-medium text-[#2D3436]/50">
+                        Cover image only supports file upload.
                       </p>
                     </div>
-                  </div>
-                  {createForm.coverImage && (
-                    <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
-                      <img
-                        src={createForm.coverImage}
-                        alt="Cover preview"
-                        className="h-36 w-full object-cover"
+
+                    {/* Title */}
+                    <div>
+                      <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                        Post Title <span className="text-[#D97853]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={createForm.title}
+                        onChange={(e) =>
+                          setCreateForm({
+                            ...createForm,
+                            title: e.target.value,
+                          })
+                        }
+                        placeholder="e.g. 5 Tips to Keep Your Dog Healthy..."
+                        className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
                       />
                     </div>
-                  )}
-                  <p className="mt-3 text-xs font-medium text-[#2D3436]/50">
-                    Cover image only supports file upload.
-                  </p>
-                </div>
 
-                {/* Form Grid */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Title */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Post Title <span className="text-[#D97853]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={createForm.title}
-                      onChange={(e) =>
-                        setCreateForm({ ...createForm, title: e.target.value })
-                      }
-                      placeholder="e.g. 5 Tips to Keep Your Dog Healthy..."
-                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm"
-                    />
-                  </div>
-
-                  {/* Category */}
-                  <div className="relative">
-                    <CustomSelect
-                      label="Category"
-                      isModal={true}
-                      rightIcon={MoreVertical}
-                      options={modalCatOpts}
-                      value={modalCat}
-                      onChange={setModalCat}
-                      isOpen={isModalCatOpen}
-                      setIsOpen={setIsModalCatOpen}
-                    />
-                  </div>
-
-                  {/* Target Audience */}
-                  <div className="relative">
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Target Audience
-                    </label>
-                    <div className="w-full px-4 py-3 bg-[#F7F3EC] border border-[#D97853]/20 rounded-2xl text-sm font-bold text-[#2D3436]">
-                      {FIXED_AUDIENCE_LABEL}
+                    {/* Content Body */}
+                    <div>
+                      <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                        Content Body
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={createForm.content}
+                        onChange={(e) =>
+                          setCreateForm({
+                            ...createForm,
+                            content: e.target.value,
+                          })
+                        }
+                        placeholder="Write your article content here..."
+                        className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
+                      />
                     </div>
                   </div>
 
-                  {/* Content Editor Preview (Dummy Textarea) */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Content Body
-                    </label>
-                    <textarea
-                      rows={5}
-                      value={createForm.content}
-                      onChange={(e) =>
-                        setCreateForm({
-                          ...createForm,
-                          content: e.target.value,
-                        })
-                      }
-                      placeholder="Write your article content here..."
-                      className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all placeholder:font-normal placeholder:text-[#2D3436]/30 shadow-sm resize-none"
-                    />
-                  </div>
+                  <div className="lg:col-span-5 lg:border-l lg:border-[#2D3436]/10 lg:pl-6">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-1">
+                      {/* Category */}
+                      <div className="relative">
+                        <CustomSelect
+                          label="Category"
+                          isModal={true}
+                          rightIcon={MoreVertical}
+                          options={modalCatOpts}
+                          value={modalCat}
+                          onChange={setModalCat}
+                          isOpen={isModalCatOpen}
+                          setIsOpen={setIsModalCatOpen}
+                        />
+                      </div>
 
-                  {/* Status */}
-                  <div className="relative mb-4">
-                    <CustomSelect
-                      label="Publish Status"
-                      isModal={true}
-                      up={true}
-                      rightIcon={MoreVertical}
-                      options={modalStatOpts}
-                      value={modalStat}
-                      onChange={setModalStat}
-                      isOpen={isModalStatOpen}
-                      setIsOpen={setIsModalStatOpen}
-                    />
-                  </div>
+                      {/* Target Audience */}
+                      <div className="relative">
+                        <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                          Target Audience
+                        </label>
+                        <div className="w-full px-4 py-3 bg-[#F7F3EC] border border-[#D97853]/20 rounded-2xl text-sm font-bold text-[#2D3436]">
+                          {FIXED_AUDIENCE_LABEL}
+                        </div>
+                      </div>
 
-                  {/* Schedule Date */}
-                  <div>
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Publish Date
-                    </label>
-                    <div className="relative">
-                      <DatePicker
-                        selected={publishDate}
-                        onChange={(date) => setPublishDate(date)}
-                        dateFormat="dd/MM/yyyy"
-                        className="w-full px-4 py-3 pl-11 bg-white border border-[#2D3436]/10 focus:border-[#D97853] hover:border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-1 focus:ring-[#D97853] transition-all shadow-sm cursor-pointer"
-                        wrapperClassName="w-full"
-                      />
-                      <Calendar
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2D3436]/40 pointer-events-none"
-                        size={18}
-                      />
+                      {/* Status */}
+                      <div className="relative">
+                        <CustomSelect
+                          label="Publish Status"
+                          isModal={true}
+                          up={true}
+                          rightIcon={MoreVertical}
+                          options={modalStatOpts}
+                          value={modalStat}
+                          onChange={setModalStat}
+                          isOpen={isModalStatOpen}
+                          setIsOpen={setIsModalStatOpen}
+                        />
+                      </div>
+
+                      {/* Schedule Date */}
+                      <div>
+                        <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                          Publish Date
+                        </label>
+                        <div className="relative">
+                          <DatePicker
+                            selected={publishDate}
+                            onChange={(date) => setPublishDate(date)}
+                            dateFormat="dd/MM/yyyy"
+                            className="w-full px-4 py-3 pl-11 bg-white border border-[#2D3436]/10 focus:border-[#D97853] hover:border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-1 focus:ring-[#D97853] transition-all shadow-sm cursor-pointer"
+                            wrapperClassName="w-full"
+                          />
+                          <Calendar
+                            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2D3436]/40 pointer-events-none"
+                            size={18}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1572,7 +1592,7 @@ const StaffNewsManagement = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[600px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[94%] max-w-[1080px] max-h-[90vh] bg-[#FDFBF7] rounded-[24px] shadow-2xl z-50 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 md:px-8 border-b border-[#2D3436]/10 bg-white sticky top-0 z-30">
@@ -1582,7 +1602,7 @@ const StaffNewsManagement = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-[#2D3436] leading-tight">
-                      Edit News
+                      Upate News
                     </h2>
                     <p className="text-xs text-[#2D3436]/50 font-medium">
                       Update article details
@@ -1597,146 +1617,173 @@ const StaffNewsManagement = () => {
                 </button>
               </div>
               {/* Body */}
-              <div className="p-6 md:p-8 space-y-5">
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Post Title <span className="text-[#D97853]">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.title}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, title: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Cover Image <span className="text-[#D97853]">*</span>
-                  </label>
-                  <input
-                    ref={editImageInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
-                    className="hidden"
-                    onChange={(e) =>
-                      uploadCoverImage(e.target.files?.[0], "edit")
-                    }
-                  />
-                  <button
-                    type="button"
-                    onClick={() => editImageInputRef.current?.click()}
-                    disabled={isUploadingEditImage}
-                    className="mb-3 inline-flex items-center gap-2 rounded-xl border border-[#2D3436]/10 bg-white px-3 py-2 text-xs font-bold text-[#2D3436]/70 hover:border-[#D97853]/40 hover:text-[#D97853] transition-colors disabled:opacity-60"
-                  >
-                    {isUploadingEditImage ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <UploadCloud size={14} />
-                    )}
-                    {isUploadingEditImage ? "Uploading..." : "Upload New Image"}
-                  </button>
-                  <p className="text-xs font-medium text-[#2D3436]/50">
-                    Manual image URL input is disabled. Please upload a file.
-                  </p>
-                  {editForm.coverImage && (
-                    <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
-                      <img
-                        src={editForm.coverImage}
-                        alt="Edit cover preview"
-                        className="h-32 w-full object-cover"
-                      />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                    Content Body <span className="text-[#D97853]">*</span>
-                  </label>
-                  <textarea
-                    rows={5}
-                    value={editForm.content}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, content: e.target.value })
-                    }
-                    className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm resize-none"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <CustomSelect
-                    label="Category"
-                    isModal={true}
-                    options={[
-                      "Announcement",
-                      "Tips",
-                      "Promotion",
-                      "Event",
-                      "General",
-                    ]}
-                    value={editForm.category}
-                    onChange={(v) => setEditForm({ ...editForm, category: v })}
-                    isOpen={isEditCatOpen}
-                    setIsOpen={(o) => {
-                      setIsEditCatOpen(o);
-                      if (o) {
-                        setIsEditAudOpen(false);
-                        setIsEditStatOpen(false);
-                      }
-                    }}
-                  />
-                  <CustomSelect
-                    label="Target Audience"
-                    isModal={true}
-                    options={[
-                      "All Customers",
-                      "Dog Owners",
-                      "Cat Owners",
-                      "VIP Members",
-                    ]}
-                    value={editForm.audience}
-                    onChange={(v) => setEditForm({ ...editForm, audience: v })}
-                    isOpen={isEditAudOpen}
-                    setIsOpen={(o) => {
-                      setIsEditAudOpen(o);
-                      if (o) {
-                        setIsEditCatOpen(false);
-                        setIsEditStatOpen(false);
-                      }
-                    }}
-                  />
-                  <CustomSelect
-                    label="Status"
-                    isModal={true}
-                    options={["Published", "Draft"]}
-                    value={editForm.status}
-                    onChange={(v) => setEditForm({ ...editForm, status: v })}
-                    isOpen={isEditStatOpen}
-                    setIsOpen={(o) => {
-                      setIsEditStatOpen(o);
-                      if (o) {
-                        setIsEditCatOpen(false);
-                        setIsEditAudOpen(false);
-                      }
-                    }}
-                  />
-                  <div>
-                    <label className="block text-sm font-bold text-[#2D3436] mb-2">
-                      Publish Date
-                    </label>
-                    <div className="relative">
-                      <Calendar
-                        size={16}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#D97853]"
-                      />
+              <div className="p-6 md:p-8">
+                <div className="grid grid-cols-1 gap-7 lg:grid-cols-12">
+                  <div className="lg:col-span-7 space-y-5">
+                    <div>
+                      <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                        Post Title <span className="text-[#D97853]">*</span>
+                      </label>
                       <input
                         type="text"
-                        value={editForm.date}
+                        value={editForm.title}
                         onChange={(e) =>
-                          setEditForm({ ...editForm, date: e.target.value })
+                          setEditForm({ ...editForm, title: e.target.value })
                         }
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
+                        className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                        Content Body <span className="text-[#D97853]">*</span>
+                      </label>
+                      <textarea
+                        rows={7}
+                        value={editForm.content}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, content: e.target.value })
+                        }
+                        className="w-full px-4 py-3 bg-white border border-[#2D3436]/10 rounded-xl text-sm font-medium text-[#2D3436] focus:outline-none focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 lg:border-l lg:border-[#2D3436]/10 lg:pl-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                          Cover Image <span className="text-[#D97853]">*</span>
+                        </label>
+                        <input
+                          ref={editImageInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                          className="hidden"
+                          onChange={(e) =>
+                            uploadCoverImage(e.target.files?.[0], "edit")
+                          }
+                        />
+                        <button
+                          type="button"
+                          onClick={() => editImageInputRef.current?.click()}
+                          disabled={isUploadingEditImage}
+                          className="mb-3 inline-flex items-center gap-2 rounded-xl border border-[#2D3436]/10 bg-white px-3 py-2 text-xs font-bold text-[#2D3436]/70 hover:border-[#D97853]/40 hover:text-[#D97853] transition-colors disabled:opacity-60"
+                        >
+                          {isUploadingEditImage ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <UploadCloud size={14} />
+                          )}
+                          {isUploadingEditImage
+                            ? "Uploading..."
+                            : "Upload New Image"}
+                        </button>
+                        <p className="text-xs font-medium text-[#2D3436]/50">
+                          Manual image URL input is disabled. Please upload a
+                          file.
+                        </p>
+                        {editForm.coverImage && (
+                          <div className="mt-3 overflow-hidden rounded-xl border border-[#2D3436]/10 bg-white">
+                            <img
+                              src={editForm.coverImage}
+                              alt="Edit cover preview"
+                              className="h-20 w-full object-cover"
+                              onClick={() =>
+                                setPreviewImageUrl(editForm.coverImage)
+                              }
+                              title="Click to preview"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1">
+                        <CustomSelect
+                          label="Category"
+                          isModal={true}
+                          options={[
+                            "Announcement",
+                            "Tips",
+                            "Promotion",
+                            "Event",
+                            "General",
+                          ]}
+                          value={editForm.category}
+                          onChange={(v) =>
+                            setEditForm({ ...editForm, category: v })
+                          }
+                          isOpen={isEditCatOpen}
+                          setIsOpen={(o) => {
+                            setIsEditCatOpen(o);
+                            if (o) {
+                              setIsEditAudOpen(false);
+                              setIsEditStatOpen(false);
+                            }
+                          }}
+                        />
+                        <CustomSelect
+                          label="Target Audience"
+                          isModal={true}
+                          options={[
+                            "All Customers",
+                            "Dog Owners",
+                            "Cat Owners",
+                            "VIP Members",
+                          ]}
+                          value={editForm.audience}
+                          onChange={(v) =>
+                            setEditForm({ ...editForm, audience: v })
+                          }
+                          isOpen={isEditAudOpen}
+                          setIsOpen={(o) => {
+                            setIsEditAudOpen(o);
+                            if (o) {
+                              setIsEditCatOpen(false);
+                              setIsEditStatOpen(false);
+                            }
+                          }}
+                        />
+                        <CustomSelect
+                          label="Status"
+                          isModal={true}
+                          options={["Published", "Draft"]}
+                          value={editForm.status}
+                          onChange={(v) =>
+                            setEditForm({ ...editForm, status: v })
+                          }
+                          isOpen={isEditStatOpen}
+                          setIsOpen={(o) => {
+                            setIsEditStatOpen(o);
+                            if (o) {
+                              setIsEditCatOpen(false);
+                              setIsEditAudOpen(false);
+                            }
+                          }}
+                        />
+                        <div>
+                          <label className="block text-sm font-bold text-[#2D3436] mb-2">
+                            Publish Date
+                          </label>
+                          <div className="relative">
+                            <Calendar
+                              size={16}
+                              className="absolute left-4 top-1/2 -translate-y-1/2 text-[#D97853]"
+                            />
+                            <input
+                              type="text"
+                              value={editForm.date}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
+                                  date: e.target.value,
+                                })
+                              }
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-[#D97853] rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 transition-all shadow-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1759,6 +1806,42 @@ const StaffNewsManagement = () => {
                   <CheckCircle2 size={18} />{" "}
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </Motion.button>
+              </div>
+            </Motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ===== IMAGE PREVIEW MODAL ===== */}
+      <AnimatePresence>
+        {previewImageUrl && (
+          <>
+            <Motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewImageUrl("")}
+              className="fixed inset-0 bg-[#2D3436]/60 backdrop-blur-sm z-[70]"
+            />
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[71] w-[92%] max-w-[980px]"
+            >
+              <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-black/20 shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => setPreviewImageUrl("")}
+                  className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/45 text-white flex items-center justify-center hover:bg-black/65 transition-colors z-10"
+                >
+                  <X size={16} />
+                </button>
+                <img
+                  src={previewImageUrl}
+                  alt="Preview"
+                  className="w-full max-h-[82vh] object-contain bg-[#1c1c1c]"
+                />
               </div>
             </Motion.div>
           </>

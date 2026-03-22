@@ -38,9 +38,27 @@ export const getPublicPolicyBySlug = async (slug) => {
   return response.data;
 };
 
+export const createPolicy = async (payload) => {
+  const response = await axiosInstance.post("/policies", payload);
+  return response.data;
+};
+
+export const updatePolicy = async (id, payload) => {
+  const response = await axiosInstance.put(`/policies/${id}`, payload);
+  return response.data;
+};
+
+export const deletePolicy = async (id) => {
+  const response = await axiosInstance.delete(`/policies/${id}`);
+  return response.data;
+};
+
 export default {
   getAllPolicies,
   getPublicPolicies,
   getPolicyBySlug,
   getPublicPolicyBySlug,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
 };

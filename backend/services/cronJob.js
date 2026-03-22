@@ -4,9 +4,12 @@
  * Runs every 60 seconds and handles:
  *
  * 1. Booking Status Auto-Transitions:
- *    confirmed  → in-progress  when the earliest item.startTime has passed
- *    in-progress → completed   when the latest  item.endTime  has passed
- *                               AND completedAt is set to now
+ *    Service-only bookings:
+ *      confirmed  -> in-progress when at least one item.startTime <= now
+ *      in-progress -> completed when all item.endTime <= now (sets completedAt)
+ *    Stay-enabled bookings:
+ *      pending|confirmed -> in-progress when stayInfo.checkInDate <= now
+ *      pending|confirmed|in-progress -> completed when stayInfo.checkOutDate <= now (sets completedAt)
  *
  * 2. Wallet Transaction Expiry:
  *    pending wallet/deposit transactions → cancelled after 5 minutes (300 seconds) of inactivity
@@ -76,6 +79,7 @@ const runUnpaidBookingCleanup = async () => {
       {
         status: 'pending',
         isPaid: false,
+        paymentMethod: { $ne: 'wallet' },
         createdAt: { $lte: unpaidTimeout }
       },
       {
@@ -104,21 +108,60 @@ const runStatusTransitions = async () => {
   const now = new Date();
 
   try {
-    // ── confirmed → in-progress ───────────────────────────────────────────
-    // A booking should move to in-progress when AT LEAST ONE item has started
-    // (i.e. items.startTime <= now exists in the array).
-    const toInProgress = await Booking.updateMany(
+    // Service-only: confirmed -> in-progress
+    const serviceToInProgress = await Booking.updateMany(
       {
         status: 'confirmed',
+        'stayInfo.enabled': { $ne: true },
         'items.startTime': { $lte: now },
       },
       { $set: { status: 'in-progress' } }
     );
 
-    if (toInProgress.modifiedCount > 0) {
+    // Stay-enabled: pending|confirmed -> in-progress at check-in
+    const stayToInProgress = await Booking.updateMany(
+      {
+        status: { $in: ['pending', 'confirmed'] },
+        'stayInfo.enabled': true,
+        'stayInfo.checkInDate': { $lte: now },
+      },
+      { $set: { status: 'in-progress' } }
+    );
+
+    // Service-only: in-progress -> completed when all items have ended
+    const serviceToCompleted = await Booking.updateMany(
+      {
+        status: 'in-progress',
+        'stayInfo.enabled': { $ne: true },
+        'items.0': { $exists: true },
+        items: { $not: { $elemMatch: { endTime: { $gt: now } } } },
+      },
+      { $set: { status: 'completed', completedAt: now } }
+    );
+
+    // Stay-enabled: complete at check-out regardless of previous active status
+    const stayToCompleted = await Booking.updateMany(
+      {
+        status: { $in: ['pending', 'confirmed', 'in-progress'] },
+        'stayInfo.enabled': true,
+        'stayInfo.checkOutDate': { $lte: now },
+      },
+      { $set: { status: 'completed', completedAt: now } }
+    );
+
+    const changedCount =
+      serviceToInProgress.modifiedCount +
+      stayToInProgress.modifiedCount +
+      serviceToCompleted.modifiedCount +
+      stayToCompleted.modifiedCount;
+
+    if (changedCount > 0) {
       logger.info(
         `[CronJob] Booking auto-transitions: ` +
-        `${toInProgress.modifiedCount} → in-progress`
+        `service ${serviceToInProgress.modifiedCount} -> in-progress, ` +
+        `stay ${stayToInProgress.modifiedCount} -> in-progress, ` +
+        `service ${serviceToCompleted.modifiedCount} -> completed, ` +
+        `stay ${stayToCompleted.modifiedCount} -> completed`
       );
     }
   } catch (err) {

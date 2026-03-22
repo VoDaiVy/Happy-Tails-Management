@@ -51,6 +51,18 @@ export const checkoutBooking = async (checkoutData) => {
   return response.data;
 };
 
+// Checkout standalone boarding booking (Customer)
+export const checkoutBoarding = async (boardingData) => {
+  const response = await axiosInstance.post("/bookings/boarding-checkout", boardingData);
+  return response.data;
+};
+
+// Pay pending booking from Booking History (Customer)
+export const payPendingBooking = async (id) => {
+  const response = await axiosInstance.put(`/bookings/${id}/pay`);
+  return response.data;
+};
+
 // Create booking for walk-in customer (Staff/Admin)
 export const createGuestBooking = async (guestBookingData) => {
   const response = await axiosInstance.post("/bookings/guest", guestBookingData);
@@ -88,6 +100,8 @@ export default {
   getBookingById,
   createBooking,
   checkoutBooking,
+  checkoutBoarding,
+  payPendingBooking,
   createGuestBooking,
   updateBookingStatus,
   cancelBooking,

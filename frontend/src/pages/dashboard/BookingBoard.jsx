@@ -31,6 +31,7 @@ import { uploadMultipleImages } from "../../api/uploadApi";
 
 // Status tabs configuration
 const STATUS_TABS_STAFF = [
+  { key: "all", label: "All", icon: LayoutGrid, color: "text-gray-600" },
   {
     key: "pending",
     label: "Pending",
@@ -102,9 +103,7 @@ const BookingBoard = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState(
-    role === "staff" ? "pending" : "all",
-  );
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [viewMode, setViewMode] = useState("grid");
@@ -112,7 +111,8 @@ const BookingBoard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showMedicalWorkflowModal, setShowMedicalWorkflowModal] = useState(false);
+  const [showMedicalWorkflowModal, setShowMedicalWorkflowModal] =
+    useState(false);
   const [workflowBooking, setWorkflowBooking] = useState(null);
   const [workflowTargetStatus, setWorkflowTargetStatus] = useState("");
   const [workflowNotes, setWorkflowNotes] = useState("");
@@ -182,31 +182,14 @@ const BookingBoard = () => {
           fetchedBookings = response.bookings;
         }
 
-        // Staff sees: unassigned pending/confirmed bookings OR their own bookings
-        if (role === "staff" && currentUserId) {
-          fetchedBookings = fetchedBookings.filter((booking) => {
-            // Unassigned pending/confirmed booking
-            if (
-              (booking.status === "pending" || booking.status === "confirmed") &&
-              !booking.assignedStaff
-            ) {
-              return true;
-            }
-            // Own booking (any status)
-            if (
-              booking.assignedStaff?._id === currentUserId ||
-              booking.assignedStaff === currentUserId
-            ) {
-              return true;
-            }
-            return false;
-          });
-        }
-
         setBookings(fetchedBookings);
       } catch (err) {
         console.error("Error fetching bookings:", err);
-        setError(err.response?.data?.error?.message || err.response?.data?.message || "Cannot load bookings");
+        setError(
+          err.response?.data?.error?.message ||
+            err.response?.data?.message ||
+            "Cannot load bookings",
+        );
       } finally {
         setLoading(false);
         setIsRefreshing(false);
@@ -336,7 +319,9 @@ const BookingBoard = () => {
       await fetchBookings(true);
     } catch (err) {
       console.error("Error submitting medical workflow:", err);
-      setWorkflowError(err.response?.data?.message || "Không thể cập nhật check-in/check-out");
+      setWorkflowError(
+        err.response?.data?.message || "Không thể cập nhật check-in/check-out",
+      );
     } finally {
       setWorkflowSubmitting(false);
     }
@@ -345,10 +330,12 @@ const BookingBoard = () => {
   // Handle update status
   const handleUpdateStatus = async (bookingInput, newStatus) => {
     try {
-      const bookingId = typeof bookingInput === "string" ? bookingInput : bookingInput?._id;
+      const bookingId =
+        typeof bookingInput === "string" ? bookingInput : bookingInput?._id;
       const booking =
         typeof bookingInput === "string"
-          ? bookings.find((item) => item._id === bookingInput) || selectedBooking
+          ? bookings.find((item) => item._id === bookingInput) ||
+            selectedBooking
           : bookingInput;
 
       if (!bookingId) {
@@ -361,7 +348,9 @@ const BookingBoard = () => {
       }
 
       // Staff must complete medical workflow for check-in/check-out when booking has linked pets.
-      const hasLinkedPet = Boolean(booking?.items?.some((item) => item?.pet));
+      const hasLinkedPet = Boolean(
+        booking?.items?.some((item) => item?.pet) || booking?.boardingPet,
+      );
       if (
         role === "staff" &&
         hasLinkedPet &&
@@ -407,7 +396,7 @@ const BookingBoard = () => {
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedDate("");
-    setActiveTab(role === "staff" ? "pending" : "all");
+    setActiveTab("all");
   };
 
   return (
@@ -461,46 +450,46 @@ const BookingBoard = () => {
 
       {/* Filters */}
       <AdminFilterBar
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="Search by code, name, email, phone..."
-          dateValue={selectedDate ? new Date(selectedDate + "T00:00:00") : null}
-          onDateChange={(date) =>
-            setSelectedDate(
-              date
-                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-                : "",
-            )
-          }
-          dateLabel="DATE"
-          extraActions={
-            <div className="flex items-center gap-2 shrink-0">
-              {/* View mode toggle */}
-              <div className="flex items-center border border-[#2D3436]/10 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`p-2.5 transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-[#D97853] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <LayoutGrid size={18} />
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`p-2.5 transition-colors ${
-                    viewMode === "list"
-                      ? "bg-[#D97853] text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <List size={18} />
-                </button>
-              </div>
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by code, name, email, phone..."
+        dateValue={selectedDate ? new Date(selectedDate + "T00:00:00") : null}
+        onDateChange={(date) =>
+          setSelectedDate(
+            date
+              ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+              : "",
+          )
+        }
+        dateLabel="DATE"
+        extraActions={
+          <div className="flex items-center gap-2 shrink-0">
+            {/* View mode toggle */}
+            <div className="flex items-center border border-[#2D3436]/10 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2.5 transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-[#D97853] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2.5 transition-colors ${
+                  viewMode === "list"
+                    ? "bg-[#D97853] text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <List size={18} />
+              </button>
             </div>
-          }
-        />
+          </div>
+        }
+      />
 
       {/* Status Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -607,7 +596,9 @@ const BookingBoard = () => {
       {/* Stats Summary */}
       {!loading && !error && bookings.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-4">
-          <div className={`grid gap-4 ${role === "admin" ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"}`}>
+          <div
+            className={`grid gap-4 ${role === "admin" ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"}`}
+          >
             {role === "staff" && (
               <div className="text-center p-3 bg-amber-50 rounded-xl">
                 <p className="text-2xl font-bold text-amber-600">
@@ -666,7 +657,9 @@ const BookingBoard = () => {
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-[#2D3436]">
-                    {workflowTargetStatus === "in-progress" ? "Check-in Pet" : "Checkout Pet"}
+                    {workflowTargetStatus === "in-progress"
+                      ? "Check-in Pet"
+                      : "Checkout Pet"}
                   </h3>
                   <p className="text-sm text-[#2D3436]/60">
                     Booking: #{workflowBooking?.bookingNumber || "-"}
@@ -711,18 +704,23 @@ const BookingBoard = () => {
                   </label>
                   <label className="w-full border border-dashed border-gray-300 rounded-xl px-4 py-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#5B8C51] hover:bg-[#5B8C51]/5 transition-colors">
                     <ImagePlus size={22} className="text-[#5B8C51]" />
-                    <span className="text-sm text-[#2D3436]/70">Click to choose images (multiple)</span>
+                    <span className="text-sm text-[#2D3436]/70">
+                      Click to choose images (multiple)
+                    </span>
                     <input
                       type="file"
                       accept="image/*"
                       multiple
                       className="hidden"
-                      onChange={(e) => setWorkflowFiles(Array.from(e.target.files || []))}
+                      onChange={(e) =>
+                        setWorkflowFiles(Array.from(e.target.files || []))
+                      }
                     />
                   </label>
                   {workflowFiles.length > 0 && (
                     <p className="text-xs text-gray-500 mt-2">
-                      Selected {workflowFiles.length} file(s): {workflowFiles.map((f) => f.name).join(", ")}
+                      Selected {workflowFiles.length} file(s):{" "}
+                      {workflowFiles.map((f) => f.name).join(", ")}
                     </p>
                   )}
                 </div>
