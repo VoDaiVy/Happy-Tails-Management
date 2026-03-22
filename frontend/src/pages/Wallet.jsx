@@ -38,6 +38,8 @@ import Navbar from '../components/layout/Navbar';
 import AuthModal from '../components/AuthModal';
 import { getWallet, depositToWallet, getWalletTransactions, getPayOSDepositStatus } from '../api/walletApi';
 
+const WALLET_RETURN_CONTEXT_KEY = 'ht_wallet_return_context';
+
 // ─────────────────────────────────────────────────────────────
 // Helpers & constants
 // ─────────────────────────────────────────────────────────────
@@ -64,6 +66,45 @@ const TX_STATUS_CONFIG = {
 };
 
 const PRESET_AMOUNTS = [50000, 100000, 200000, 500000, 1000000, 2000000];
+
+const sanitizeReturnPath = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  if (!value.startsWith('/')) return null;
+  if (value.startsWith('//')) return null;
+  return value;
+};
+
+const saveWalletReturnContext = (returnTo) => {
+  const safePath = sanitizeReturnPath(returnTo);
+  if (!safePath) return;
+  localStorage.setItem(
+    WALLET_RETURN_CONTEXT_KEY,
+    JSON.stringify({ returnTo: safePath, createdAt: Date.now() }),
+  );
+};
+
+const getWalletReturnContext = () => {
+  try {
+    const raw = localStorage.getItem(WALLET_RETURN_CONTEXT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const safePath = sanitizeReturnPath(parsed?.returnTo);
+    if (!safePath) return null;
+    const createdAt = Number(parsed?.createdAt || 0);
+    const maxAgeMs = 1000 * 60 * 60 * 4;
+    if (!createdAt || Date.now() - createdAt > maxAgeMs) {
+      localStorage.removeItem(WALLET_RETURN_CONTEXT_KEY);
+      return null;
+    }
+    return safePath;
+  } catch {
+    return null;
+  }
+};
+
+const clearWalletReturnContext = () => {
+  localStorage.removeItem(WALLET_RETURN_CONTEXT_KEY);
+};
 
 const TX_FILTERS = [
   { key: 'all',     label: 'All'      },
@@ -134,6 +175,53 @@ export default function WalletPage() {
   const [depositResult, setDepositResult]       = useState(null);
   const [depositError, setDepositError]         = useState(null);
   const [checkingDepositStatus, setCheckingDepositStatus] = useState(false);
+
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const payosStatus = searchParams.get('status');
+    const payosCancel = searchParams.get('cancel');
+    const payosCode = searchParams.get('code');
+    const hasPayOSNative = payosStatus || payosCancel !== null || payosCode;
+
+    if (payment || hasPayOSNative) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    const rawAmount = searchParams.get('topupAmount');
+    const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
+    const source = searchParams.get('source');
+
+    if (returnTo) {
+      saveWalletReturnContext(returnTo);
+      nextParams.delete('returnTo');
+    }
+
+    if (rawAmount) {
+      const parsedAmount = Math.max(0, Math.ceil(Number(rawAmount || 0)));
+      if (Number.isFinite(parsedAmount) && parsedAmount > 0) {
+        setDepositAmount(String(parsedAmount));
+        setShowDepositModal(true);
+        setDepositError(null);
+        setDepositResult(null);
+
+        if (!depositNote) {
+          if (source === 'service-booking') {
+            setDepositNote('Top up for service booking');
+          } else if (source === 'cart-checkout') {
+            setDepositNote('Top up for cart checkout');
+          }
+        }
+      }
+      nextParams.delete('topupAmount');
+    }
+
+    if (source) {
+      nextParams.delete('source');
+    }
+
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [depositNote, searchParams, setSearchParams]);
 
   // ── Fetchers ─────────────────────────────────────────────────
   const fetchWallet = useCallback(async () => {
@@ -240,6 +328,20 @@ export default function WalletPage() {
     setDepositResult(null); setDepositError(null);
     fetchWallet(); fetchTransactions(1);
   }, [fetchTransactions, fetchWallet]);
+
+  useEffect(() => {
+    if (paymentBanner?.type !== 'success') return;
+
+    const returnTo = getWalletReturnContext();
+    if (!returnTo) return;
+
+    const timer = setTimeout(() => {
+      clearWalletReturnContext();
+      navigate(returnTo, { replace: true });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [navigate, paymentBanner]);
 
   const handleCheckDepositStatus = useCallback(async (orderCode, { closeOnFinal = false } = {}) => {
     if (!orderCode) return null;

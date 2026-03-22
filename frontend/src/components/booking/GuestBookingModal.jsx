@@ -19,7 +19,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { getAllServices } from "../../api/serviceApi";
-import { createGuestBooking } from "../../api/bookingApi";
+import { createGuestBooking, getAvailableSlots } from "../../api/bookingApi";
 import TimeSlotPicker from "./TimeSlotPicker";
 
 // Payment methods
@@ -39,6 +39,40 @@ const PET_TYPES = [
   { value: "fish", label: "Cá" },
   { value: "other", label: "Khác" },
 ];
+
+const BOOKING_TYPES = [
+  { value: "service", label: "Dich vu spa" },
+  { value: "boarding", label: "Phong luu tru" },
+];
+
+const BOARDING_KEYWORDS = ["boarding", "luu tru", "luu tru", "hotel", "stay", "overnight"];
+
+const normalizeText = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const isBoardingService = (service) => {
+  const name = normalizeText(service?.name || "");
+  const description = normalizeText(service?.description || "");
+  const categoryName = normalizeText(
+    service?.category?.name || service?.categoryName || "",
+  );
+
+  // Category/name are the most reliable signals for boarding-type services.
+  const byCategory = BOARDING_KEYWORDS.some((keyword) =>
+    categoryName.includes(keyword),
+  );
+  const byName = BOARDING_KEYWORDS.some((keyword) => name.includes(keyword));
+
+  // Keep description as a fallback but avoid over-matching short generic terms.
+  const byDescription = ["boarding", "luu tru", "overnight", "hotel"].some(
+    (keyword) => description.includes(keyword),
+  );
+
+  return byCategory || byName || byDescription;
+};
 
 // Derive service type from selected services for time slot interval logic
 const getServiceType = (selectedServices) => {
@@ -64,6 +98,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
     new Date().toISOString().split("T")[0],
   );
   const [bookingTime, setBookingTime] = useState("09:00");
+  const [bookingType, setBookingType] = useState("service");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [notes, setNotes] = useState("");
 
@@ -76,11 +111,13 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedServices, setSelectedServices] = useState([]);
+  const [disabledSlots, setDisabledSlots] = useState([]);
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   useScrollLock(isOpen);
 
   // Fetch services on mount
@@ -96,11 +133,13 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
       setGuestInfo({ name: "", email: "", phone: "" });
       setBookingDate(new Date().toISOString().split("T")[0]);
       setBookingTime("09:00");
+      setBookingType("service");
       setPaymentMethod("cash");
       setNotes("");
       setPetName("");
       setPetType("dog");
       setSelectedServices([]);
+      setDisabledSlots([]);
       setSearchQuery("");
       setError(null);
       setSuccess(false);
@@ -110,8 +149,19 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
   const fetchServices = async () => {
     try {
       setServicesLoading(true);
-      const response = await getAllServices({ isActive: true });
-      setServices(response.data?.services || []);
+      const response = await getAllServices({
+        isActive: true,
+        page: 1,
+        limit: 100,
+        sortBy: "name",
+        sortOrder: "asc",
+      });
+      const list =
+        response?.data?.services ||
+        response?.services ||
+        response?.data ||
+        [];
+      setServices(Array.isArray(list) ? list : []);
     } catch (err) {
       console.error("Error fetching services:", err);
     } finally {
@@ -119,8 +169,42 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
     }
   };
 
+  useEffect(() => {
+    const primaryService = selectedServices[0]?.service;
+    if (!isOpen || !bookingDate || !primaryService?._id) {
+      setDisabledSlots([]);
+      return;
+    }
+
+    let alive = true;
+
+    const loadAvailableSlots = async () => {
+      try {
+        setSlotsLoading(true);
+        const response = await getAvailableSlots(bookingDate, primaryService._id);
+        const slots = response?.data?.disabledSlots || [];
+        if (!alive) return;
+        setDisabledSlots(Array.isArray(slots) ? slots : []);
+      } catch (err) {
+        if (!alive) return;
+        setDisabledSlots([]);
+      } finally {
+        if (alive) setSlotsLoading(false);
+      }
+    };
+
+    loadAvailableSlots();
+
+    return () => {
+      alive = false;
+    };
+  }, [isOpen, bookingDate, selectedServices]);
+
   // Filter services by search
   const filteredServices = services.filter((service) => {
+    if (bookingType === "boarding" && !isBoardingService(service)) return false;
+    if (bookingType === "service" && isBoardingService(service)) return false;
+
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -128,6 +212,11 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
       service.description?.toLowerCase().includes(query)
     );
   });
+
+  useEffect(() => {
+    setSelectedServices([]);
+    setSearchQuery("");
+  }, [bookingType]);
 
   // Add service to selection
   const handleAddService = (service) => {
@@ -308,7 +397,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
           {/* Content */}
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
             <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left column - Guest info & Booking details */}
+              {/* Left column - Customer & pet info */}
               <div className="space-y-6">
                 {/* Guest Info */}
                 <div className="bg-gray-50 rounded-xl p-4">
@@ -422,13 +511,40 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                   </div>
                 </div>
 
-                {/* Booking Details */}
+              </div>
+
+              {/* Right column - Booking flow */}
+              <div className="space-y-4">
+                {/* Booking details */}
                 <div className="bg-gray-50 rounded-xl p-4">
                   <h3 className="font-semibold text-[#2D3436] mb-4 flex items-center gap-2">
                     <Calendar size={18} className="text-[#5B8C51]" />
                     Thông tin đặt lịch
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
+
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Loại đặt lịch
+                    </label>
+                    <div className="flex gap-2">
+                      {BOOKING_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setBookingType(type.value)}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            bookingType === type.value
+                              ? "bg-[#5B8C51] text-white"
+                              : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Ngày
@@ -441,18 +557,32 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                       />
                     </div>
                     <div className="col-span-2">
+                      {slotsLoading ? (
+                        <div className="flex items-center justify-center py-2 text-gray-500 text-xs gap-2">
+                          <RefreshCw className="animate-spin" size={14} />
+                          Đang tải giờ khả dụng...
+                        </div>
+                      ) : null}
                       <TimeSlotPicker
-                        serviceType={getServiceType(selectedServices)}
+                        serviceType={
+                          bookingType === "boarding"
+                            ? "boarding"
+                            : getServiceType(selectedServices)
+                        }
                         selectedTime={bookingTime}
                         onChange={setBookingTime}
+                        disabledSlots={disabledSlots}
+                        compact
+                        maxHeightClass="max-h-36"
                       />
                     </div>
                   </div>
+
                   <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Phương thức thanh toán
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {PAYMENT_METHODS.map((method) => (
                         <button
                           key={method.value}
@@ -470,6 +600,7 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                       ))}
                     </div>
                   </div>
+
                   <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Ghi chú
@@ -483,15 +614,14 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Right column - Services selection */}
-              <div className="space-y-4">
-                {/* Services Search */}
+                {/* Service/Room Search */}
                 <div className="bg-gray-50 rounded-xl p-4">
                   <h3 className="font-semibold text-[#2D3436] mb-4 flex items-center gap-2">
                     <ShoppingBag size={18} className="text-[#5B8C51]" />
-                    Chọn dịch vụ
+                    {bookingType === "boarding"
+                      ? "Chọn phòng lưu trú"
+                      : "Chọn dịch vụ"}
                   </h3>
                   <div className="relative mb-3">
                     <Search
@@ -502,13 +632,17 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Tìm kiếm dịch vụ..."
+                      placeholder={
+                        bookingType === "boarding"
+                          ? "Tìm kiếm phòng lưu trú..."
+                          : "Tìm kiếm dịch vụ..."
+                      }
                       className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
                     />
                   </div>
 
                   {/* Services list */}
-                  <div className="max-h-[200px] overflow-y-auto space-y-2">
+                  <div className="max-h-[180px] overflow-y-auto space-y-2">
                     {servicesLoading ? (
                       <div className="flex items-center justify-center py-4">
                         <RefreshCw
@@ -518,7 +652,9 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                       </div>
                     ) : filteredServices.length === 0 ? (
                       <p className="text-center text-gray-500 text-sm py-4">
-                        Không tìm thấy dịch vụ
+                        {bookingType === "boarding"
+                          ? "Không tìm thấy phòng lưu trú"
+                          : "Không tìm thấy dịch vụ"}
                       </p>
                     ) : (
                       filteredServices.map((service) => (
@@ -551,14 +687,14 @@ const GuestBookingModal = ({ isOpen, onClose, onSuccess }) => {
                 {/* Selected Services */}
                 <div className="bg-[#5B8C51]/5 rounded-xl p-4 border border-[#5B8C51]/20">
                   <h3 className="font-semibold text-[#2D3436] mb-3">
-                    Dịch vụ đã chọn ({selectedServices.length})
+                    {bookingType === "boarding" ? "Phòng đã chọn" : "Dịch vụ đã chọn"} ({selectedServices.length})
                   </h3>
                   {selectedServices.length === 0 ? (
                     <p className="text-center text-gray-500 text-sm py-4">
-                      Chưa chọn dịch vụ nào
+                      {bookingType === "boarding" ? "Chưa chọn phòng nào" : "Chưa chọn dịch vụ nào"}
                     </p>
                   ) : (
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[180px] overflow-y-auto">
                       {selectedServices.map((item) => (
                         <div
                           key={item.service._id}

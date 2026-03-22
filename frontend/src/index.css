@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @tailwind base;
 @tailwind components;
@@ -274,5 +274,188 @@ input::-webkit-password-reveal-button {
   border-radius: 6px !important;
 }
 .react-datepicker__navigation-icon::before {
+  border-color: #2D3436 !important;
+}
+
+/* Policy Form DatePicker Styles */
+.policy-datepicker-popper {
+  z-index: 10000 !important;
+}
+
+.policy-datepicker-calendar.react-datepicker {
+  border: 1px solid #E9E2DA !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 36px rgba(45, 52, 54, 0.14) !important;
+  background: #FFFEFD !important;
+  overflow: hidden;
+}
+
+.policy-datepicker-calendar .react-datepicker__header {
+  background: linear-gradient(180deg, #FFF7F1 0%, #FFFCFA 100%) !important;
+  border-bottom: 1px solid #F0E4DA !important;
+  padding-top: 10px !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__current-month {
+  color: #1F2933 !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__day-name {
+  color: #60758A !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__day {
+  color: #2D3436 !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__day:hover {
+  background: #FFF1E8 !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__day--selected,
+.policy-datepicker-calendar .react-datepicker__day--keyboard-selected {
+  background: #D97853 !important;
+  color: #FFFFFF !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__day--today {
+  border: 1px solid #D97853 !important;
+}
+
+.policy-datepicker-calendar .react-datepicker__navigation-icon::before {
+  border-color: #60758A !important;
+}
+
+/* Notification form: date + time picker (Create Notifications) */
+.notification-datepicker-popper {
+  z-index: 10001 !important;
+}
+
+.notification-datepicker-calendar.react-datepicker {
+  font-family: inherit !important;
+  border: 1px solid rgba(45, 52, 54, 0.1) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
+  background: #FDFBF7 !important;
+  overflow: visible !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__header {
+  background: linear-gradient(180deg, #FFF7F1 0%, #FFFCFA 100%) !important;
+  border-bottom: 1px solid rgba(45, 52, 54, 0.1) !important;
+  padding-top: 12px !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__current-month,
+.notification-datepicker-calendar .react-datepicker-time__header {
+  color: #2D3436 !important;
+  font-weight: 700 !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__day--selected,
+.notification-datepicker-calendar .react-datepicker__day--keyboard-selected {
+  background: #D97853 !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__day:hover {
+  background: rgba(217, 120, 83, 0.15) !important;
+  border-radius: 8px !important;
+}
+
+/* Time list: consistent height, scroll to show selected, same highlight as date */
+.notification-datepicker-calendar .react-datepicker__time-container {
+  width: 100%;
+}
+
+.notification-datepicker-calendar .react-datepicker__time-box {
+  width: 100% !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__time-list {
+  max-height: 220px !important;
+  padding: 4px 0 !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__time-list-item {
+  padding: 8px 12px !important;
+  text-align: center !important;
+  font-weight: 500 !important;
+  color: #2D3436 !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__time-list-item--selected {
+  background: #D97853 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+.notification-datepicker-calendar .react-datepicker__time-list-item:hover:not(.react-datepicker__time-list-item--selected) {
+  background: rgba(45, 52, 54, 0.06) !important;
+}
+
+/* Medical Record form: Visit Date (Create Medical Record) */
+.medical-record-datepicker-popper {
+  z-index: 10001 !important;
+}
+
+.medical-record-datepicker-calendar.react-datepicker {
+  font-family: inherit !important;
+  border: 1px solid rgba(45, 52, 54, 0.1) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
+  background: #FDFBF7 !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__header {
+  background: linear-gradient(180deg, #FFF7F1 0%, #FFFCFA 100%) !important;
+  border-bottom: 1px solid rgba(45, 52, 54, 0.1) !important;
+  padding: 12px 12px 10px !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__current-month {
+  color: #2D3436 !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__day-name,
+.medical-record-datepicker-calendar .react-datepicker__day {
+  color: #2D3436 !important;
+  width: 2.25rem !important;
+  line-height: 2.25rem !important;
+  margin: 0.2rem !important;
+  border-radius: 10px !important;
+  font-weight: 500 !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__day--selected,
+.medical-record-datepicker-calendar .react-datepicker__day--keyboard-selected {
+  background: #D97853 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__day:hover {
+  background: rgba(217, 120, 83, 0.15) !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__day--today {
+  border: 1px solid #D97853 !important;
+  font-weight: 600 !important;
+}
+
+.medical-record-datepicker-calendar .react-datepicker__navigation-icon::before {
   border-color: #2D3436 !important;
 }

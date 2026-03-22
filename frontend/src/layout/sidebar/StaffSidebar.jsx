@@ -1,12 +1,27 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
-import { LayoutDashboard, CalendarCheck, Newspaper, MessageSquareText } from "lucide-react";
+import {
+  LayoutDashboard,
+  CalendarCheck,
+  CalendarDays,
+  Newspaper,
+  MessageSquareText,
+  Bell,
+  Stethoscope,
+} from "lucide-react";
 
 const staffMenuItems = [
   { path: "/staff", icon: LayoutDashboard, label: "Overview" },
   { path: "/staff/bookings", icon: CalendarCheck, label: "Bookings" },
+  { path: "/staff/schedule", icon: CalendarDays, label: "Schedule" },
   { path: "/staff/feedback", icon: MessageSquareText, label: "Feedback" },
+  { path: "/staff/notifications", icon: Bell, label: "Notifications" },
+  {
+    path: "/staff/medical-records",
+    icon: Stethoscope,
+    label: "Medical Records",
+  },
   { path: "/staff/news", icon: Newspaper, label: "News" },
 ];
 

@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PrivateRoute from "./components/PrivateRoute";
@@ -18,19 +23,24 @@ import BookingHistory from "./pages/BookingHistory";
 import ProfilePage from "./pages/ProfilePage";
 import MyPetsPage from "./pages/MyPetsPage";
 import PetDetailPage from "./pages/PetDetailPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import Unauthorized from "./pages/Unauthorized";
 import DashboardLayout from "./layout/DashboardLayout";
-import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import StaffNewsManagement from "./pages/dashboard/staff/StaffNewsManagement";
 import StaffDashboard from "./pages/dashboard/staff/StaffDashboard";
 import StaffFeedbackPage from "./pages/dashboard/staff/StaffFeedbackPage";
+import StaffNotificationsManagement from "./pages/dashboard/staff/StaffNotificationsManagement";
+import StaffMedicalRecordManagement from "./pages/dashboard/staff/StaffMedicalRecordManagement";
+import StaffScheduleView from "./pages/dashboard/staff/StaffScheduleView";
 import BookingBoard from "./pages/dashboard/BookingBoard";
-import UserManagement from "./pages/dashboard/UserManagement";
-import RoomManagement from "./pages/dashboard/RoomManagement";
-import MedicalRecordManagement from "./pages/dashboard/MedicalRecordManagement";
-import TransactionManagement from "./pages/dashboard/TransactionManagement";
-import VoucherManagement from "./pages/dashboard/VoucherManagement";
-import ServiceManagement from "./pages/dashboard/ServiceManagement";
+import UserManagement from "./pages/dashboard/admin/AdminUserManagement";
+import RoomManagement from "./pages/dashboard/admin/AdminRoomManagement";
+import MedicalRecordManagement from "./pages/dashboard/admin/AdminMedicalRecordManagement";
+import TransactionManagement from "./pages/dashboard/admin/AdminTransactionManagement";
+import VoucherManagement from "./pages/dashboard/admin/AdminVoucherManagement";
+import ServiceManagement from "./pages/dashboard/admin/AdminServiceManagement";
+import AdminPolicyManagement from "./pages/dashboard/admin/AdminPolicyManagement";
 import FloatingChatBubble from "./components/FloatingChatBubble";
 
 function App() {
@@ -87,6 +97,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Wallet */}
           <Route path="/wallet" element={<Wallet />} />
@@ -110,6 +128,7 @@ function App() {
               element={<MedicalRecordManagement />}
             />
             <Route path="transactions" element={<TransactionManagement />} />
+            <Route path="policies" element={<AdminPolicyManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
           </Route>
 
@@ -129,6 +148,30 @@ function App() {
               element={
                 <PrivateRoute allowedRoles={["staff"]}>
                   <StaffFeedbackPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="notifications"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffNotificationsManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="medical-records"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffMedicalRecordManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="schedule"
+              element={
+                <PrivateRoute allowedRoles={["staff"]}>
+                  <StaffScheduleView />
                 </PrivateRoute>
               }
             />

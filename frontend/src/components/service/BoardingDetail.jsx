@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, Clock, Video, Lock, XCircle, Bed } from "lucide-react";
 import Navbar from "../layout/Navbar";
@@ -218,6 +218,7 @@ const CameraAccessPanel = ({ booking }) => {
 /*  BoardingDetail Page                                        */
 /* ════════════════════════════════════════════════════════════ */
 const BoardingDetail = () => {
+  const navigate = useNavigate();
   const { roomType } = useParams();
   const type = roomType === "vip" ? "vip" : "standard";
   const room = roomData[type];
@@ -261,6 +262,14 @@ const BoardingDetail = () => {
         onLoginSuccess={(u) => {
           setUser(u);
           setIsAuthModalOpen(false);
+
+          if (u?.role === "admin") {
+            navigate("/admin");
+            return;
+          }
+          if (u?.role === "staff") {
+            navigate("/staff");
+          }
         }}
       />
 

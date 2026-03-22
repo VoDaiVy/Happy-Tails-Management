@@ -45,6 +45,7 @@ const send = async (userId, payload) => {
       type: notification.type,
       isRead: false,
       actionUrl: notification.actionUrl,
+      imageUrl: notification.imageUrl,
       metadata: notification.metadata,
       createdAt: notification.createdAt
     })
@@ -83,6 +84,7 @@ const sendToMany = async (userIds, payload) => {
       body: payload.body,
       type: payload.type,
       actionUrl: payload.actionUrl || null,
+      imageUrl: payload.imageUrl || null,
       metadata: payload.metadata || {},
       isRead: false,
       createdAt: new Date()
@@ -238,6 +240,92 @@ const deleteAllRead = async (userId) => {
   return { deletedCount: result.deletedCount }
 }
 
+/**
+ * Get aggregated outbox for staff/admin notification management
+ * Groups broadcasts (same title+body+type sent within 2 min) into single rows
+ * @param {Object} query - { search, type, page, limit }
+ * @returns {Promise<{ data: Array, pagination: Object }>}
+ */
+const getStaffOutbox = async (query = {}) => {
+  const { search, type, page = 1, limit = 20 } = query
+  const pageNum = Math.max(1, parseInt(page) || 1)
+  const limitNum = Math.max(1, Math.min(100, parseInt(limit) || 20))
+
+  // Pre-match filter
+  const matchStage = {}
+  if (type) matchStage.type = type
+  if (search) {
+    matchStage.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { body: { $regex: search, $options: 'i' } }
+    ]
+  }
+
+  // Use $dateToString to truncate to minute precision (compatible with MongoDB 4.x+)
+  const pipeline = [
+    ...(Object.keys(matchStage).length ? [{ $match: matchStage }] : []),
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: {
+          title: '$title',
+          body: '$body',
+          type: '$type',
+          // Group by minute precision to cluster broadcasts together
+          minute: {
+            $dateToString: { format: '%Y-%m-%dT%H:%M', date: '$createdAt' }
+          }
+        },
+        totalRecipients: { $sum: 1 },
+        deliveredCount: { $sum: { $cond: ['$isDelivered', 1, 0] } },
+        readCount: { $sum: { $cond: ['$isRead', 1, 0] } },
+        imageUrl: { $first: '$imageUrl' },
+        metadata: { $first: '$metadata' },
+        createdAt: { $first: '$createdAt' },
+        latestId: { $first: '$_id' }
+      }
+    },
+    { $sort: { createdAt: -1 } }
+  ]
+
+  // Count total groups
+  const countPipeline = [...pipeline, { $count: 'total' }]
+  const countResult = await Notification.aggregate(countPipeline)
+  const total = countResult[0]?.total || 0
+
+  // Paginate
+  pipeline.push({ $skip: (pageNum - 1) * limitNum })
+  pipeline.push({ $limit: limitNum })
+
+  // Project clean output
+  pipeline.push({
+    $project: {
+      _id: '$latestId',
+      title: '$_id.title',
+      body: '$_id.body',
+      type: '$_id.type',
+      totalRecipients: 1,
+      deliveredCount: 1,
+      readCount: 1,
+      imageUrl: 1,
+      metadata: 1,
+      createdAt: 1
+    }
+  })
+
+  const data = await Notification.aggregate(pipeline)
+
+  return {
+    data,
+    pagination: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum)
+    }
+  }
+}
+
 module.exports = {
   send,
   sendToMany,
@@ -247,5 +335,6 @@ module.exports = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
-  deleteAllRead
+  deleteAllRead,
+  getStaffOutbox
 }

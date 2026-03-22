@@ -1,9 +1,3 @@
-/**
- * Medical Record Controller
- * Staff/Admin: create, update, view all records
- * Customer: view only their own pets' records
- */
-
 const MedicalRecord  = require('../models/MedicalRecord');
 const UserPet        = require('../models/UserPet');
 const User           = require('../models/User');
@@ -54,6 +48,26 @@ exports.createMedicalRecord = catchAsync(async (req, res, next) => {
     followUpDate: followUpDate || null,
     createdBy:   req.user.id
   });
+
+  // Sync to UserPet.medicalRecords for customer view
+  try {
+    await UserPet.findByIdAndUpdate(userPetID, {
+      $push: {
+        medicalRecords: {
+          date: new Date(),
+          type: recordType || 'checkup',
+          diagnosis,
+          treatment,
+          veterinarian: req.user.name || 'Staff',
+          clinic: 'Happy Tails Clinic',
+          medications: medications?.map(m => m.name) || [],
+          notes: notes || ''
+        }
+      }
+    });
+  } catch (syncError) {
+    console.warn('Failed to sync medical record to UserPet:', syncError.message);
+  }
 
   await record.populate([
     { path: 'userPet',    select: 'petName petType breed' },

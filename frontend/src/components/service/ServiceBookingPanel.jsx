@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion as Motion } from "framer-motion";
 import {
   CalendarDays,
@@ -23,6 +23,7 @@ import { getMyPets } from "../../api/petApi";
 import { getWallet } from "../../api/walletApi";
 import axiosInstance from "../../api/axiosInstance";
 import { generateTimeSlots } from "../../data/servicesData";
+import { useAuth } from "../../context/AuthContext";
 
 /* ── small helper ── */
 const SectionLabel = ({ icon, label, step, locked }) => {
@@ -70,7 +71,7 @@ const parsePriceToNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export default function ServiceBookingPanel({ service }) {
+export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
   const [selectedPet, setSelectedPet] = useState("");
@@ -88,10 +89,12 @@ export default function ServiceBookingPanel({ service }) {
   const [confirmedData, setConfirmedData] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const { isAuthenticated, user, token } = useAuth();
 
   const today = new Date().toISOString().split("T")[0];
-  const hasToken = Boolean(localStorage.getItem("accessToken"));
+  const hasValidSession = Boolean(isAuthenticated && user && token);
   const navigate = useNavigate();
+  const location = useLocation();
   const servicePrice = useMemo(() => {
     const priceFromValue = parsePriceToNumber(service.priceValue);
     if (priceFromValue > 0) return priceFromValue;
@@ -102,22 +105,37 @@ export default function ServiceBookingPanel({ service }) {
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
     return Math.max(15, Number(service.intervalMinutes) || 15);
   }, [service.duration, service.intervalMinutes]);
+  const requiredTopUpAmount = useMemo(() => {
+    if (walletBalance === null) return 0;
+    return Math.max(0, Math.ceil(servicePrice - Number(walletBalance || 0)));
+  }, [servicePrice, walletBalance]);
+
+  const handleTopUpWallet = () => {
+    const currentPath = `${location.pathname}${location.search || ""}${location.hash || ""}`;
+    const params = new URLSearchParams();
+    params.set("topupAmount", String(requiredTopUpAmount));
+    params.set("returnTo", currentPath);
+    params.set("source", "service-booking");
+    navigate(`/wallet?${params.toString()}`);
+  };
 
   useEffect(() => {
-    if (!hasToken) return;
+    if (!hasValidSession) {
+      setWalletBalance(null);
+      return;
+    }
     setWalletLoading(true);
     getWallet()
       .then((res) => setWalletBalance(res?.data?.balance ?? null))
       .catch(() => setWalletBalance(null))
       .finally(() => setWalletLoading(false));
-  }, [hasToken]);
+  }, [hasValidSession]);
 
   useEffect(() => {
     let alive = true;
 
     const loadPets = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
+      if (!hasValidSession) {
         if (alive) setApiPets([]);
         return;
       }
@@ -144,7 +162,7 @@ export default function ServiceBookingPanel({ service }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [hasValidSession]);
 
   const timeSlots = useMemo(
     () =>
@@ -324,10 +342,16 @@ export default function ServiceBookingPanel({ service }) {
     return `${endH}:${endM}`;
   }, [selectedDate, selectedSlot, service.duration]);
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (event) => {
     setSubmitError("");
     setSubmitSuccess("");
     setCartMessage("");
+    const sourceElement = event?.currentTarget;
+
+    if (!hasValidSession) {
+      setSubmitError("Please sign in or register to add a service to cart.");
+      return;
+    }
 
     if (!linkedServiceId) {
       setSubmitError("This service is not synced with the backend yet.");
@@ -347,6 +371,8 @@ export default function ServiceBookingPanel({ service }) {
       setCartMessage(
         "Service added to cart. You can complete checkout in Cart with multiple services.",
       );
+      onAddToCartSuccess?.(sourceElement);
+      window.dispatchEvent(new CustomEvent("cart:updated"));
     } catch (error) {
       const errPayload = error?.response?.data?.error || error?.response?.data || {};
       const errMsg = errPayload.message || error?.message || "Unable to add this service to cart.";
@@ -363,8 +389,7 @@ export default function ServiceBookingPanel({ service }) {
       return;
     }
 
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
+    if (!hasValidSession) {
       setSubmitError("Please sign in to continue booking.");
       return;
     }
@@ -562,13 +587,15 @@ export default function ServiceBookingPanel({ service }) {
         <Info size={12} /> Fill each step in order to unlock the next one.
       </p>
 
-      <button
-        type="button"
-        onClick={handleAddToCart}
-        className="mb-4 w-full rounded-xl border border-[#E07A5F]/35 bg-[#E07A5F]/10 py-2.5 text-sm font-semibold text-[#E07A5F] hover:bg-[#E07A5F]/15 transition"
-      >
-        + Add Service To Cart
-      </button>
+      {hasValidSession && (
+        <button
+          type="button"
+          onClick={(e) => handleAddToCart(e)}
+          className="mb-4 w-full rounded-xl border border-[#E07A5F]/35 bg-[#E07A5F]/10 py-2.5 text-sm font-semibold text-[#E07A5F] hover:bg-[#E07A5F]/15 transition"
+        >
+          + Add Service To Cart
+        </button>
+      )}
       {cartMessage && (
         <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
           {cartMessage}
@@ -577,7 +604,7 @@ export default function ServiceBookingPanel({ service }) {
 
       {/* ══════════════ STEP 1 — Pet ══════════════ */}
       <SectionLabel icon={PawPrint} label="Select Your Pet" step={1} />
-      {!hasToken ? (
+      {!hasValidSession ? (
         <div className="text-xs text-gray-500 py-2">
           Please sign in to load your pets.
         </div>
@@ -707,7 +734,7 @@ export default function ServiceBookingPanel({ service }) {
         />
 
         {/* Wallet Balance */}
-        {hasToken && (
+        {hasValidSession && (
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs mb-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-semibold">Wallet balance:</span>
@@ -736,9 +763,13 @@ export default function ServiceBookingPanel({ service }) {
             {walletBalance !== null && walletBalance < servicePrice && (
               <div className="mt-2 rounded bg-red-50 border border-red-100 px-2 py-1 text-red-600">
                 Insufficient balance. Please{" "}
-                <a href="/wallet" className="underline font-semibold">
+                <button
+                  type="button"
+                  onClick={handleTopUpWallet}
+                  className="underline font-semibold"
+                >
                   top up your wallet
-                </a>
+                </button>
                 .
               </div>
             )}

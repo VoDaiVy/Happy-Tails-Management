@@ -284,10 +284,17 @@ const MyPetsPage = () => {
       const petId = selectedPet?.pet?._id;
       await addMedicalRecord(petId, medRecordForm);
       setMedRecordModalOpen(false);
-      // Refresh pet detail if detail modal is open
-      if (detailModalOpen && petId) {
-        const res = await getPetById(petId);
-        setSelectedPet(res.data);
+      // Refresh both embedded records and standalone collection
+      if (petId) {
+        const [petRes, recordsRes] = await Promise.all([
+          getPetById(petId),
+          getMyPetsMedicalRecords({ petId }).catch(() => ({ data: { data: { records: [] } } }))
+        ]);
+        setSelectedPet(petRes.data);
+        // Merge: records from MedicalRecord collection + embedded records
+        const standaloneRecords = recordsRes?.data?.data?.records || [];
+        const embeddedRecords = petRes.data?.pet?.medicalRecords || [];
+        setSelectedPetMedicalRecords([...standaloneRecords, ...embeddedRecords]);
       }
     } catch (err) {
       const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to add medical record';
