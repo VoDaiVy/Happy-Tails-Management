@@ -120,7 +120,7 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#D87D4A",
     paddingVertical: 11,
     borderRadius: 10,
     alignItems: "center",

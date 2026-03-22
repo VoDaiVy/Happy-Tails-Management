@@ -8,6 +8,72 @@ const { catchAsync } = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
 
 /**
+ * Get available vouchers for current customer
+ * @route GET /api/vouchers/available
+ * @access Private (Customer)
+ */
+exports.getAvailableVouchersForCustomer = catchAsync(async (req, res, next) => {
+  const { search, page = 1, limit = 20 } = req.query;
+  const parsedPage = Math.max(Number(page) || 1, 1);
+  const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const skip = (parsedPage - 1) * parsedLimit;
+
+  const now = new Date();
+
+  const filter = {
+    isActive: true,
+    validFrom: { $lte: now },
+    validUntil: { $gte: now },
+    $or: [
+      { usageLimit: null },
+      { $expr: { $lt: ['$usedCount', '$usageLimit'] } },
+    ],
+    $and: [
+      {
+        $or: [
+          { targetCustomers: { $exists: false } },
+          { targetCustomers: { $size: 0 } },
+          { targetCustomers: req.user.id },
+        ],
+      },
+    ],
+  };
+
+  if (search) {
+    filter.$and.push({
+      $or: [
+        { code: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ],
+    });
+  }
+
+  const [vouchers, total] = await Promise.all([
+    Voucher.find(filter)
+      .select('code description discountType discountValue minSpend maxDiscount validUntil applicableServices usageLimit usedCount')
+      .sort('validUntil')
+      .skip(skip)
+      .limit(parsedLimit)
+      .lean(),
+    Voucher.countDocuments(filter),
+  ]);
+
+  res.status(200).json({
+    status: 'success',
+    results: vouchers.length,
+    data: {
+      vouchers,
+      pagination: {
+        total,
+        page: parsedPage,
+        limit: parsedLimit,
+        pages: Math.ceil(total / parsedLimit),
+      },
+    },
+  });
+});
+
+/**
  * Get all vouchers
  * @route GET /api/vouchers
  * @access Private (Admin)

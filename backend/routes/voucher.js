@@ -5,6 +5,7 @@
 
 const express = require('express');
 const {
+  getAvailableVouchersForCustomer,
   getAllVouchers,
   getVoucherById,
   createVoucher,
@@ -19,6 +20,10 @@ const router = express.Router();
 
 // All voucher routes require authentication and admin role
 router.use(protect);
+
+// Customer route: browse/select valid vouchers before checkout
+router.get('/available', restrictTo('customer'), getAvailableVouchersForCustomer);
+
 router.use(restrictTo('admin'));
 
 // Voucher CRUD

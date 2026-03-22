@@ -24,8 +24,3 @@ export interface CartEnvelope {
   message: string;
   data: Cart;
 }
-
-export interface CartCheckoutPayload {
-  note?: string;
-  scheduledAt?: string | null;
-}
