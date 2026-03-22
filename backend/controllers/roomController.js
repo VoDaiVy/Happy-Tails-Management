@@ -25,6 +25,7 @@ const parseStayDateTime = (date, fallbackTime = '00:00') => {
 exports.getAllRooms = catchAsync(async (req, res, next) => {
   const {
     type,
+    serviceType,
     isAvailable,
     isActive = 'true',
     petType,
@@ -41,6 +42,7 @@ exports.getAllRooms = catchAsync(async (req, res, next) => {
   }
   
   if (type) filter.type = type;
+  if (serviceType) filter.serviceType = serviceType;
   if (isAvailable !== undefined) filter.isAvailable = isAvailable === 'true';
   if (petType) filter.petTypes = petType;
 

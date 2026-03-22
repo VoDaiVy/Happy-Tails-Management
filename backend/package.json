@@ -5,7 +5,10 @@
     "scripts": {
         "start": "node index.js",
         "dev": "nodemon index.js",
-        "test": "jest --coverage"
+        "test": "jest --coverage",
+        "seed:boarding-rooms": "node scripts/seedBoardingRooms.js",
+        "cleanup:rooms": "node scripts/cleanupRoomsForSpaAndBoarding.js",
+        "inspect:services-rooms": "node scripts/inspectServicesAndRooms.js"
     },
     "keywords": [],
     "author": "",

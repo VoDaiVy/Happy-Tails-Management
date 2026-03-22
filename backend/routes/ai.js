@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const {
   chatWithAI,
+  getChatHistory,
   diagnoseImage,
   recommendServices,
   suggestVoucher,
@@ -38,8 +39,9 @@ router.post('/diagnose', optionalAuth, upload.single('image'), diagnoseImage);  
 router.use(protect);
 
 // Customer routes
-router.post('/chat', chatWithAI);       // POST /api/ai/chat - Chat with AI
-router.post('/recommend', recommendServices);  // POST /api/ai/recommend - AI recommend services
+router.get('/chat/history', restrictTo('customer'), getChatHistory); // GET /api/ai/chat/history
+router.post('/chat', restrictTo('customer'), chatWithAI);       // POST /api/ai/chat - Chat with AI
+router.post('/recommend', restrictTo('customer'), recommendServices);  // POST /api/ai/recommend - AI recommend services
 
 // Admin only routes
 router.post('/suggest-voucher', restrictTo('admin'), suggestVoucher);  // POST /api/ai/suggest-voucher
