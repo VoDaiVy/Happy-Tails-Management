@@ -120,6 +120,8 @@ export interface GetAllBookingsQuery {
   status?: string;
   date?: string;
   customer?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface UpdateBookingStatusPayload {
@@ -147,8 +149,33 @@ export async function createGuestBooking(payload: GuestBookingPayload) {
 
 export async function getAllBookings(query: GetAllBookingsQuery = {}): Promise<Booking[]> {
   const response = await axiosClient.get("/bookings", { params: query });
-  const payload = extractPayload<{ bookings?: Booking[] }>(response.data);
-  return payload.bookings || [];
+  const payload = extractPayload<{
+    bookings?: Booking[];
+    data?: { bookings?: Booking[] };
+  }>(response.data);
+
+  if (Array.isArray(payload?.bookings)) {
+    return payload.bookings;
+  }
+
+  if (Array.isArray(payload?.data?.bookings)) {
+    return payload.data.bookings;
+  }
+
+  const raw = response.data as {
+    bookings?: Booking[];
+    data?: { bookings?: Booking[] };
+  };
+
+  if (Array.isArray(raw?.bookings)) {
+    return raw.bookings;
+  }
+
+  if (Array.isArray(raw?.data?.bookings)) {
+    return raw.data.bookings;
+  }
+
+  return [];
 }
 
 export async function updateBookingStatus(bookingId: string, payload: UpdateBookingStatusPayload) {

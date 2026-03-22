@@ -124,6 +124,7 @@ export function MainTabNavigator() {
   const navigation = useNavigation<any>();
   const showCustomerTabs = canUseCustomerFeatures(user?.role);
   const showManagementTab = isStaffOrAdminRole(user?.role);
+  const [activeTab, setActiveTab] = useState<keyof MainTabParamList>("ServicesTab");
   const [menuVisible, setMenuVisible] = useState(false);
   const [cartCount, setCartCount] = useState(0);
 
@@ -217,10 +218,17 @@ export function MainTabNavigator() {
   return (
     <View style={styles.root}>
       <Tab.Navigator
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerShown: false,
           tabBarStyle: { display: "none" },
-          sceneStyle: { paddingTop: 98 },
+          sceneStyle: { paddingTop: route.name === "ManagementTab" ? 0 : 98 },
+        })}
+        screenListeners={{
+          state: (event) => {
+            const state = event.data.state as { index?: number; routes?: Array<{ name?: keyof MainTabParamList }> } | undefined;
+            const routeName = state?.routes?.[Number(state?.index ?? 0)]?.name;
+            if (routeName) setActiveTab(routeName);
+          },
         }}
       >
         <Tab.Screen name="ServicesTab" component={ServicesStackNavigator} options={{ title: "Services" }} />
@@ -230,26 +238,28 @@ export function MainTabNavigator() {
         <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Tai khoan" }} />
       </Tab.Navigator>
 
-      <View style={styles.floatingTopBar} pointerEvents="box-none">
-        <Animated.View style={[styles.floatingTopBarInner, animatedTopBarStyle]}>
-          <Animated.View style={[styles.brandWrap, animatedBrandStyle]}>
-            <View style={styles.brandIconWrap}>
-              <Image source={BRAND_ICON} style={styles.brandIcon} resizeMode="cover" />
-              <View style={styles.brandDot} />
-            </View>
-            <View>
-              <Text style={styles.brandCaption}>PET SPA</Text>
-              <Text style={styles.brandText}>
-                <Text style={styles.brandTextPrimary}>Happy</Text>
-                <Text style={styles.brandTextAccent}>Tails</Text>
-              </Text>
-            </View>
+      {activeTab !== "ManagementTab" ? (
+        <View style={styles.floatingTopBar} pointerEvents="box-none">
+          <Animated.View style={[styles.floatingTopBarInner, animatedTopBarStyle]}>
+            <Animated.View style={[styles.brandWrap, animatedBrandStyle]}>
+              <View style={styles.brandIconWrap}>
+                <Image source={BRAND_ICON} style={styles.brandIcon} resizeMode="cover" />
+                <View style={styles.brandDot} />
+              </View>
+              <View>
+                <Text style={styles.brandCaption}>PET SPA</Text>
+                <Text style={styles.brandText}>
+                  <Text style={styles.brandTextPrimary}>Happy</Text>
+                  <Text style={styles.brandTextAccent}>Tails</Text>
+                </Text>
+              </View>
+            </Animated.View>
+            <Pressable onPress={() => setMenuVisible(true)} style={styles.menuBtn}>
+              <Text style={styles.menuBtnText}>☰</Text>
+            </Pressable>
           </Animated.View>
-          <Pressable onPress={() => setMenuVisible(true)} style={styles.menuBtn}>
-            <Text style={styles.menuBtnText}>☰</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
+        </View>
+      ) : null}
 
       <SideMenu
         visible={menuVisible}

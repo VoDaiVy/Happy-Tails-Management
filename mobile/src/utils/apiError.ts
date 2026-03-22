@@ -78,6 +78,8 @@ export function extractApiDetails(payload: unknown): unknown {
 }
 
 const ERROR_CODE_MAP: Record<string, string> = {
+  INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+  ACCOUNT_DISABLED: "Tài khoản đã bị vô hiệu hóa.",
   FORBIDDEN: "Ban khong co quyen thuc hien thao tac nay.",
   VALIDATION_ERROR: "Du lieu khong hop le. Vui long kiem tra lai.",
   MISSING_REQUIRED_FIELDS: "Thieu truong bat buoc.",
@@ -132,6 +134,12 @@ export function mapBackendErrorMessage(params: {
   fallback?: string;
 }) {
   const { code, statusCode, fallback } = params;
+  const busyServerMessage = "Máy chủ hiện đang bận hoặc bảo trì. Vui lòng thử lại sau.";
+  const normalizedFallback = typeof fallback === "string" ? fallback.toLowerCase() : "";
+
+  if (normalizedFallback.includes("tunnel unavailable") || normalizedFallback.includes("timed out") || normalizedFallback.includes("timeout")) {
+    return busyServerMessage;
+  }
 
   if (code && ERROR_CODE_MAP[code]) {
     return ERROR_CODE_MAP[code];
@@ -141,6 +149,7 @@ export function mapBackendErrorMessage(params: {
   if (statusCode === 403) return "Ban khong co quyen truy cap.";
   if (statusCode === 404) return "Khong tim thay tai nguyen.";
   if (statusCode === 409) return "Du lieu bi xung dot. Vui long thu lai.";
+  if (statusCode === 502 || statusCode === 503 || statusCode === 504) return busyServerMessage;
   if (statusCode === 500) return "He thong dang ban. Vui long thu lai sau.";
 
   return fallback || "Yeu cau that bai";
