@@ -60,6 +60,19 @@ const PET_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const SERVICE_GROUP_OPTIONS = [
+  { value: "dry", label: "Dry", tone: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  { value: "wet", label: "Wet", tone: "bg-sky-50 text-sky-700 border-sky-100" },
+];
+
+const getServiceGroupMeta = (group) => {
+  const normalized = String(group || "").toLowerCase();
+  return (
+    SERVICE_GROUP_OPTIONS.find((option) => option.value === normalized) ||
+    SERVICE_GROUP_OPTIONS[0]
+  );
+};
+
 export default function ServiceManagement() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -97,6 +110,7 @@ export default function ServiceManagement() {
     category: "",
     price: "",
     duration: "",
+    group: "dry",
     petTypes: ["dog", "cat"],
     features: [],
     images: [],
@@ -211,6 +225,7 @@ export default function ServiceManagement() {
       category: categories[0]?._id || "",
       price: "",
       duration: "",
+      group: "dry",
       petTypes: ["dog", "cat"],
       features: [],
       images: [],
@@ -233,6 +248,7 @@ export default function ServiceManagement() {
       category: service.category?._id || service.category || "",
       price: service.price,
       duration: service.duration,
+      group: service.group || "dry",
       petTypes: service.petTypes || ["dog", "cat"],
       features: service.features || [],
       images: service.images || [],
@@ -315,6 +331,7 @@ export default function ServiceManagement() {
         category: formData.category,
         price: Number(formData.price),
         duration: Number(formData.duration),
+        group: formData.group,
         petTypes: formData.petTypes,
         features: formData.features,
         images: formData.images,
@@ -497,6 +514,9 @@ export default function ServiceManagement() {
                   <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
                     <th className="px-6 py-4 whitespace-nowrap">Service</th>
                     <th className="px-6 py-4 whitespace-nowrap">Category</th>
+                    <th className="px-6 py-4 whitespace-nowrap text-center">
+                      Group
+                    </th>
                     <th className="px-6 py-4 whitespace-nowrap text-right">
                       Price
                     </th>
@@ -561,6 +581,18 @@ export default function ServiceManagement() {
                         <span className="inline-block px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
                           {getCategoryName(service)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {(() => {
+                          const groupMeta = getServiceGroupMeta(service.group);
+                          return (
+                            <span
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${groupMeta.tone}`}
+                            >
+                              {groupMeta.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className="font-semibold text-amber-600">
@@ -714,9 +746,16 @@ export default function ServiceManagement() {
                       <h3 className="text-xl font-bold text-gray-800">
                         {selectedService.name}
                       </h3>
-                      <span className="inline-block mt-2 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
-                        {getCategoryName(selectedService)}
-                      </span>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-block px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                          {getCategoryName(selectedService)}
+                        </span>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${getServiceGroupMeta(selectedService.group).tone}`}
+                        >
+                          {getServiceGroupMeta(selectedService.group).label}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Price, Duration, Rating */}
@@ -996,7 +1035,7 @@ export default function ServiceManagement() {
                     <h3 className="text-[12px] font-bold tracking-[0.08em] text-[#2D3436]/50 uppercase">
                       Pricing & Capacity
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
                       <div>
                         <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
                           Price (VND) <span className="text-[#D97853]">*</span>
@@ -1027,6 +1066,23 @@ export default function ServiceManagement() {
                           className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853]"
                           placeholder="60"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
+                          Service Group <span className="text-[#D97853]">*</span>
+                        </label>
+                        <select
+                          name="group"
+                          value={formData.group}
+                          onChange={handleFormChange}
+                          className="w-full h-11 px-3.5 border border-[#2D3436]/12 rounded-2xl text-sm font-medium text-[#2D3436] focus:outline-none focus:ring-2 focus:ring-[#D97853]/20 focus:border-[#D97853] bg-white"
+                        >
+                          {SERVICE_GROUP_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5">
@@ -1235,7 +1291,7 @@ export default function ServiceManagement() {
                     }`}
                   >
                     {formLoading ? (
-                      <RefreshCw size={16} className="animate-spin" />
+                      <Loader2 size={16} className="animate-spin" />
                     ) : (
                       <CheckCircle2 size={16} />
                     )}

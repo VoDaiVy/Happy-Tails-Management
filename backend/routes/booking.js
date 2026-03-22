@@ -21,8 +21,8 @@ const router = express.Router();
 // All booking routes require authentication
 router.use(protect);
 
-// Customer routes
-router.get('/available-slots', restrictTo('customer'), getAvailableSlots);  // GET /api/bookings/available-slots
+// Customer + Staff/Admin routes
+router.get('/available-slots', restrictTo('customer', 'staff', 'admin'), getAvailableSlots);  // GET /api/bookings/available-slots
 router.post('/checkout', restrictTo('customer'), checkoutBooking);  // POST /api/bookings/checkout - Checkout with availability check
 router.post('/boarding-checkout', restrictTo('customer'), checkoutBoarding);  // POST /api/bookings/boarding-checkout - Checkout standalone boarding booking
 router.post('/', restrictTo('customer'), createBooking);  // POST /api/bookings - Create booking from cart

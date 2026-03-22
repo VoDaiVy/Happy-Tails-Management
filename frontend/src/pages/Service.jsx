@@ -8,6 +8,8 @@ import {
   Search,
   MapPin,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
   Activity,
@@ -41,6 +43,7 @@ import {
   Utensils,
   Bed,
   Moon,
+  Tag,
   ShoppingCart,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar";
@@ -239,7 +242,7 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
         {label}
       </label>
       <div
-        className={`flex items-center gap-2.5 bg-white/95 px-3.5 py-2.5 rounded-[10px] cursor-pointer transition-all h-[40px] shadow-sm border ${isOpen ? "border-[#E07A5F] ring-2 ring-[#E07A5F]/20" : "border-white/50 hover:border-[#E07A5F]/40"}`}
+        className={`flex items-center gap-2.5 bg-white/95 px-3 py-2 rounded-[10px] cursor-pointer transition-all h-9 shadow-sm border ${isOpen ? "border-[#E07A5F] ring-2 ring-[#E07A5F]/20" : "border-white/50 hover:border-[#E07A5F]/40"}`}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="text-[#7FB069] shrink-0 opacity-90 scale-90">
@@ -288,6 +291,40 @@ const Dropdown = ({ icon, label, options, selected, onSelect }) => {
   );
 };
 
+const normalizeServiceGroup = (service = {}) => {
+  const raw = (service?.group || service?.apiService?.group || "")
+    .toString()
+    .toLowerCase()
+    .trim();
+  if (raw === "wet" || raw === "dry") return raw;
+  return null;
+};
+
+const ServiceGroupTagMini = ({ group, isActive = false }) => {
+  if (!group) return null;
+
+  const isWet = group === "wet";
+  const tone = isActive
+    ? isWet
+      ? "border-[#6FAED8] bg-[#A9D1EE] text-[#204C73]"
+      : "border-[#87BC5D] bg-[#CBE8AE] text-[#2F5F1A]"
+    : isWet
+      ? "border-[#72B0D9] bg-[#BEDCF2] text-[#24597F]"
+      : "border-[#8FC465] bg-[#D8EEBF] text-[#366E1E]";
+
+  return (
+    <Motion.span
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.14 }}
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[8px] font-bold uppercase tracking-[0.08em] leading-none ${tone}`}
+      title={`Group ${isWet ? "Wet" : "Dry"}`}
+    >
+      <Tag size={8} className="opacity-85 shrink-0" />
+      {isWet ? "WET" : "DRY"}
+    </Motion.span>
+  );
+};
+
 const toSpaCard = (service, index = 0) => {
   const slug = slugifyServiceName(service.name || "");
   const fallbackHighlights = [
@@ -300,6 +337,7 @@ const toSpaCard = (service, index = 0) => {
     id: service._id || `${slug || 'service'}-${index}`,
     slug,
     title: service.name || "Service",
+    group: normalizeServiceGroup(service),
     shortDesc: service.description || "Professional care for your pet.",
     fullDesc: service.description || "",
     price:
@@ -333,6 +371,99 @@ const extractServicesFromApiResponse = (result) => {
   if (Array.isArray(result?.services)) return result.services;
   return [];
 };
+
+const BOARDING_ROOM_SHOWCASE = [
+  {
+    id: "boarding-standard-101",
+    name: "Standard Room",
+    slug: "standard-room",
+    roomType: "standard",
+    roomNumber: "BR-101",
+    capacity: 2,
+    pricePerNight: 10,
+    accent: "green",
+    image: "/standard.webp",
+    description:
+      "Cozy private suite for short stays with quiet rest zones and daily care.",
+    features: [
+      "Comfortable bedding",
+      "Daily cleaning",
+      "2 playtime sessions",
+    ],
+  },
+  {
+    id: "boarding-vip-201",
+    name: "VIP Penthouse",
+    slug: "vip-penthouse",
+    roomType: "vip",
+    roomNumber: "BR-201",
+    capacity: 2,
+    pricePerNight: 25,
+    accent: "orange",
+    image: "/viproom.jpg",
+    description:
+      "Premium suite with window view, premium bedding, and priority concierge care.",
+    features: [
+      "Private luxury suite",
+      "Window view",
+      "Daily photo updates",
+    ],
+  },
+  {
+    id: "boarding-family-103",
+    name: "Family Comfort Room",
+    slug: "standard-room",
+    roomType: "standard",
+    roomNumber: "BR-103",
+    capacity: 3,
+    pricePerNight: 14,
+    accent: "green",
+    image: "/standard.webp",
+    description:
+      "Larger standard layout designed for energetic pets that need more personal space.",
+    features: [
+      "Wide rest area",
+      "Extra enrichment toys",
+      "Flexible feeding schedule",
+    ],
+  },
+  {
+    id: "boarding-vip-204",
+    name: "Sky View Suite",
+    slug: "vip-penthouse",
+    roomType: "vip",
+    roomNumber: "BR-204",
+    capacity: 2,
+    pricePerNight: 22,
+    accent: "orange",
+    image: "/viproom.jpg",
+    description:
+      "Calm, elevated suite with premium environment control and private camera angle.",
+    features: [
+      "Premium bedding",
+      "Private monitor feed",
+      "Extra playtime",
+    ],
+  },
+  {
+    id: "boarding-playcare-105",
+    name: "PlayCare Loft",
+    slug: "standard-room",
+    roomType: "standard",
+    roomNumber: "BR-105",
+    capacity: 3,
+    pricePerNight: 16,
+    accent: "green",
+    image: "/standard.webp",
+    description:
+      "Balanced stay package for active pets with structured play and rest intervals.",
+    features: [
+      "Play-focused routine",
+      "Structured nap periods",
+      "Daily wellness check",
+    ],
+  },
+];
 
 const ServicePage = () => {
   const navigate = useNavigate();
@@ -390,6 +521,9 @@ const ServicePage = () => {
   const [spaLoading, setSpaLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
   const [flyToCartItems, setFlyToCartItems] = useState([]);
+  const [activeBoardingIndex, setActiveBoardingIndex] = useState(0);
+  const [isBoardingHovered, setIsBoardingHovered] = useState(false);
+  const boardingTrackRef = useRef(null);
   const hasValidSession = Boolean(isAuthenticated && token && user);
 
   const triggerFlyToCart = (sourceElement) => {
@@ -438,7 +572,11 @@ const ServicePage = () => {
 
   const openStaySetup = async (service, sourceElement) => {
     const roomName = (service?.name || service?.title || "").toLowerCase();
-    const roomType = roomName.includes("vip") || roomName.includes("penthouse") ? "vip" : "standard";
+    const inferredType = roomName.includes("vip") || roomName.includes("penthouse") ? "vip" : "standard";
+    const roomType = String(service?.roomType || inferredType).toLowerCase();
+    const preferredRoomNumber = String(service?.roomNumber || "")
+      .trim()
+      .toLowerCase();
 
     try {
       const res = await getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" });
@@ -449,7 +587,19 @@ const ServicePage = () => {
           : Array.isArray(res?.data)
             ? res.data
             : [];
-      const roomId = rooms[0]?._id;
+
+      const roomMatch = preferredRoomNumber
+        ? rooms.find((room) => String(room?.roomNumber || "").toLowerCase() === preferredRoomNumber)
+        : null;
+      const availableRoom =
+        roomMatch ||
+        rooms.find((room) => {
+          const remaining = Number(room?.remainingCapacity ?? room?.capacity ?? 0);
+          return remaining > 0;
+        }) ||
+        rooms[0];
+
+      const roomId = availableRoom?._id;
       if (!roomId) {
         showCartMessage("Hiện chưa có phòng khả dụng cho loại lưu trú này.");
         return;
@@ -460,6 +610,9 @@ const ServicePage = () => {
         metadata: {
           source: "service-page",
           roomType,
+          preferredRoomNumber: service?.roomNumber || null,
+          selectedRoomNumber: availableRoom?.roomNumber || null,
+          selectedRoomCapacity: Number(availableRoom?.capacity || 0),
           serviceName: service?.name || service?.title,
           presetFromService: true,
           needConfirmInCart: true,
@@ -635,6 +788,106 @@ const ServicePage = () => {
 
   const activeSpaService = spaServices[activeSpa] || null;
 
+  const scrollToBoardingCard = (index) => {
+    const track = boardingTrackRef.current;
+    if (!track) return;
+
+    const total = BOARDING_ROOM_SHOWCASE.length;
+    const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+
+    if (index <= 0) {
+      track.scrollTo({ left: 0, behavior: "smooth" });
+      return;
+    }
+
+    if (index >= total - 1) {
+      track.scrollTo({ left: maxScrollLeft, behavior: "smooth" });
+      return;
+    }
+
+    const card = track.querySelector(`[data-boarding-index="${index}"]`);
+    if (!card) return;
+
+    const targetLeft = card.offsetLeft - (track.clientWidth - card.clientWidth) / 2;
+    track.scrollTo({
+      left: Math.max(0, Math.min(targetLeft, maxScrollLeft)),
+      behavior: "smooth",
+    });
+  };
+
+  const handleBoardingNav = (direction) => {
+    const total = BOARDING_ROOM_SHOWCASE.length;
+    if (!total) return;
+
+    const nextIndex =
+      direction === "next"
+        ? Math.min(total - 1, activeBoardingIndex + 1)
+        : Math.max(0, activeBoardingIndex - 1);
+
+    if (nextIndex === activeBoardingIndex) return;
+
+    setActiveBoardingIndex(nextIndex);
+    scrollToBoardingCard(nextIndex);
+  };
+
+  const handleBoardingScroll = () => {
+    const track = boardingTrackRef.current;
+    if (!track) return;
+
+    const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+    const edgeThreshold = 8;
+
+    if (track.scrollLeft <= edgeThreshold) {
+      if (activeBoardingIndex !== 0) setActiveBoardingIndex(0);
+      return;
+    }
+
+    if (track.scrollLeft >= maxScrollLeft - edgeThreshold) {
+      const lastIndex = BOARDING_ROOM_SHOWCASE.length - 1;
+      if (activeBoardingIndex !== lastIndex) setActiveBoardingIndex(lastIndex);
+      return;
+    }
+
+    const cards = Array.from(track.querySelectorAll("[data-boarding-index]"));
+    if (!cards.length) return;
+
+    const viewportCenter = track.scrollLeft + track.clientWidth / 2;
+    let closestIndex = 0;
+    let minDistance = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, idx) => {
+      const cardCenter = card.offsetLeft + card.clientWidth / 2;
+      const distance = Math.abs(cardCenter - viewportCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = idx;
+      }
+    });
+
+    if (closestIndex !== activeBoardingIndex) {
+      setActiveBoardingIndex(closestIndex);
+    }
+  };
+
+  useEffect(() => {
+    scrollToBoardingCard(activeBoardingIndex);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (showSearchResults || isBoardingHovered) return undefined;
+
+    const timer = window.setInterval(() => {
+      setActiveBoardingIndex((prev) => {
+        const next = (prev + 1) % BOARDING_ROOM_SHOWCASE.length;
+        scrollToBoardingCard(next);
+        return next;
+      });
+    }, 4200);
+
+    return () => window.clearInterval(timer);
+  }, [showSearchResults, isBoardingHovered]);
+
   return (
     <div className="bg-[#F5F1EB] min-h-screen font-sans text-[#1F2A37] selection:bg-[#E07A5F] selection:text-white overflow-x-hidden">
       <Navbar
@@ -678,7 +931,7 @@ const ServicePage = () => {
         ))}
       </AnimatePresence>
 
-      <main className="w-full mx-auto px-6 md:px-12 lg:px-[5%] pt-28 pb-20">
+      <main className="w-full mx-auto px-4 md:px-8 lg:px-[4%] pt-24 pb-14">
         {cartMessage && (
           <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-semibold">
             {cartMessage}
@@ -686,7 +939,7 @@ const ServicePage = () => {
         )}
 
         {/* SECTION 1 - HERO CAROUSEL WITH SEARCH */}
-        <section className="relative mb-32 z-30">
+        <section className="relative mb-22 z-30">
           <div className="absolute inset-0 z-0 rounded-[28px] overflow-hidden bg-[#1F2A37]">
             <video
               autoPlay
@@ -700,17 +953,17 @@ const ServicePage = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-[#6e8a6d]/90 to-[#6e8a6d]/60 mix-blend-multiply" />
           </div>
 
-          <div className="relative z-10 pt-16 pb-36 px-8 md:px-16 flex flex-col justify-center min-h-[420px]">
+          <div className="relative z-10 pt-12 pb-28 px-6 md:px-12 flex flex-col justify-center min-h-[350px]">
             <Motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               className="max-w-xl text-white"
             >
-              <h1 className="font-serif text-4xl lg:text-5xl font-medium leading-[1.1] mb-3 text-white">
+              <h1 className="font-serif text-3xl lg:text-[42px] font-medium leading-[1.1] mb-3 text-white">
                 Comprehensive Care <br /> For Your Pets
               </h1>
-              <p className="text-sm md:text-base text-white font-medium mb-2 max-w-md mt-3 tracking-wide drop-shadow-md">
+              <p className="text-[13px] md:text-[15px] text-white font-medium mb-2 max-w-md mt-2 tracking-wide drop-shadow-md">
                 Professional spa, styling, veterinary clinics, and luxury
                 boarding - all tailored perfectly for your furry family members.
               </p>
@@ -721,14 +974,14 @@ const ServicePage = () => {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="absolute -bottom-10 left-6 right-6 md:left-12 md:right-12 lg:left-24 lg:right-24 bg-[#F5F2EB] p-6 rounded-[24px] shadow-[0_20px_40px_rgba(31,42,55,0.15)] z-20"
+              className="absolute -bottom-8 left-4 right-4 md:left-10 md:right-10 lg:left-20 lg:right-20 bg-[#F5F2EB] p-4 rounded-[20px] shadow-[0_16px_30px_rgba(31,42,55,0.12)] z-20"
             >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[11px] font-bold text-[#1F2A37]/80 ml-2 uppercase tracking-widest">
                     Search Service
                   </label>
-                  <div className="flex items-center gap-2.5 bg-white/95 px-3.5 py-2.5 rounded-[10px] border border-white/50 focus-within:border-[#E07A5F] focus-within:ring-2 focus-within:ring-[#E07A5F]/20 transition-all h-[40px] shadow-sm">
+                  <div className="flex items-center gap-2.5 bg-white/95 px-3 py-2 rounded-[10px] border border-white/50 focus-within:border-[#E07A5F] focus-within:ring-2 focus-within:ring-[#E07A5F]/20 transition-all h-9 shadow-sm">
                     <Search size={14} className="text-[#7FB069] shrink-0" />
                     <input
                       type="text"
@@ -771,7 +1024,7 @@ const ServicePage = () => {
                 <button
                   onClick={handleSearch}
                   disabled={isSearching}
-                  className="bg-[#E07A5F] text-white h-[40px] rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="bg-[#E07A5F] text-white h-9 rounded-[10px] font-bold text-[12px] hover:bg-[#c56a52] hover:shadow-lg transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSearching ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -787,7 +1040,7 @@ const ServicePage = () => {
 
         {/* SEARCH RESULTS SECTION */}
         {showSearchResults && (
-          <section className="w-full max-w-[1100px] mx-auto px-6 xl:px-4 mt-8 mb-16">
+          <section className="w-full max-w-[1000px] mx-auto px-4 xl:px-4 mt-6 mb-14">
             <div className="flex items-start justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-serif font-black text-[#1F2A37] mb-2">
@@ -910,7 +1163,7 @@ const ServicePage = () => {
             {/* NEW AI HEALTH SCAN SECTION */}
             <section
               id="ai-health"
-              className="relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 order-4 mt-6 mb-4"
+              className="relative z-10 w-full max-w-[1000px] mx-auto px-4 xl:px-4 order-4 mt-4 mb-4"
             >
               <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
                 {/* Left Content */}
@@ -1092,13 +1345,13 @@ const ServicePage = () => {
             {/* PREMIUM SPA & GROOMING SHOWCASE */}
             <section
               id="spa-grooming"
-              className="relative z-10 w-full max-w-[1100px] mx-auto px-6 xl:px-4 order-2 mt-6 mb-6"
+              className="relative z-10 w-full max-w-[1000px] mx-auto px-4 xl:px-4 order-2 mt-4 mb-5"
             >
               <div className="text-center mb-8">
                 <span className="text-[#7FB069] font-bold tracking-widest uppercase text-[11px] mb-2 block">
                   Luxury Experience
                 </span>
-                <h2 className="text-3xl md:text-5xl font-serif font-black text-[#1F2A37]">
+                <h2 className="text-2xl md:text-4xl font-serif font-black text-[#1F2A37]">
                   Spa & Grooming
                 </h2>
               </div>
@@ -1189,11 +1442,19 @@ const ServicePage = () => {
 
                           <div className="flex-grow flex flex-col justify-center">
                             <div className="flex justify-between items-start mb-0.5">
-                              <h4
-                                className={`font-bold text-[14px] transition-colors pr-2 break-words ${isActive ? "text-white" : "text-[#1F2A37]"}`}
-                              >
-                                {service.title}
-                              </h4>
+                              <div className="min-w-0 pr-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4
+                                    className={`font-bold text-[14px] transition-colors break-words ${isActive ? "text-white" : "text-[#1F2A37]"}`}
+                                  >
+                                    {service.title}
+                                  </h4>
+                                  <ServiceGroupTagMini
+                                    group={service.group}
+                                    isActive={isActive}
+                                  />
+                                </div>
+                              </div>
                               <span className={`font-black text-[14px] shrink-0 ${isActive ? "text-[#E07A5F]" : "text-[#7FB069]"}`}>
                                 {service.price}
                               </span>
@@ -1238,16 +1499,16 @@ const ServicePage = () => {
             {/* BOARDING SERVICES / PET HOTEL */}
             <section
               id="boarding"
-              className="relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-12 pb-16 px-6 md:px-8 order-3 mt-6"
+              className="relative z-10 w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw] bg-[#0F172A] pt-10 pb-12 px-4 md:px-6 order-3 mt-4"
             >
-              <div className="max-w-[1100px] mx-auto">
+              <div className="max-w-[1000px] mx-auto">
                 {/* Header: Left-aligned with Button */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                   <div className="max-w-md">
                     <div className="inline-flex items-center gap-1.5 border border-white/10 bg-white/5 text-white/80 px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest mb-4">
                       <Monitor size={14} /> Pet Resort Experience
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-serif font-black text-white mb-4">
+                    <h2 className="text-2xl md:text-4xl font-serif font-black text-white mb-3">
                       BOARDING
                     </h2>
                     <p className="text-white/60 text-[14px] md:text-[15px] leading-relaxed">
@@ -1258,147 +1519,168 @@ const ServicePage = () => {
                   </div>
                 </div>
 
-                {/* Room Cards Grid */}
-                <div className="grid md:grid-cols-2 gap-8 mb-14">
-                  {/* Standard Room */}
-                  <div
-                    onClick={() => navigate("/service/standard-room")}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-white/5 hover:border-[#7FB069]/30 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(127,176,105,0.15)] transition-all duration-300 relative flex flex-col cursor-pointer"
-                  >
-                    <div className="relative h-48 bg-gray-800 overflow-hidden">
-                      <img
-                        src="/standard.webp"
-                        alt="Standard Room"
-                        className="w-full h-full object-cover opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-transparent to-transparent opacity-90"></div>
-                      <div className="absolute top-4 left-4 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-white/90 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-[#7FB069]/30 shadow-lg">
-                        <Monitor size={12} className="text-[#7FB069]" />{" "}
-                        Standard
-                      </div>
-                    </div>
-                    <div className="p-5 flex-grow flex flex-col relative z-10 -mt-6">
-                      <div className="flex justify-between items-end mb-2">
-                        <h3 className="text-white text-[18px] md:text-[20px] font-serif font-bold drop-shadow-md">
-                          Standard Room
-                        </h3>
-                        <div className="flex items-end gap-1 transition-opacity">
-                          <span className="text-[#7FB069] font-black text-xl leading-none">
-                            $10
-                          </span>
-                          <span className="text-[10px] text-white/40 font-medium pb-0.5 uppercase tracking-widest">
-                            / night
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-[12px] mb-6 flex-grow leading-relaxed">
-                        Cozy, private suites designed for a peaceful and
-                        relaxing stay. Perfect for a short getaway.
-                      </p>
-
-                      <div className="bg-white/5 rounded-2xl p-4 border border-white/5 group-hover:bg-white/10 transition-colors duration-300">
-                        <ul className="space-y-3">
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Bed size={10} />
-                            </div>{" "}
-                            Comfortable bedding
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Sparkles size={10} />
-                            </div>{" "}
-                            Daily cleaning
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Moon size={10} />
-                            </div>{" "}
-                            Quiet sleeping area
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#7FB069]/20 flex items-center justify-center text-[#7FB069] shrink-0">
-                              <Gamepad2 size={10} />
-                            </div>{" "}
-                            2 playtime sessions
-                          </li>
-                        </ul>
-                      </div>
+                {/* Boarding Room Carousel */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-white/60 text-[12px] uppercase tracking-[0.2em] font-bold">
+                      5 Boarding Rooms
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleBoardingNav("prev")}
+                        disabled={activeBoardingIndex === 0}
+                        className="w-9 h-9 rounded-full border border-white/20 text-white/80 hover:text-white hover:border-white/35 disabled:opacity-35 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        aria-label="Previous room"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBoardingNav("next")}
+                        disabled={activeBoardingIndex === BOARDING_ROOM_SHOWCASE.length - 1}
+                        className="w-9 h-9 rounded-full border border-white/20 text-white/80 hover:text-white hover:border-white/35 disabled:opacity-35 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                        aria-label="Next room"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
                   </div>
 
-                  {/* VIP Penthouse */}
-                  <div
-                    onClick={() => navigate("/service/vip-penthouse")}
-                    className="bg-[#1E293B] group rounded-[24px] overflow-hidden border border-[#E07A5F]/30 hover:border-[#E07A5F] relative shadow-[0_4px_20px_rgba(224,122,95,0.08)] hover:-translate-y-2 hover:scale-[1.02] hover:shadow-[0_15px_40px_rgba(224,122,95,0.25)] transition-all duration-300 flex flex-col cursor-pointer"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#E07A5F]/10 via-transparent to-transparent pointer-events-none z-10"></div>
-                    <div className="relative h-48 bg-gray-800 overflow-hidden">
-                      <img
-                        src="/viproom.jpg"
-                        alt="VIP Penthouse"
-                        className="w-full h-full object-cover opacity-90 group-hover:scale-110 group-hover:opacity-100 transition-all duration-700 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent opacity-90"></div>
-                      <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-xl">
-                        <Award size={12} className="text-[#E07A5F]" />{" "}
-                        <span className="text-white">VIP</span>
-                      </div>
-                    </div>
-                    <div className="p-5 flex-grow flex flex-col relative z-20 -mt-6">
-                      <div className="flex justify-between items-end mb-2">
-                        <h3 className="text-white text-[18px] md:text-[20px] font-serif font-bold drop-shadow-md">
-                          VIP Penthouse
-                        </h3>
-                        <div className="flex items-end gap-1 transition-opacity">
-                          <span className="text-[#E07A5F] font-black text-xl leading-none">
-                            $25
-                          </span>
-                          <span className="text-[10px] text-white/40 font-medium pb-0.5 uppercase tracking-widest">
-                            / night
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-white/50 text-[12px] mb-6 flex-grow leading-relaxed">
-                        Spacious luxury suites with exclusive amenities, elegant
-                        decor, and a premium window view.
-                      </p>
+                  <div className="relative">
+                    <div
+                      ref={boardingTrackRef}
+                      onScroll={handleBoardingScroll}
+                      onMouseEnter={() => setIsBoardingHovered(true)}
+                      onMouseLeave={() => setIsBoardingHovered(false)}
+                      className="flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-proximity pt-3 pb-3 -mx-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                    {BOARDING_ROOM_SHOWCASE.map((room, index) => {
+                      const distance = Math.abs(index - activeBoardingIndex);
+                      const isActive = index === activeBoardingIndex;
+                      const accentTone =
+                        room.accent === "orange"
+                          ? {
+                              badge: "bg-[#E07A5F] text-white border-[#E07A5F] shadow-[0_6px_16px_rgba(224,122,95,0.45)]",
+                              price: "text-[#E07A5F]",
+                              btn: "border-[#E07A5F]/35 text-[#E07A5F] hover:bg-[#E07A5F]/10",
+                            }
+                          : {
+                              badge: "bg-[#7FB069] text-white border-[#7FB069] shadow-[0_6px_16px_rgba(127,176,105,0.4)]",
+                              price: "text-[#7FB069]",
+                              btn: "border-[#7FB069]/35 text-[#7FB069] hover:bg-[#7FB069]/10",
+                            };
+                      const cardBorderClass = isActive ? "border border-white/12" : "border-0";
 
-                      <div className="bg-[#E07A5F]/5 rounded-2xl p-4 border border-[#E07A5F]/10 group-hover:bg-[#E07A5F]/10 transition-colors duration-300">
-                        <ul className="space-y-3">
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Award size={10} />
-                            </div>{" "}
-                            Private luxury suite
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Eye size={10} />
-                            </div>{" "}
-                            Window view
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Heart size={10} />
-                            </div>{" "}
-                            Premium bedding
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Gamepad2 size={10} />
-                            </div>{" "}
-                            Extra playtime
-                          </li>
-                          <li className="flex items-center gap-3 text-white/80 text-[12px]">
-                            <div className="w-5 h-5 rounded-md bg-[#E07A5F]/20 flex items-center justify-center text-[#E07A5F] shrink-0">
-                              <Upload size={10} />
-                            </div>{" "}
-                            Daily photo updates
-                          </li>
-                        </ul>
-                      </div>
+                      return (
+                        <Motion.article
+                          key={room.id}
+                          data-boarding-index={index}
+                          animate={{
+                            scale: isActive ? 1 : distance === 1 ? 0.91 : 0.86,
+                            y: isActive ? 0 : 8,
+                            opacity: isActive ? 1 : distance === 1 ? 0.52 : 0.3,
+                            filter: isActive ? "saturate(1.05)" : "saturate(0.82) brightness(0.74)",
+                          }}
+                          whileHover={isActive ? { scale: 1.01 } : {}}
+                          transition={{ duration: 0.3, ease: "easeOut" }}
+                          onClick={() => {
+                            if (!isActive) {
+                              setActiveBoardingIndex(index);
+                              scrollToBoardingCard(index);
+                              return;
+                            }
+                            navigate(`/service/${room.slug}`);
+                          }}
+                          className={`snap-start shrink-0 w-[74%] md:w-[46%] lg:w-[34%] bg-[#1E293B] rounded-[24px] overflow-hidden ${cardBorderClass} cursor-pointer transition-shadow ${isActive ? "shadow-[0_20px_44px_rgba(0,0,0,0.3)]" : "shadow-[0_4px_12px_rgba(0,0,0,0.11)]"}`}
+                        >
+                          <div className="relative h-36 md:h-40 bg-gray-800 overflow-hidden">
+                            <img
+                              src={room.image}
+                              alt={room.name}
+                              className="w-full h-full object-cover opacity-90"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#1E293B] via-[#1E293B]/20 to-transparent opacity-95"></div>
+                            <div className={`absolute top-4 left-4 border px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${accentTone.badge}`}>
+                              <Monitor size={12} /> {String(room.roomType || "").toUpperCase()}
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 -mt-3 relative z-10">
+                            <div className="flex items-end justify-between gap-2 mb-2">
+                              <h3 className="text-white text-[16px] md:text-[18px] font-serif font-bold">
+                                {room.name}
+                              </h3>
+                              <div className="text-right">
+                                <p className={`font-black text-lg leading-none ${accentTone.price}`}>
+                                  ${room.pricePerNight}
+                                </p>
+                                <p className="text-[10px] text-white/45 uppercase tracking-widest">/ night</p>
+                              </div>
+                            </div>
+
+                            <p className="text-white/55 text-[12px] mb-3 leading-relaxed">
+                              {room.description}
+                            </p>
+
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/10 text-white/80 px-3 py-1 text-[11px] font-semibold">
+                                <MapPin size={12} /> Room {room.roomNumber}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/10 text-white/80 px-3 py-1 text-[11px] font-semibold">
+                                <PawPrint size={12} /> Capacity {room.capacity} pets
+                              </span>
+                            </div>
+
+                            <div className="bg-white/5 rounded-2xl p-3 border border-white/5 mb-3">
+                              <ul className="space-y-2">
+                                {room.features.map((feature) => (
+                                  <li key={feature} className="flex items-center gap-2.5 text-white/80 text-[12px]">
+                                    <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center text-white/85 shrink-0">
+                                      <CheckCircle size={10} />
+                                    </div>
+                                    {feature}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {hasValidSession && (
+                              <button
+                                onClick={(e) =>
+                                  handleAddToCart(e, {
+                                    name: room.name,
+                                    title: room.name,
+                                    roomType: room.roomType,
+                                    roomNumber: room.roomNumber,
+                                    capacity: room.capacity,
+                                  })
+                                }
+                                className={`px-2.5 py-1.5 bg-white border rounded-lg font-bold text-[10px] uppercase tracking-wide transition-colors whitespace-nowrap inline-flex items-center gap-1 ${accentTone.btn}`}
+                              >
+                                <ShoppingCart size={11} /> Add to Cart
+                              </button>
+                            )}
+                          </div>
+                        </Motion.article>
+                      );
+                    })}
                     </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    {BOARDING_ROOM_SHOWCASE.map((room, index) => (
+                      <button
+                        key={room.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveBoardingIndex(index);
+                          scrollToBoardingCard(index);
+                        }}
+                        className={`h-2.5 rounded-full transition-all ${index === activeBoardingIndex ? "w-7 bg-white" : "w-2.5 bg-white/35"}`}
+                        aria-label={`Go to ${room.name}`}
+                      />
+                    ))}
                   </div>
                 </div>
 

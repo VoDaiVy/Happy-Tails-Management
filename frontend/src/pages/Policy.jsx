@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   CalendarCheck,
@@ -451,11 +451,6 @@ const Policy = () => {
     }
   };
 
-  const handleSupportClick = (event) => {
-    event.preventDefault();
-    const target = document.getElementById("support");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
   const heroHighlights = policyOverview
     .map((item) => item.title)
     .filter(Boolean)

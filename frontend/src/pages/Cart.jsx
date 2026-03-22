@@ -255,14 +255,14 @@ export default function CartPage() {
       }
 
       const slotDate = selectedDate;
-      if (!slotDate || !firstServiceId) {
+      if (!selectedPet || !slotDate || !firstServiceId) {
         if (alive) setBookedSlots([]);
         return;
       }
 
       setSlotLoading(true);
       try {
-        const res = await getAvailableSlots(slotDate, firstServiceId);
+        const res = await getAvailableSlots(slotDate, firstServiceId, selectedPet);
         if (!alive) return;
         setBookedSlots(Array.isArray(res?.data?.disabledSlots) ? res.data.disabledSlots : []);
       } catch {
@@ -277,7 +277,7 @@ export default function CartPage() {
     return () => {
       alive = false;
     };
-  }, [checkoutMode, selectedDate, firstServiceId]);
+  }, [checkoutMode, selectedDate, firstServiceId, selectedPet]);
 
   const handleQtyChange = async (itemId, nextQty) => {
     if (nextQty < 1 || nextQty > 99) return;
@@ -589,24 +589,58 @@ export default function CartPage() {
                   <div className="rounded-xl bg-[#F9F6F1] border border-[#1F2A37]/10 p-3 space-y-3">
                     <p className="text-xs font-bold uppercase tracking-wide text-[#1F2A37]/60">Checkout Form ({checkoutMode === "service-only" ? "Service only" : "Service + Stay"})</p>
 
+                    <div>
+                      <label className="text-xs font-semibold text-[#1F2A37]/70">Thú cưng</label>
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        {pets.map((pet) => (
+                          <button
+                            type="button"
+                            key={pet._id}
+                            onClick={() => {
+                              setSelectedPet(pet._id);
+                              setSelectedTime("");
+                              setCheckoutError("");
+                            }}
+                            className={`text-left rounded-lg border px-2.5 py-2 text-xs transition ${selectedPet === pet._id ? "border-[#E07A5F] bg-[#E07A5F]/10 text-[#E07A5F]" : "border-[#1F2A37]/15 text-[#1F2A37]/70 hover:border-[#E07A5F]/40"}`}
+                          >
+                            <p className="font-semibold">{pet.petName}</p>
+                            <p className="text-[11px] opacity-70">{pet.breed || pet.petType}</p>
+                          </button>
+                        ))}
+                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">Bạn chưa có pet khả dụng.</p>}
+                      </div>
+                    </div>
+
                     {checkoutMode === "service-only" && (
                       <>
                         <div>
                           <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày hẹn</label>
-                          <CalendarPicker
-                            selectedDate={selectedDate}
-                            onChange={(d) => {
-                              setSelectedDate(d);
-                              setSelectedTime("");
-                              setCheckoutError("");
-                            }}
-                            minDate={toISODate(new Date())}
-                          />
+                          {selectedPet ? (
+                            <CalendarPicker
+                              selectedDate={selectedDate}
+                              onChange={(d) => {
+                                setSelectedDate(d);
+                                setSelectedTime("");
+                                setCheckoutError("");
+                              }}
+                              minDate={toISODate(new Date())}
+                            />
+                          ) : (
+                            <div className="mt-1 rounded-lg border border-dashed border-[#1F2A37]/20 px-3 py-2 text-xs text-[#1F2A37]/55">
+                              Vui lòng chọn thú cưng trước khi chọn ngày hẹn.
+                            </div>
+                          )}
                         </div>
 
                         <div>
                           <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ hẹn</label>
-                          {slotLoading ? (
+                          {!selectedPet || !selectedDate ? (
+                            <div className="text-xs text-[#1F2A37]/60 py-2">
+                              {!selectedPet
+                                ? "Vui lòng chọn thú cưng trước."
+                                : "Vui lòng chọn ngày hẹn trước."}
+                            </div>
+                          ) : slotLoading ? (
                             <div className="text-xs text-[#1F2A37]/60 py-2">Đang kiểm tra slot...</div>
                           ) : (
                             <TimeSlotPicker
@@ -621,24 +655,6 @@ export default function CartPage() {
                         </div>
                       </>
                     )}
-
-                    <div>
-                      <label className="text-xs font-semibold text-[#1F2A37]/70">Thú cưng</label>
-                      <div className="grid grid-cols-2 gap-2 mt-1">
-                        {pets.map((pet) => (
-                          <button
-                            type="button"
-                            key={pet._id}
-                            onClick={() => setSelectedPet(pet._id)}
-                            className={`text-left rounded-lg border px-2.5 py-2 text-xs transition ${selectedPet === pet._id ? "border-[#E07A5F] bg-[#E07A5F]/10 text-[#E07A5F]" : "border-[#1F2A37]/15 text-[#1F2A37]/70 hover:border-[#E07A5F]/40"}`}
-                          >
-                            <p className="font-semibold">{pet.petName}</p>
-                            <p className="text-[11px] opacity-70">{pet.breed || pet.petType}</p>
-                          </button>
-                        ))}
-                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">Bạn chưa có pet khả dụng.</p>}
-                      </div>
-                    </div>
 
                     {checkoutMode === "service-stay" && (
                       <>

@@ -1583,7 +1583,7 @@ const getPetBookingIntervals = (booking, petId) => {
  * Get disabled slots for a specific service/date.
  * The slot is considered unavailable when the service group (wet/dry) reaches configured max capacity.
  * @route GET /api/bookings/available-slots
- * @access Private (Customer)
+ * @access Private (Customer, Staff, Admin)
  */
 exports.getAvailableSlots = catchAsync(async (req, res, next) => {
   const { date, serviceId, petId } = req.query;
