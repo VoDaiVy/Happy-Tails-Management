@@ -223,19 +223,41 @@ export function MainTabNavigator() {
           tabBarStyle: { display: "none" },
           sceneStyle: { paddingTop: route.name === "ManagementTab" ? 0 : 98 },
         })}
-        screenListeners={{
-          state: (event) => {
-            const state = event.data.state as { index?: number; routes?: Array<{ name?: keyof MainTabParamList }> } | undefined;
-            const routeName = state?.routes?.[Number(state?.index ?? 0)]?.name;
-            if (routeName) setActiveTab(routeName);
-          },
-        }}
       >
-        <Tab.Screen name="ServicesTab" component={ServicesStackNavigator} options={{ title: "Services" }} />
-        {showCustomerTabs ? <Tab.Screen name="BookingTab" component={BookingStackNavigator} options={{ title: "Booking" }} /> : null}
-        <Tab.Screen name="InfoTab" component={InfoStackNavigator} options={{ title: "News & Policy" }} />
-        {showManagementTab ? <Tab.Screen name="ManagementTab" component={ManagementScreen} options={{ title: "Management" }} /> : null}
-        <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Tai khoan" }} />
+        <Tab.Screen
+          name="ServicesTab"
+          component={ServicesStackNavigator}
+          options={{ title: "Services" }}
+          listeners={{ focus: () => setActiveTab("ServicesTab") }}
+        />
+        {showCustomerTabs ? (
+          <Tab.Screen
+            name="BookingTab"
+            component={BookingStackNavigator}
+            options={{ title: "Booking" }}
+            listeners={{ focus: () => setActiveTab("BookingTab") }}
+          />
+        ) : null}
+        <Tab.Screen
+          name="InfoTab"
+          component={InfoStackNavigator}
+          options={{ title: "News & Policy" }}
+          listeners={{ focus: () => setActiveTab("InfoTab") }}
+        />
+        {showManagementTab ? (
+          <Tab.Screen
+            name="ManagementTab"
+            component={ManagementScreen}
+            options={{ title: "Management" }}
+            listeners={{ focus: () => setActiveTab("ManagementTab") }}
+          />
+        ) : null}
+        <Tab.Screen
+          name="AccountTab"
+          component={AccountStackNavigator}
+          options={{ title: "Tai khoan" }}
+          listeners={{ focus: () => setActiveTab("AccountTab") }}
+        />
       </Tab.Navigator>
 
       {activeTab !== "ManagementTab" ? (

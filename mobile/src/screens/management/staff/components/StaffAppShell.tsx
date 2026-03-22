@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../../../context/AuthContext";
 import { staffTheme } from "../../../../theme/staffTheme";
 import type { StaffModuleKey } from "../types";
 import { StaffBottomNav } from "./StaffBottomNav";
 import { StaffDrawer } from "./StaffDrawer";
-import { StaffSplash } from "./StaffSplash";
 import { StaffHeaderBar } from "./StaffHeaderBar";
+import { StaffSplash } from "./StaffSplash";
 import {
   BookingsScreen,
   FeedbackScreen,
@@ -18,12 +20,28 @@ import {
 } from "../screens";
 
 export function StaffAppShell() {
+  const navigation = useNavigation<any>();
+  const { user, logout } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [activeModule, setActiveModule] = useState<StaffModuleKey>("overview");
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [openCreateNotification, setOpenCreateNotification] = useState(false);
   const [openCreateNews, setOpenCreateNews] = useState(false);
   const insets = useSafeAreaInsets();
+
+  const moduleLabel = useMemo(() => {
+    const labels: Record<StaffModuleKey, string> = {
+      overview: "Overview",
+      bookings: "Bookings",
+      schedule: "Schedule",
+      feedback: "Feedback",
+      notifications: "Notifications",
+      medical: "Medical Records",
+      news: "News",
+    };
+
+    return labels[activeModule];
+  }, [activeModule]);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 700);
@@ -68,17 +86,25 @@ export function StaffAppShell() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StaffHeaderBar onOpenMenu={() => setDrawerVisible(true)} />
+      <View style={styles.bgAccentTop} />
+      <View style={styles.bgAccentBottom} />
+
+      <StaffHeaderBar
+        activeModuleLabel={moduleLabel}
+        staffName={String(user?.name || "Staff")}
+        onOpenMenu={() => setDrawerVisible(true)}
+      />
 
       <ScrollView
         style={styles.body}
         contentContainerStyle={[
           styles.bodyContent,
           {
-            paddingTop: staffTheme.spacing.md,
-            paddingBottom: staffTheme.spacing.xl + insets.bottom,
+            paddingTop: staffTheme.spacing.sm,
+            paddingBottom: staffTheme.spacing.xxl + insets.bottom,
           },
         ]}
+        showsVerticalScrollIndicator={false}
       >
         {content}
       </ScrollView>
@@ -87,9 +113,14 @@ export function StaffAppShell() {
 
       <StaffDrawer
         visible={drawerVisible}
-        active={activeModule}
+        staffName={String(user?.name || "Staff")}
+        staffEmail={String(user?.email || "")}
+        staffRole={String(user?.role || "staff")}
         onClose={() => setDrawerVisible(false)}
-        onNavigate={setActiveModule}
+        onGoManagement={() => setActiveModule("overview")}
+        onGoNewsPolicy={() => navigation.navigate("InfoTab", { screen: "NewsPolicyHome" })}
+        onGoProfile={() => navigation.navigate("AccountTab", { screen: "Profile" })}
+        onSignOut={logout}
       />
     </SafeAreaView>
   );
@@ -99,6 +130,25 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: staffTheme.colors.appBg,
+    position: "relative",
+  },
+  bgAccentTop: {
+    position: "absolute",
+    top: -120,
+    right: -70,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(217, 120, 83, 0.1)",
+  },
+  bgAccentBottom: {
+    position: "absolute",
+    bottom: -90,
+    left: -80,
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: "rgba(35, 52, 69, 0.06)",
   },
   body: {
     flex: 1,

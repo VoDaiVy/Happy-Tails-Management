@@ -27,42 +27,54 @@ function StaffMenu({ visible, onClose, onNavigate, userName, userEmail, onSignOu
     <View style={styles.menuOverlayRoot} pointerEvents="box-none">
       <Pressable style={styles.menuDimLayer} onPress={onClose} />
 
-      <View style={styles.menuPanel}>
-        <View style={styles.menuTopBar}>
-          <View style={styles.brandWrap}>
-            <Image source={BRAND_ICON} style={styles.brandIcon} resizeMode="cover" />
-            <Text style={styles.brandText}>HappyTails</Text>
+      <View style={styles.sheetPanel}>
+        <View style={styles.sheetHandle} />
+
+        <View style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{userName.slice(0, 1).toUpperCase() || "U"}</Text>
           </View>
-          <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>X</Text>
-          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.userName}>{userName || "Guest"}</Text>
+            <Text style={styles.userEmail}>{userEmail || "No email"}</Text>
+            <Text style={styles.userRole}>staff</Text>
+          </View>
         </View>
 
         <View style={styles.menuBody}>
-          <Pressable style={styles.menuItem} onPress={() => onNavigate("ManagementTab")}>
-            <Text style={styles.menuItemText}>Management</Text>
+          <Pressable style={({ pressed }) => [styles.menuItem, styles.menuItemActive, pressed && styles.menuItemPressed]} onPress={() => onNavigate("ManagementTab")}>
+            <View style={styles.menuItemIconWrap}><Text style={styles.menuItemIcon}>◫</Text></View>
+            <View style={styles.menuItemTextCol}>
+              <Text style={[styles.menuItemText, styles.menuItemTextActive]}>Management</Text>
+              <Text style={styles.menuItemSubText}>Open staff dashboard</Text>
+            </View>
           </Pressable>
-          <Pressable style={styles.menuItem} onPress={() => onNavigate("InfoTab", "NewsPolicyHome")}>
-            <Text style={styles.menuItemText}>News & Policy</Text>
+
+          <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]} onPress={() => onNavigate("InfoTab", "NewsPolicyHome")}>
+            <View style={styles.menuItemIconWrap}><Text style={styles.menuItemIcon}>◉</Text></View>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemText}>News & Policy</Text>
+              <Text style={styles.menuItemSubText}>View latest news and policy</Text>
+            </View>
           </Pressable>
-          <Pressable style={styles.menuItem} onPress={() => onNavigate("AccountTab", "Profile")}>
-            <Text style={styles.menuItemText}>Profile</Text>
+
+          <Pressable style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]} onPress={() => onNavigate("AccountTab", "Profile")}>
+            <View style={styles.menuItemIconWrap}><Text style={styles.menuItemIcon}>◌</Text></View>
+            <View style={styles.menuItemTextCol}>
+              <Text style={styles.menuItemText}>Profile</Text>
+              <Text style={styles.menuItemSubText}>Account details and settings</Text>
+            </View>
           </Pressable>
 
           <View style={styles.menuDivider} />
 
-          <View style={styles.userCard}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{userName.slice(0, 1).toUpperCase() || "U"}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.userName}>{userName || "Guest"}</Text>
-              <Text style={styles.userEmail}>{userEmail || "No email"}</Text>
-            </View>
-          </View>
-
-          <Pressable style={styles.signOutBtn} onPress={onSignOut}>
+          <Pressable style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutBtnPressed]} onPress={onSignOut}>
+            <Text style={styles.signOutIcon}>⎋</Text>
             <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
+
+          <Pressable onPress={onClose} style={styles.closeBtn}>
+            <Text style={styles.closeBtnText}>Close</Text>
           </Pressable>
         </View>
       </View>
@@ -167,59 +179,143 @@ const styles = StyleSheet.create({
   menuOverlayRoot: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 90,
-    flexDirection: "row",
+    justifyContent: "flex-end",
   },
-  menuDimLayer: { flex: 1, backgroundColor: "rgba(15, 23, 42, 0.42)" },
-  menuPanel: {
-    width: "72%",
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
-    overflow: "hidden",
+  menuDimLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.34)",
   },
-  menuTopBar: {
-    marginTop: 10,
-    marginHorizontal: 10,
-    marginBottom: 8,
-    backgroundColor: "#1B263B",
-    borderRadius: 18,
+  sheetPanel: {
+    backgroundColor: "#FFF9F3",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: "#2E3B55",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderColor: "#E9DBC9",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 24,
+    gap: 12,
+    shadowColor: "#1E150F",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 4,
   },
-  closeBtn: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  closeBtnText: { color: "#FFFFFF", fontWeight: "900", fontSize: 18 },
-  menuBody: { paddingHorizontal: 16, paddingBottom: 20 },
-  menuDivider: { height: 1, backgroundColor: "#E7EAF0", marginVertical: 10 },
-  menuItem: { paddingVertical: 12 },
-  menuItemText: { color: "#344054", fontSize: 17, fontWeight: "700" },
-  userCard: {
-    marginTop: 4,
-    marginBottom: 6,
+  sheetHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#D8C9B7",
+    marginBottom: 4,
+  },
+  profileCard: {
     borderWidth: 1,
     borderColor: "#EFE9DF",
     borderRadius: 14,
-    backgroundColor: "#F7F2EA",
+    backgroundColor: "#FFFDFA",
     padding: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
+  menuBody: { gap: 8 },
+  menuDivider: { height: 1, backgroundColor: "#E7EAF0", marginVertical: 4 },
+  menuItem: {
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#EFE2D5",
+    backgroundColor: "#FFFCF8",
+  },
+  menuItemActive: {
+    backgroundColor: "#FFF1E8",
+    borderColor: "#F0C7A0",
+  },
+  menuItemPressed: {
+    backgroundColor: "#FFF6ED",
+  },
+  menuItemIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: "#F7EEE4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuItemIcon: {
+    color: "#C86542",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  menuItemTextCol: {
+    flex: 1,
+    gap: 1,
+  },
+  menuItemText: {
+    color: "#344054",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  menuItemTextActive: {
+    color: "#1F2D3D",
+  },
+  menuItemSubText: {
+    color: "#6B7280",
+    fontSize: 10,
+  },
+  closeBtn: {
+    marginTop: 4,
+    minHeight: 38,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#E7D8C7",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFCF8",
+  },
+  closeBtnText: { color: "#4B5563", fontWeight: "800", fontSize: 12 },
   avatarCircle: {
     width: 42,
     height: 42,
-    borderRadius: 12,
-    backgroundColor: "#0EA5E9",
+    borderRadius: 21,
+    backgroundColor: "#D97853",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: { color: "#fff", fontWeight: "800", fontSize: 20 },
-  userName: { color: "#344054", fontWeight: "800", fontSize: 18 },
-  userEmail: { marginTop: 2, color: "#667085", fontSize: 13 },
-  signOutBtn: { paddingVertical: 14, marginTop: 6 },
-  signOutText: { color: "#F04438", fontWeight: "800", fontSize: 17 },
+  userName: { color: "#344054", fontWeight: "800", fontSize: 14 },
+  userEmail: { marginTop: 1, color: "#667085", fontSize: 11 },
+  userRole: {
+    marginTop: 1,
+    color: "#C86542",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  signOutBtn: {
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "#F1D3CF",
+    backgroundColor: "#FFF7F6",
+    minHeight: 44,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  signOutBtnPressed: {
+    backgroundColor: "#FEEEEB",
+  },
+  signOutIcon: {
+    color: "#C94A4A",
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  signOutText: { color: "#B73E3E", fontWeight: "800", fontSize: 13 },
 });

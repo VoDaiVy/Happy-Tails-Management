@@ -364,32 +364,36 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.summaryBlock}>
-        <View style={styles.summaryLeft}>
-          <Text style={styles.summaryEyebrow}>STAFF DASHBOARD</Text>
-          <Text style={styles.summaryTitle}>Welcome back</Text>
-        </View>
+      <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
 
-        <View style={styles.summaryProfile}>
-          <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarText}>{profileInitial}</Text>
+        <View style={styles.summaryBlock}>
+          <View style={styles.summaryLeft}>
+            <Text style={styles.summaryEyebrow}>STAFF DASHBOARD</Text>
+            <Text style={styles.summaryTitle}>Welcome back, {profileName}</Text>
+            <Text style={styles.summarySubtitle}>Track service operations and booking flow in real time.</Text>
           </View>
-          <View>
-            <Text style={styles.profileName}>{profileName}</Text>
-            <Text style={styles.profileRole}>{profileRole}</Text>
+
+          <View style={styles.summaryProfile}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileAvatarText}>{profileInitial}</Text>
+            </View>
+            <View>
+              <Text style={styles.profileRole}>{profileRole}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.sectionHead}>
-        <View style={styles.sectionHeadTextCol}>
-          <Text style={styles.sectionTitle}>Overview</Text>
-          <Text style={styles.sectionSubtitle}>Monitor booking flow and daily operations at a glance.</Text>
+        <View style={styles.sectionHead}>
+          <View style={styles.sectionHeadTextCol}>
+            <Text style={styles.sectionTitle}>Overview</Text>
+            <Text style={styles.sectionSubtitle}>Monitor booking flow and daily operations at a glance.</Text>
+          </View>
+
+          <Pressable style={styles.refreshButton} onPress={() => loadOverview(true)} disabled={refreshing}>
+            {refreshing ? <ActivityIndicator size="small" color={staffTheme.colors.primaryStrong} /> : <Text style={styles.refreshButtonText}>Refresh</Text>}
+          </Pressable>
         </View>
-
-        <Pressable style={styles.refreshButton} onPress={() => loadOverview(true)} disabled={refreshing}>
-          {refreshing ? <ActivityIndicator size="small" color={staffTheme.colors.primaryStrong} /> : <Text style={styles.refreshButtonText}>Refresh</Text>}
-        </Pressable>
       </View>
 
       {error ? (
@@ -427,7 +431,7 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
       <View style={styles.infoCard}>
         <View style={styles.infoHeaderRow}>
           <View style={styles.infoHeaderTextCol}>
-            <Text style={styles.infoTitle}>Bookings by Day</Text>
+            <Text style={styles.chartTitle}>Bookings by Day</Text>
             <Text style={styles.infoDescription}>Daily booking trend for {activeFilterLabel.toLowerCase()}.</Text>
           </View>
           <View style={styles.filterWrap}>
@@ -458,6 +462,11 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
           </View>
         </View>
 
+        <View style={styles.chartLegendRow}>
+          <View style={styles.chartLegendDot} />
+          <Text style={styles.chartLegendText}>Bookings</Text>
+        </View>
+
         {loading ? (
           <View style={styles.chartLoading}>
             <ActivityIndicator color={staffTheme.colors.primaryStrong} />
@@ -474,11 +483,13 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
 
             <View style={styles.barRow}>
               {chartData.values.map((value, index) => {
-                const barHeight = Math.max((value / chartMax) * 170, value === 0 ? 2 : 12);
+                const barHeight = Math.max((value / chartMax) * 156, value === 0 ? 2 : 12);
 
                 return (
                   <View key={`${chartData.labels[index]}-${index}`} style={styles.barGroup}>
-                    <View style={[styles.bar, { height: barHeight }]} />
+                    <View style={[styles.bar, { height: barHeight }]}>
+                      <View style={styles.barTopGlow} />
+                    </View>
                     <Text style={styles.barLabel}>{chartData.labels[index]}</Text>
                   </View>
                 );
@@ -491,7 +502,7 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
       <View style={styles.infoCard}>
         <View style={styles.infoHeaderRow}>
           <View style={styles.infoHeaderTextCol}>
-            <Text style={styles.infoTitle}>Today&apos;s Schedule</Text>
+            <Text style={styles.scheduleTitle}>Today&apos;s Schedule</Text>
             <Text style={styles.infoDescription}>Upcoming bookings sorted by nearest time.</Text>
           </View>
           <Pressable style={styles.viewAllButton} onPress={onOpenSchedule}>
@@ -541,12 +552,30 @@ export function OverviewScreen({ onOpenSchedule }: OverviewScreenProps) {
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: staffTheme.spacing.lg,
+    gap: 14,
     paddingBottom: staffTheme.spacing.sm,
   },
+  heroCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E4D5C6",
+    backgroundColor: "#FFF8F1",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 14,
+    overflow: "hidden",
+    ...staffTheme.shadow.card,
+  },
+  heroGlow: {
+    position: "absolute",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    right: -60,
+    top: -95,
+    backgroundColor: "rgba(217,120,83,0.2)",
+  },
   summaryBlock: {
-    paddingHorizontal: 2,
-    paddingVertical: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -556,58 +585,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryEyebrow: {
-    color: "#8A796B",
-    fontSize: 10,
+    color: "#7A6555",
+    fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.6,
   },
   summaryTitle: {
-    marginTop: 1,
-    color: "#2D3436",
-    fontSize: 18,
+    marginTop: 2,
+    color: "#2B2F33",
+    fontSize: 22,
     fontWeight: "800",
+    lineHeight: 28,
+  },
+  summarySubtitle: {
+    marginTop: 3,
+    color: "rgba(45,52,54,0.64)",
+    fontSize: 11,
+    lineHeight: 16,
   },
   summaryProfile: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 6,
     paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: "#FCF6EE",
+    borderRadius: 14,
+    backgroundColor: "#FCF2E8",
     borderWidth: 1,
-    borderColor: "#EFE3D6",
+    borderColor: "#EEDFCF",
   },
   profileAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: staffTheme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   profileAvatarText: {
     color: "#fff",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "900",
   },
-  profileName: {
-    color: staffTheme.colors.text,
-    fontSize: 11,
-    fontWeight: "700",
-    maxWidth: 100,
-  },
   profileRole: {
-    color: staffTheme.colors.textSecondary,
+    color: "#7E6550",
     fontSize: 9,
+    fontWeight: "700",
     marginTop: 1,
-    maxWidth: 100,
+    textTransform: "capitalize",
   },
   sectionHead: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
+    alignItems: "center",
+    gap: 10,
   },
   sectionHeadTextCol: {
     flex: 1,
@@ -619,27 +650,26 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
   sectionSubtitle: {
-    marginTop: 2,
+    marginTop: 3,
     color: "rgba(45,52,54,0.6)",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   refreshButton: {
-    minHeight: 34,
-    borderRadius: 12,
+    minHeight: 32,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(45,52,54,0.14)",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
+    borderColor: "rgba(217,120,83,0.45)",
+    backgroundColor: "#FFF7F0",
+    paddingHorizontal: 11,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
-    minWidth: 78,
+    minWidth: 70,
   },
   refreshButtonText: {
-    color: "#2D3436",
-    fontSize: 12,
-    fontWeight: "700",
+    color: "#8E4D28",
+    fontSize: 11,
+    fontWeight: "800",
   },
   errorBox: {
     borderRadius: 13,
@@ -680,22 +710,22 @@ const styles = StyleSheet.create({
   kpiGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 10,
   },
   kpiCard: {
-    width: "48.2%",
+    width: "48.6%",
     borderWidth: 1,
-    borderColor: "rgba(45,52,54,0.08)",
-    borderRadius: 18,
+    borderColor: "rgba(45,52,54,0.07)",
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    minHeight: 146,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    minHeight: 122,
     shadowColor: "#2D3436",
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   kpiHeadRow: {
     flexDirection: "row",
@@ -703,56 +733,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   kpiIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
   kpiIcon: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "900",
   },
   kpiTag: {
     color: "rgba(45,52,54,0.35)",
-    fontSize: 10,
-    letterSpacing: 0.7,
+    fontSize: 9,
+    letterSpacing: 0.55,
     fontWeight: "800",
   },
   kpiLabel: {
-    marginTop: 10,
+    marginTop: 8,
     color: "rgba(45,52,54,0.78)",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   kpiValue: {
-    marginTop: 4,
+    marginTop: 3,
     color: staffTheme.colors.text,
-    fontSize: 42,
-    lineHeight: 44,
+    fontSize: 30,
+    lineHeight: 32,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.35,
   },
   kpiValueSkeleton: {
-    marginTop: 6,
-    height: 34,
-    borderRadius: 10,
+    marginTop: 4,
+    height: 26,
+    borderRadius: 8,
     backgroundColor: "#F3ECE3",
   },
   kpiSubtext: {
-    marginTop: 6,
+    marginTop: 4,
     color: "rgba(45,52,54,0.5)",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
   },
   infoCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#EBDCCB",
+    borderColor: "#E8DACB",
     backgroundColor: "#FFFCF8",
     paddingHorizontal: 14,
-    paddingVertical: 15,
-    gap: 12,
+    paddingVertical: 14,
+    gap: 10,
     ...staffTheme.shadow.card,
   },
   infoHeaderRow: {
@@ -764,10 +794,16 @@ const styles = StyleSheet.create({
   infoHeaderTextCol: {
     flex: 1,
   },
-  infoTitle: {
+  chartTitle: {
     color: "#2D3436",
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "900",
+  },
+  scheduleTitle: {
+    color: "#2D3436",
+    fontSize: 20,
+    lineHeight: 24,
     fontWeight: "900",
   },
   infoDescription: {
@@ -776,21 +812,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   filterPill: {
-    minHeight: 34,
-    borderRadius: 17,
+    minHeight: 30,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(217,120,83,0.45)",
     backgroundColor: "#FFFCF8",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 1,
     flexDirection: "row",
-    gap: 6,
+    gap: 4,
   },
   filterText: {
     color: "#5D4C3F",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
   filterChevron: {
@@ -805,7 +840,7 @@ const styles = StyleSheet.create({
   filterMenu: {
     position: "absolute",
     right: 0,
-    top: 38,
+    top: 34,
     minWidth: 132,
     borderWidth: 1,
     borderColor: "#E7C5AE",
@@ -820,8 +855,8 @@ const styles = StyleSheet.create({
   },
   filterItem: {
     borderRadius: 9,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
   },
   filterItemActive: {
     backgroundColor: "#D97853",
@@ -834,16 +869,33 @@ const styles = StyleSheet.create({
   filterItemTextActive: {
     color: "#FFFFFF",
   },
+  chartLegendRow: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  chartLegendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#D97853",
+  },
+  chartLegendText: {
+    color: "rgba(45,52,54,0.72)",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   chartLoading: {
-    minHeight: 238,
-    borderRadius: 16,
-    backgroundColor: "#F8F1E8",
+    minHeight: 224,
+    borderRadius: 14,
+    backgroundColor: "#FCF4EC",
     alignItems: "center",
     justifyContent: "center",
   },
   chartEmpty: {
-    minHeight: 238,
-    borderRadius: 16,
+    minHeight: 224,
+    borderRadius: 14,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: "#D9C8B5",
@@ -860,43 +912,48 @@ const styles = StyleSheet.create({
   },
   chartArea: {
     position: "relative",
-    minHeight: 246,
-    borderRadius: 16,
+    minHeight: 232,
+    borderRadius: 14,
     backgroundColor: "#FFF8F2",
-    paddingHorizontal: 8,
-    paddingTop: 16,
-    paddingBottom: 9,
+    paddingHorizontal: 10,
+    paddingTop: 18,
+    paddingBottom: 10,
     overflow: "hidden",
   },
   chartGuide: {
     position: "absolute",
-    left: 10,
-    right: 10,
+    left: 12,
+    right: 12,
     borderTopWidth: 1,
-    borderColor: "rgba(171, 140, 107, 0.24)",
-    borderStyle: "dashed",
+    borderColor: "rgba(171, 140, 107, 0.19)",
   },
   barRow: {
-    minHeight: 196,
+    minHeight: 170,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     zIndex: 2,
   },
   barGroup: {
-    width: "13.3%",
+    width: "12.9%",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   bar: {
-    width: 24,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    width: 20,
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
     backgroundColor: "#D97853",
+    justifyContent: "flex-start",
+    overflow: "hidden",
+  },
+  barTopGlow: {
+    height: 7,
+    backgroundColor: "rgba(255, 243, 233, 0.62)",
   },
   barLabel: {
     color: "#9D8D7F",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "600",
   },
   viewAllButton: {
@@ -916,15 +973,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   scheduleLoading: {
-    minHeight: 180,
-    borderRadius: 16,
-    backgroundColor: "#F8F1E8",
+    minHeight: 140,
+    borderRadius: 14,
+    backgroundColor: "#FCF4EC",
     alignItems: "center",
     justifyContent: "center",
   },
   scheduleEmpty: {
-    minHeight: 140,
-    borderRadius: 16,
+    minHeight: 120,
+    borderRadius: 14,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: "#DFD0C0",
@@ -940,7 +997,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   scheduleList: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#EFE2D5",
@@ -949,18 +1006,18 @@ const styles = StyleSheet.create({
   scheduleItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderColor: "rgba(45,52,54,0.06)",
   },
   scheduleLeft: {
-    width: 62,
+    width: 56,
   },
   timeBadge: {
-    minHeight: 27,
-    borderRadius: 10,
+    minHeight: 24,
+    borderRadius: 9,
     backgroundColor: "#FFF1E8",
     borderWidth: 1,
     borderColor: "#F3DCC8",
@@ -970,7 +1027,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: "#A25D31",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
   },
   scheduleMiddle: {
@@ -979,17 +1036,17 @@ const styles = StyleSheet.create({
   },
   scheduleName: {
     color: "#2D3436",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
   },
   scheduleMeta: {
     color: "rgba(45,52,54,0.64)",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
   },
   scheduleService: {
     color: "rgba(45,52,54,0.74)",
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 1,
   },
   scheduleRight: {
