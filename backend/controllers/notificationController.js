@@ -85,3 +85,44 @@ exports.deleteAllRead = catchAsync(async (req, res) => {
   res.status(200).json(ApiResponse.success('Read notifications deleted', result));
 });
 
+// ── STAFF / ADMIN ENDPOINTS ───────────────────────────────────────────────────
+
+/**
+ * Get aggregated outbox for staff notification management
+ * @route   GET /api/notifications/staff/outbox
+ * @access  Private (Staff, Admin)
+ */
+exports.getStaffOutbox = catchAsync(async (req, res) => {
+  const result = await notificationService.getStaffOutbox(req.query);
+  res.status(200).json(
+    ApiResponse.success('Outbox fetched successfully', result.data, result.pagination)
+  );
+});
+
+/**
+ * Get customer users list for notification audience picker
+ * @route   GET /api/notifications/staff/customers
+ * @access  Private (Staff, Admin)
+ */
+exports.getCustomerUsers = catchAsync(async (req, res) => {
+  const User = require('../models/User');
+  const { search } = req.query;
+
+  const filter = { role: 'customer', isDeleted: false, isActive: true };
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const users = await User.find(filter)
+    .select('_id name email avatar')
+    .sort('name')
+    .limit(50);
+
+  res.status(200).json(
+    ApiResponse.success('Customers fetched', users)
+  );
+});
+

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import useScrollLock from '../../hooks/useScrollLock';
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import useScrollLock from "../../../hooks/useScrollLock";
 import {
   Users,
   Search,
@@ -22,14 +22,20 @@ import {
   X,
   Trash2,
 } from "lucide-react";
-import AdminFilterBar from "../../components/dashboard/AdminFilterBar";
-import { getUsersList, blockUser, unblockUser, updateUserRole, permanentDeleteUser } from "../../api/userApi";
+import AdminFilterBar from "../../../components/dashboard/AdminFilterBar";
+import {
+  getUsersList,
+  blockUser,
+  unblockUser,
+  updateUserRole,
+  permanentDeleteUser,
+} from "../../../api/userApi";
 
 // Role configuration
 const ROLE_CONFIG = {
   admin: {
     label: "Admin",
-    color: "bg-purple-100 text-purple-700",
+    color: "bg-[#FCE9E2] text-[#D97853]",
     icon: Shield,
   },
   staff: {
@@ -61,7 +67,7 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
-  
+
   // Pagination
   const [pagination, setPagination] = useState({
     page: 1,
@@ -97,55 +103,58 @@ const UserManagement = () => {
   useScrollLock(showBlockModal || showRoleModal || showDeleteModal);
 
   // Fetch users
-  const fetchUsers = useCallback(async (showRefreshSpinner = false) => {
-    try {
-      if (showRefreshSpinner) {
-        setIsRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
+  const fetchUsers = useCallback(
+    async (showRefreshSpinner = false) => {
+      try {
+        if (showRefreshSpinner) {
+          setIsRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
 
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-      };
+        const params = {
+          page: pagination.page,
+          limit: pagination.limit,
+        };
 
-      // Search filter
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
-      }
+        // Search filter
+        if (searchQuery.trim()) {
+          params.search = searchQuery.trim();
+        }
 
-      // Block status filter
-      if (activeFilter === "active") {
-        params.isBlocked = false;
-      } else if (activeFilter === "blocked") {
-        params.isBlocked = true;
-      }
+        // Block status filter
+        if (activeFilter === "active") {
+          params.isBlocked = false;
+        } else if (activeFilter === "blocked") {
+          params.isBlocked = true;
+        }
 
-      // Role filter
-      if (roleFilter) {
-        params.role = roleFilter;
-      }
+        // Role filter
+        if (roleFilter) {
+          params.role = roleFilter;
+        }
 
-      const response = await getUsersList(params);
-      setUsers(response.data?.users || response.data || []);
-      
-      if (response.pagination) {
-        setPagination((prev) => ({
-          ...prev,
-          total: response.pagination.total,
-          totalPages: response.pagination.totalPages,
-        }));
+        const response = await getUsersList(params);
+        setUsers(response.data?.users || response.data || []);
+
+        if (response.pagination) {
+          setPagination((prev) => ({
+            ...prev,
+            total: response.pagination.total,
+            totalPages: response.pagination.totalPages,
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching users:", err);
+        setError(err.response?.data?.message || "Cannot load user list");
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
       }
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      setError(err.response?.data?.message || "Cannot load user list");
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [searchQuery, activeFilter, roleFilter, pagination.page, pagination.limit]);
+    },
+    [searchQuery, activeFilter, roleFilter, pagination.page, pagination.limit],
+  );
 
   // Initial fetch and refetch on filter changes
   useEffect(() => {
@@ -265,15 +274,12 @@ const UserManagement = () => {
     }
   };
 
-  // Clear all filters
-  const clearFilters = () => {
-    setSearchQuery("");
-    setActiveFilter("all");
-    setRoleFilter("");
-  };
+  const isDeleteConfirmed = deleteConfirmText === "DELETE";
+  const isDeleteLoading = actionLoading === selectedUserForDelete?._id;
+  const isDeleteDisabled = !isDeleteConfirmed || isDeleteLoading;
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-6"
@@ -322,11 +328,7 @@ const UserManagement = () => {
                   : "Blocked",
             onChange: (opt) =>
               setActiveFilter(
-                opt === "All"
-                  ? "all"
-                  : opt === "Active"
-                    ? "active"
-                    : "blocked",
+                opt === "All" ? "all" : opt === "Active" ? "active" : "blocked",
               ),
           },
           {
@@ -379,11 +381,13 @@ const UserManagement = () => {
               </button>
             </div>
           </div>
-        ) : users.length === 0 ? (
+          ) : users.length === 0 ? (
           <div className="text-center py-20 text-[#2D3436]/40">
             <Users className="w-16 h-16 mx-auto mb-4 text-[#2D3436]/20" />
             <p className="text-lg font-bold text-[#2D3436]">No users found</p>
-            <p className="text-sm font-medium text-[#2D3436] mt-1">Try adjusting your filters or search query.</p>
+            <p className="text-sm font-medium text-[#2D3436] mt-1">
+              Try adjusting your filters or search query.
+            </p>
           </div>
         </div>
       ) : (
@@ -412,8 +416,9 @@ const UserManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {users.map((user, index) => {
-                    const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.customer;
+                  {users.map((user) => {
+                    const roleConfig =
+                      ROLE_CONFIG[user.role] || ROLE_CONFIG.customer;
                     const RoleIcon = roleConfig.icon;
                     const isBlocked = user.isBlocked;
 
@@ -501,7 +506,10 @@ const UserManagement = () => {
                                     className="px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
                                   >
                                     {actionLoading === user._id ? (
-                                      <RefreshCw size={14} className="animate-spin" />
+                                      <RefreshCw
+                                        size={14}
+                                        className="animate-spin"
+                                      />
                                     ) : (
                                       "Unblock"
                                     )}
@@ -518,16 +526,17 @@ const UserManagement = () => {
                               </>
                             )}
                             {/* Permanent delete — all users except self */}
-                            {user._id !== currentUserId && user.role !== "admin" && (
-                              <button
-                                onClick={() => openDeleteModal(user)}
-                                disabled={actionLoading === user._id}
-                                title="Permanently delete account"
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            )}
+                            {user._id !== currentUserId &&
+                              user.role !== "admin" && (
+                                <button
+                                  onClick={() => openDeleteModal(user)}
+                                  disabled={actionLoading === user._id}
+                                  title="Permanently delete account"
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
                           </div>
                         </td>
                       </tr>
@@ -572,21 +581,21 @@ const UserManagement = () => {
       <AnimatePresence>
         {showRoleModal && selectedUserForRole && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowRoleModal(false)}
               className="fixed inset-0 bg-black/50 z-50"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="px-6 py-4 bg-purple-600 text-white flex items-center justify-between">
+              <div className="px-6 py-4 bg-[#D97853] text-white flex items-center justify-between">
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Shield size={20} />
                   Change User Role
@@ -608,47 +617,85 @@ const UserManagement = () => {
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-[#2D3436] truncate">{selectedUserForRole.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{selectedUserForRole.email}</p>
+                    <p className="font-medium text-[#2D3436] truncate">
+                      {selectedUserForRole.name}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {selectedUserForRole.email}
+                    </p>
                   </div>
                   <span
                     className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      ROLE_CONFIG[selectedUserForRole.role]?.color || ROLE_CONFIG.customer.color
+                      ROLE_CONFIG[selectedUserForRole.role]?.color ||
+                      ROLE_CONFIG.customer.color
                     }`}
                   >
-                    Current: {ROLE_CONFIG[selectedUserForRole.role]?.label || "Customer"}
+                    Current:{" "}
+                    {ROLE_CONFIG[selectedUserForRole.role]?.label || "Customer"}
                   </span>
                 </div>
 
                 {/* Role options */}
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-3">Select new role:</p>
+                  <p className="text-sm font-medium text-gray-700 mb-3">
+                    Select new role:
+                  </p>
                   <div className="space-y-2">
                     {[
-                      { key: "customer", label: "Customer", desc: "Standard user — can book services and manage pets", color: "border-green-200 hover:bg-green-50", badge: "bg-green-100 text-green-700" },
-                      { key: "staff",    label: "Staff",    desc: "Staff member — can manage bookings and medical records", color: "border-blue-200 hover:bg-blue-50", badge: "bg-blue-100 text-blue-700" },
-                      { key: "admin",    label: "Admin",    desc: "Administrator — full access to all system features", color: "border-purple-200 hover:bg-purple-50", badge: "bg-purple-100 text-purple-700" },
+                      {
+                        key: "customer",
+                        label: "Customer",
+                        desc: "Standard user — can book services and manage pets",
+                        color: "border-green-200 hover:bg-green-50",
+                        badge: "bg-green-100 text-green-700",
+                      },
+                      {
+                        key: "staff",
+                        label: "Staff",
+                        desc: "Staff member — can manage bookings and medical records",
+                        color: "border-blue-200 hover:bg-blue-50",
+                        badge: "bg-blue-100 text-blue-700",
+                      },
+                      {
+                        key: "admin",
+                        label: "Admin",
+                        desc: "Administrator — full access to all system features",
+                        color: "border-[#D97853]/35 hover:bg-[#D97853]/10",
+                        badge: "bg-[#FCE9E2] text-[#D97853]",
+                      },
                     ].map(({ key, label, desc, color, badge }) => (
                       <button
                         key={key}
                         onClick={() => handleRoleChange(key)}
-                        disabled={actionLoading === selectedUserForRole._id || key === selectedUserForRole.role}
+                        disabled={
+                          actionLoading === selectedUserForRole._id ||
+                          key === selectedUserForRole.role
+                        }
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                           key === selectedUserForRole.role
                             ? "border-gray-200 bg-gray-50 cursor-default"
                             : color
                         }`}
                       >
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}
+                        >
                           {label}
                         </span>
                         <span className="text-sm text-gray-600">{desc}</span>
                         {key === selectedUserForRole.role && (
-                          <CheckCircle size={16} className="ml-auto shrink-0 text-gray-400" />
+                          <CheckCircle
+                            size={16}
+                            className="ml-auto shrink-0 text-gray-400"
+                          />
                         )}
-                        {actionLoading === selectedUserForRole._id && key !== selectedUserForRole.role && (
-                          <RefreshCw size={14} className="ml-auto shrink-0 animate-spin text-gray-400" />
-                        )}
+                        {actionLoading === selectedUserForRole._id &&
+                          key !== selectedUserForRole.role && (
+                            <RefreshCw
+                              size={14}
+                              className="ml-auto shrink-0 animate-spin text-gray-400"
+                            />
+                          )}
                       </button>
                     ))}
                   </div>
@@ -661,7 +708,7 @@ const UserManagement = () => {
                   Cancel
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
@@ -670,94 +717,153 @@ const UserManagement = () => {
       <AnimatePresence>
         {showDeleteModal && selectedUserForDelete && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowDeleteModal(false)}
-              className="fixed inset-0 bg-black/60 z-50"
+              className="fixed inset-0 bg-[#121315]/55 backdrop-blur-[2px] z-50"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[620px] bg-[#FFFEFD] rounded-[28px] border border-[#F3DDE0] shadow-[0_28px_70px_rgba(17,24,39,0.35)] z-50 overflow-hidden"
             >
               {/* Header */}
-              <div className="px-6 py-4 bg-red-600 text-white flex items-center justify-between">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Trash2 size={20} />
-                  Permanently Delete Account
-                </h3>
+              <div className="px-6 py-5 bg-gradient-to-r from-white via-[#FFF9F9] to-[#FFF1F3] border-b border-[#F3E3E6] flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#FDEDEE] border border-[#F8D4D8] shadow-sm flex items-center justify-center shrink-0">
+                    <Trash2 size={19} className="text-[#D73A4F]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-[25px] leading-[1.1] font-extrabold tracking-[-0.01em] text-[#1F2933]">
+                      Permanently Delete Account
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-[#7A6368]">
+                      This action permanently removes access and cannot be
+                      reverted.
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                  className="p-2 rounded-xl text-[#7C6A6F] hover:text-[#2D3436] hover:bg-white/90 transition-colors"
+                  aria-label="Close delete account modal"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4.5">
                 {/* Warning */}
-                <div className="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
-                  <div className="text-sm text-red-700">
-                    <p className="font-semibold mb-1">This action cannot be undone!</p>
-                    <p>The account and all associated data will be permanently removed from the system.</p>
+                <div className="flex gap-3 p-3.5 bg-[#FFF5F6] border border-[#F6D5D9] rounded-2xl">
+                  <div className="w-8 h-8 rounded-full bg-white border border-[#F4CCD2] flex items-center justify-center shrink-0">
+                    <AlertCircle size={16} className="text-[#CE3047]" />
+                  </div>
+                  <div className="text-sm leading-relaxed text-[#7A4048]">
+                    <p className="font-semibold text-[#B8273F]">
+                      This action cannot be undone.
+                    </p>
+                    <p className="mt-0.5">
+                      The account and all associated data will be permanently
+                      removed from the system.
+                    </p>
                   </div>
                 </div>
 
                 {/* User info */}
-                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                    <span className="text-red-600 font-semibold">
+                <div className="flex items-center gap-3.5 p-3.5 bg-[#F8FAFC] border border-[#E8ECF0] rounded-2xl">
+                  <div className="w-11 h-11 rounded-full bg-[#FDEDEE] border border-[#F7D0D5] flex items-center justify-center shrink-0">
+                    <span className="text-[#CA3248] font-bold text-lg leading-none">
                       {selectedUserForDelete.name?.charAt(0)?.toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-[#2D3436] truncate">{selectedUserForDelete.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{selectedUserForDelete.email}</p>
+                    <p className="text-[17px] font-bold text-[#1F2933] truncate leading-tight">
+                      {selectedUserForDelete.name}
+                    </p>
+                    <p className="text-sm font-medium text-[#66727F] truncate mt-0.5">
+                      {selectedUserForDelete.email}
+                    </p>
                   </div>
-                  <span className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${ROLE_CONFIG[selectedUserForDelete.role]?.color || ROLE_CONFIG.customer.color}`}>
-                    {ROLE_CONFIG[selectedUserForDelete.role]?.label || "Customer"}
+                  <span
+                    className={`ml-auto shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                      selectedUserForDelete.role === "admin"
+                        ? "bg-[#FFF0EA] text-[#B66342] border-[#F5D5C8]"
+                        : selectedUserForDelete.role === "staff"
+                          ? "bg-[#EAF3FF] text-[#2F67B2] border-[#CFE1FA]"
+                          : "bg-[#EAF8EE] text-[#2F8A4F] border-[#CDEED8]"
+                    }`}
+                  >
+                    {ROLE_CONFIG[selectedUserForDelete.role]?.label ||
+                      "Customer"}
                   </span>
                 </div>
 
                 {/* Confirmation input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type <span className="font-bold text-red-600">DELETE</span> to confirm
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-[#36414B]">
+                    Type{" "}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#FDEBED] border border-[#F7CCD2] text-[#C92E46] text-xs font-bold tracking-wide">
+                      DELETE
+                    </span>{" "}
+                    to confirm
                   </label>
                   <input
                     type="text"
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder="DELETE"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    className={`w-full h-12 px-4 border rounded-2xl text-sm font-medium text-[#24313B] placeholder:text-[#97A1AA] focus:outline-none focus:ring-2 transition-all ${
+                      isDeleteConfirmed
+                        ? "border-[#E4BFC5] bg-white focus:border-[#CF2E46] focus:ring-[#CF2E46]/15"
+                        : deleteConfirmText.length > 0
+                          ? "border-[#F2A6B1] bg-[#FFF9FA] focus:border-[#CF2E46] focus:ring-[#CF2E46]/15"
+                          : "border-[#D9E0E6] bg-white focus:border-[#D74A5D] focus:ring-[#D74A5D]/15"
+                    }`}
                   />
+                  <p
+                    className={`text-xs font-medium ${
+                      isDeleteConfirmed ? "text-[#AB3045]" : "text-[#7C8794]"
+                    }`}
+                  >
+                    {isDeleteConfirmed
+                      ? "Confirmation matched. Permanent deletion is enabled."
+                      : "Enter DELETE to enable permanent deletion. This confirmation is case-sensitive."}
+                  </p>
                 </div>
 
-                <div className="flex gap-3 pt-1">
+                <div className="flex items-center gap-3 pt-1">
                   <button
                     onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 py-2.5 px-4 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                    className="flex-1 h-12 px-4 border border-[#D8E0E7] bg-white text-[#435261] text-sm font-semibold rounded-2xl hover:bg-[#F4F7FA] transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handlePermanentDelete}
-                    disabled={deleteConfirmText !== "DELETE" || actionLoading === selectedUserForDelete._id}
-                    className="flex-1 py-2 px-3 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    disabled={isDeleteDisabled}
+                    className={`flex-1 h-12 px-4 text-sm font-semibold rounded-2xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                      isDeleteDisabled
+                        ? "bg-[#F3C1C9] text-white/90 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-[#E15065] to-[#C92E46] text-white hover:brightness-105 shadow-[0_10px_24px_rgba(201,46,70,0.35)]"
+                    }`}
                   >
-                    {actionLoading === selectedUserForDelete._id ? (
-                      <><RefreshCw size={13} className="animate-spin" /> Deleting...</>
+                    {isDeleteLoading ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />{" "}
+                        Deleting...
+                      </>
                     ) : (
-                      <><Trash2 size={13} /> Delete Permanently</>
+                      <>
+                        <Trash2 size={13} /> Delete Permanently
+                      </>
                     )}
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
@@ -766,14 +872,14 @@ const UserManagement = () => {
       <AnimatePresence>
         {showBlockModal && selectedUser && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowBlockModal(false)}
               className="fixed inset-0 bg-black/50 z-50"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -793,8 +899,12 @@ const UserManagement = () => {
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium text-[#2D3436]">{selectedUser.name}</p>
-                    <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                    <p className="font-medium text-[#2D3436]">
+                      {selectedUser.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {selectedUser.email}
+                    </p>
                   </div>
                 </div>
 
@@ -823,15 +933,17 @@ const UserManagement = () => {
                     disabled={actionLoading === selectedUser._id}
                     className="flex-1 py-2.5 px-4 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 disabled:opacity-50 transition-colors"
                   >
-                    {actionLoading === selectedUser._id ? "Processing..." : "Block Account"}
+                    {actionLoading === selectedUser._id
+                      ? "Processing..."
+                      : "Block Account"}
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 };
 
