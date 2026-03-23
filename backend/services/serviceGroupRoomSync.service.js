@@ -24,6 +24,23 @@ const deriveRoomCount = (maxCapacity, slotsPerRoom = SLOTS_PER_ROOM) => {
   return Math.max(1, Math.ceil(normalizedCapacity / normalizedSlotsPerRoom));
 };
 
+const deriveRoomCapacities = (maxCapacity, slotsPerRoom = SLOTS_PER_ROOM) => {
+  const normalizedCapacity = normalizeMaxCapacity(maxCapacity);
+  const normalizedSlotsPerRoom = normalizeSlotsPerRoom(slotsPerRoom);
+  const roomCount = deriveRoomCount(normalizedCapacity, normalizedSlotsPerRoom);
+
+  const capacities = [];
+  let remaining = normalizedCapacity;
+
+  for (let index = 0; index < roomCount; index += 1) {
+    const roomCapacity = Math.min(normalizedSlotsPerRoom, remaining);
+    capacities.push(Math.max(1, roomCapacity));
+    remaining -= roomCapacity;
+  }
+
+  return capacities;
+};
+
 const deactivateGroupRooms = async ({ group, actorId, slotsPerRoom = SLOTS_PER_ROOM }) => {
   const normalizedSlotsPerRoom = normalizeSlotsPerRoom(slotsPerRoom);
   const result = await Room.updateMany(
@@ -67,11 +84,17 @@ const syncServiceRoomsForGroup = async ({
   const normalizedCapacity = normalizeMaxCapacity(maxCapacity);
   const roomCount = deriveRoomCount(normalizedCapacity, normalizedSlotsPerRoom);
   const targetRoomNumbers = buildTargetRoomNumbers(group, roomCount);
+  const targetRoomCapacities = deriveRoomCapacities(
+    normalizedCapacity,
+    normalizedSlotsPerRoom,
+  );
 
   let created = 0;
   let updated = 0;
 
-  for (const roomNumber of targetRoomNumbers) {
+  for (let index = 0; index < targetRoomNumbers.length; index += 1) {
+    const roomNumber = targetRoomNumbers[index];
+    const targetCapacity = targetRoomCapacities[index] || normalizedSlotsPerRoom;
     const existing = await Room.findOne({ roomNumber });
 
     if (!existing) {
@@ -81,7 +104,7 @@ const syncServiceRoomsForGroup = async ({
         type: 'standard',
         serviceType: 'service',
         group,
-        capacity: normalizedSlotsPerRoom,
+        capacity: targetCapacity,
         pricePerNight: 0,
         amenities: ['Service workflow room'],
         petTypes: ['dog', 'cat'],
@@ -107,7 +130,7 @@ const syncServiceRoomsForGroup = async ({
     existing.type = 'standard';
     existing.serviceType = 'service';
     existing.group = group;
-    existing.capacity = normalizedSlotsPerRoom;
+    existing.capacity = targetCapacity;
     existing.pricePerNight = 0;
     existing.isAvailable = true;
     existing.isActive = true;
@@ -143,6 +166,7 @@ const syncServiceRoomsForGroup = async ({
     group,
     roomCount,
     targetRoomNumbers,
+    targetRoomCapacities,
     slotsPerRoom: normalizedSlotsPerRoom,
     created,
     updated,
