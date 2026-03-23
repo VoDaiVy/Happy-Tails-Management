@@ -82,7 +82,7 @@ const mapApiServiceToDetail = (apiService) => {
     title: apiService?.name || "Service",
     shortDesc: apiService?.description || "",
     fullDesc: apiService?.description || "",
-    price: priceValue !== null ? `$${priceValue}` : "",
+    price: priceValue !== null ? `${new Intl.NumberFormat("vi-VN").format(priceValue)}đ` : "",
     priceValue,
     priceUnit: isBoarding ? "/ night" : undefined,
     serviceType: isBoarding ? "boarding" : "spa",

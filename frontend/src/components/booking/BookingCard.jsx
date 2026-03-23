@@ -172,7 +172,7 @@ const BookingCard = ({
         // confirmed -> in-progress
         if (booking.status === "confirmed") {
           return (
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 space-y-2">
               <button
                 onClick={() => onUpdateStatus(booking, "in-progress")}
                 className="w-full py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
@@ -180,20 +180,54 @@ const BookingCard = ({
                 <PlayCircle size={16} />
                 Bắt đầu thực hiện
               </button>
+              <button
+                onClick={() => onUpdateStatus(booking, "cancelled")}
+                className="w-full py-1.5 px-3 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <XCircle size={16} />
+                Cancel
+              </button>
             </div>
           );
         }
 
-        // in-progress -> completed
+        // in-progress -> completed/cancelled
         if (booking.status === "in-progress") {
           return (
-            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 space-y-2">
               <button
                 onClick={() => onUpdateStatus(booking, "completed")}
                 className="w-full py-1.5 px-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle size={16} />
                 Complete
+              </button>
+              <button
+                onClick={() => onUpdateStatus(booking, "cancelled")}
+                className="w-full py-1.5 px-3 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <XCircle size={16} />
+                Cancel
+              </button>
+            </div>
+          );
+        }
+
+        // completed -> update is intentionally handled in booking detail modal only.
+        if (booking.status === "completed") {
+          return null;
+        }
+
+        // cancelled -> in-progress
+        if (booking.status === "cancelled") {
+          return (
+            <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+              <button
+                onClick={() => onUpdateStatus(booking, "in-progress")}
+                className="w-full py-1.5 px-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <PlayCircle size={16} />
+                Quay lại In Progress
               </button>
             </div>
           );

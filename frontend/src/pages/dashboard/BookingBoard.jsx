@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,12 +32,6 @@ import { uploadMultipleImages } from "../../api/uploadApi";
 // Status tabs configuration
 const STATUS_TABS_STAFF = [
   { key: "all", label: "All", icon: LayoutGrid, color: "text-gray-600" },
-  {
-    key: "pending",
-    label: "Pending",
-    icon: AlertCircle,
-    color: "text-amber-500",
-  },
   {
     key: "confirmed",
     label: "Accepted",
@@ -92,6 +86,40 @@ const STATUS_TABS_ADMIN = [
   },
 ];
 
+const getBookingStatusDeadline = (booking) => {
+  const itemEndTimes = (booking?.items || [])
+    .map((item) => new Date(item?.endTime))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  let bookingEndTime = null;
+  if (itemEndTimes.length) {
+    bookingEndTime = new Date(
+      Math.max(...itemEndTimes.map((date) => date.getTime())),
+    );
+  }
+
+  if (!bookingEndTime) {
+    const bookingDate = booking?.bookingDate
+      ? new Date(booking.bookingDate)
+      : null;
+
+    if (bookingDate && !Number.isNaN(bookingDate.getTime())) {
+      const [h = "0", m = "0"] = String(booking?.bookingTime || "00:00").split(":");
+      bookingDate.setHours(Number(h) || 0, Number(m) || 0, 0, 0);
+
+      const totalDuration = (booking?.items || []).reduce((sum, item) => {
+        const duration = Number(item?.service?.duration) || 0;
+        return sum + Math.max(0, duration);
+      }, 0);
+
+      bookingEndTime = new Date(bookingDate.getTime() + totalDuration * 60 * 1000);
+    }
+  }
+
+  if (!bookingEndTime || Number.isNaN(bookingEndTime.getTime())) return null;
+  return new Date(bookingEndTime.getTime() + 15 * 60 * 1000);
+};
+
 const BookingBoard = () => {
   const location = useLocation();
 
@@ -119,6 +147,22 @@ const BookingBoard = () => {
   const [workflowFiles, setWorkflowFiles] = useState([]);
   const [workflowError, setWorkflowError] = useState(null);
   const [workflowSubmitting, setWorkflowSubmitting] = useState(false);
+
+  const workflowFilePreviews = useMemo(
+    () =>
+      workflowFiles.map((file, index) => ({
+        key: `${file.name}:${file.size}:${file.lastModified}:${index}`,
+        name: file.name,
+        url: URL.createObjectURL(file),
+      })),
+    [workflowFiles],
+  );
+
+  useEffect(() => {
+    return () => {
+      workflowFilePreviews.forEach((item) => URL.revokeObjectURL(item.url));
+    };
+  }, [workflowFilePreviews]);
 
   // Get current user ID from localStorage
   const getCurrentUserId = () => {
@@ -347,6 +391,28 @@ const BookingBoard = () => {
         return;
       }
 
+      const statusDeadline = getBookingStatusDeadline(booking);
+      if (statusDeadline && Date.now() > statusDeadline.getTime()) {
+        alert("Booking đã hết thời gian cập nhật trạng thái (quá thời điểm kết thúc + 15 phút).");
+        return;
+      }
+
+      const staffTransitions = {
+        pending: ["confirmed"],
+        confirmed: ["in-progress", "cancelled"],
+        "in-progress": ["completed", "cancelled"],
+        completed: ["in-progress"],
+        cancelled: ["in-progress"],
+      };
+
+      if (role === "staff") {
+        const allowed = staffTransitions[booking?.status] || [];
+        if (!allowed.includes(newStatus)) {
+          alert("Không thể đổi trạng thái theo luồng hiện tại.");
+          return;
+        }
+      }
+
       // Staff must complete medical workflow for check-in/check-out when booking has linked pets.
       const hasLinkedPet = Boolean(
         booking?.items?.some((item) => item?.pet) || booking?.boardingPet,
@@ -354,7 +420,8 @@ const BookingBoard = () => {
       if (
         role === "staff" &&
         hasLinkedPet &&
-        (newStatus === "in-progress" || newStatus === "completed")
+        ((booking?.status === "confirmed" && newStatus === "in-progress") ||
+          (booking?.status === "in-progress" && newStatus === "completed"))
       ) {
         openMedicalWorkflowModal(booking, newStatus);
         if (isModalOpen) {
@@ -557,9 +624,7 @@ const BookingBoard = () => {
             </div>
             <div>
               <p className="font-medium text-[#2D3436]">
-                {role === "staff" && activeTab === "pending"
-                  ? "No orders to process"
-                  : "No bookings yet"}
+                No bookings yet
               </p>
               <p className="text-sm text-gray-500 mt-1">
                 {searchQuery || selectedDate
@@ -597,16 +662,8 @@ const BookingBoard = () => {
       {!loading && !error && bookings.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-4">
           <div
-            className={`grid gap-4 ${role === "admin" ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-5"}`}
+            className={`grid gap-4 ${role === "admin" ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4"}`}
           >
-            {role === "staff" && (
-              <div className="text-center p-3 bg-amber-50 rounded-xl">
-                <p className="text-2xl font-bold text-amber-600">
-                  {statusCounts.pending}
-                </p>
-                <p className="text-xs text-amber-600/80">Pending</p>
-              </div>
-            )}
             <div className="text-center p-3 bg-blue-50 rounded-xl">
               <p className="text-2xl font-bold text-blue-600">
                 {statusCounts.confirmed}
@@ -712,16 +769,61 @@ const BookingBoard = () => {
                       accept="image/*"
                       multiple
                       className="hidden"
-                      onChange={(e) =>
-                        setWorkflowFiles(Array.from(e.target.files || []))
-                      }
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.files || []);
+                        if (!selected.length) return;
+
+                        setWorkflowFiles((prev) => {
+                          const merged = [...prev, ...selected];
+                          const deduped = [];
+                          const seen = new Set();
+
+                          for (const file of merged) {
+                            const key = `${file.name}:${file.size}:${file.lastModified}`;
+                            if (seen.has(key)) continue;
+                            seen.add(key);
+                            deduped.push(file);
+                          }
+
+                          return deduped;
+                        });
+
+                        e.target.value = "";
+                      }}
                     />
                   </label>
                   {workflowFiles.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Selected {workflowFiles.length} file(s):{" "}
-                      {workflowFiles.map((f) => f.name).join(", ")}
-                    </p>
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-gray-500">
+                        Selected {workflowFiles.length} file(s)
+                      </p>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {workflowFilePreviews.map((file, index) => (
+                          <div
+                            key={file.key}
+                            className="relative rounded-lg border border-gray-200 overflow-hidden bg-gray-50"
+                          >
+                            <img
+                              src={file.url}
+                              alt={file.name}
+                              className="w-full h-20 object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setWorkflowFiles((prev) =>
+                                  prev.filter((_, idx) => idx !== index),
+                                )
+                              }
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/65 text-white text-xs leading-none"
+                              title="Xóa ảnh"
+                            >
+                              x
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

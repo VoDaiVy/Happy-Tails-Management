@@ -41,6 +41,12 @@ export const deleteVoucher = async (id) => {
   return response;
 };
 
+// Get available vouchers (Customer)
+export const getAvailableVouchersForCustomer = async (params = {}) => {
+  const response = await axiosInstance.get('/vouchers/available', { params });
+  return response;
+};
+
 // AI Suggest Voucher (Admin)
 export const aiSuggestVoucher = async () => {
   const response = await axiosInstance.post("/ai/suggest-voucher");

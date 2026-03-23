@@ -263,7 +263,15 @@ exports.updateStage = catchAsync(async (req, res, next) => {
     'system',
     'Medical Record Updated',
     `Your pet's medical record is now: ${stageLabels[stage]}`,
-    { priority: stage === 'completed' ? 'high' : 'medium', metadata: { recordId: record._id } }
+    {
+      priority: stage === 'completed' ? 'high' : 'medium',
+      actionUrl: '/bookings',
+      metadata: {
+        recordId: record._id,
+        bookingId: record.booking,
+        stage,
+      },
+    }
   );
 
   res.status(200).json({

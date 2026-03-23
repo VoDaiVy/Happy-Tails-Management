@@ -21,6 +21,7 @@ import {
 import { addServiceToCart } from "../../api/cartApi";
 import { getMyPets } from "../../api/petApi";
 import { getWallet } from "../../api/walletApi";
+import { getAvailableVouchersForCustomer } from "../../api/voucherApi";
 import axiosInstance from "../../api/axiosInstance";
 import { generateTimeSlots } from "../../data/servicesData";
 import { useAuth } from "../../context/AuthContext";
@@ -71,6 +72,19 @@ const parsePriceToNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const calculateVoucherDiscount = (voucher, amount) => {
+  const total = Math.max(0, Number(amount) || 0);
+  if (!voucher || total <= 0) return 0;
+
+  if (voucher.discountType === "percentage") {
+    const raw = (total * Number(voucher.discountValue || 0)) / 100;
+    const maxDiscount = voucher.maxDiscount ? Number(voucher.maxDiscount) : Infinity;
+    return Math.max(0, Math.min(raw, maxDiscount));
+  }
+
+  return Math.max(0, Number(voucher.discountValue || 0));
+};
+
 export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
@@ -89,12 +103,19 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
   const [confirmedData, setConfirmedData] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherMessage, setVoucherMessage] = useState("");
+  const [voucherError, setVoucherError] = useState("");
   const { isAuthenticated, user, token } = useAuth();
 
   const today = new Date().toISOString().split("T")[0];
   const hasValidSession = Boolean(isAuthenticated && user && token);
   const navigate = useNavigate();
   const location = useLocation();
+  const linkedServiceId = service.apiServiceId || service._id || null;
   const servicePrice = useMemo(() => {
     const priceFromValue = parsePriceToNumber(service.priceValue);
     if (priceFromValue > 0) return priceFromValue;
@@ -105,10 +126,39 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
     return Math.max(15, Number(service.intervalMinutes) || 15);
   }, [service.duration, service.intervalMinutes]);
+
+  const isVoucherApplicableToService = useMemo(
+    () => (voucher) => {
+      if (!voucher) return false;
+
+      const minSpend = Number(voucher.minSpend || 0);
+      if (servicePrice < minSpend) return false;
+
+      const applicableServices = Array.isArray(voucher.applicableServices)
+        ? voucher.applicableServices.map((id) => String(id))
+        : [];
+
+      if (!applicableServices.length) return true;
+      if (!linkedServiceId) return false;
+      return applicableServices.includes(String(linkedServiceId));
+    },
+    [linkedServiceId, servicePrice],
+  );
+
+  const discountAmount = useMemo(() => {
+    if (!appliedVoucher || !isVoucherApplicableToService(appliedVoucher)) return 0;
+    return calculateVoucherDiscount(appliedVoucher, servicePrice);
+  }, [appliedVoucher, isVoucherApplicableToService, servicePrice]);
+
+  const payableAmount = useMemo(
+    () => Math.max(0, Number(servicePrice || 0) - Number(discountAmount || 0)),
+    [servicePrice, discountAmount],
+  );
+
   const requiredTopUpAmount = useMemo(() => {
     if (walletBalance === null) return 0;
-    return Math.max(0, Math.ceil(servicePrice - Number(walletBalance || 0)));
-  }, [servicePrice, walletBalance]);
+    return Math.max(0, Math.ceil(payableAmount - Number(walletBalance || 0)));
+  }, [payableAmount, walletBalance]);
 
   const handleTopUpWallet = () => {
     const currentPath = `${location.pathname}${location.search || ""}${location.hash || ""}`;
@@ -130,6 +180,44 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
       .catch(() => setWalletBalance(null))
       .finally(() => setWalletLoading(false));
   }, [hasValidSession]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!hasValidSession) {
+      setAvailableVouchers([]);
+      return;
+    }
+
+    setVoucherLoading(true);
+    getAvailableVouchersForCustomer({ limit: 50 })
+      .then((res) => {
+        if (!alive) return;
+        const rows = Array.isArray(res?.data?.data?.vouchers)
+          ? res.data.data.vouchers
+          : [];
+        setAvailableVouchers(rows);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setAvailableVouchers([]);
+      })
+      .finally(() => {
+        if (alive) setVoucherLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [hasValidSession]);
+
+  useEffect(() => {
+    if (!appliedVoucher) return;
+    if (isVoucherApplicableToService(appliedVoucher)) return;
+
+    setAppliedVoucher(null);
+    setVoucherMessage("");
+    setVoucherError("This voucher is not applicable to this service.");
+  }, [appliedVoucher, isVoucherApplicableToService]);
 
   useEffect(() => {
     let alive = true;
@@ -169,7 +257,6 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
       selectedDate ? generateTimeSlots(service.intervalMinutes || 15) : [],
     [selectedDate, service.intervalMinutes],
   );
-  const linkedServiceId = service.apiServiceId || service._id || null;
 
   useEffect(() => {
     let alive = true;
@@ -322,7 +409,7 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
     selectedPet &&
     Boolean(linkedServiceId) &&
     !isSubmitting &&
-    (walletBalance === null || walletBalance >= servicePrice);
+    (walletBalance === null || walletBalance >= payableAmount);
   const pets = apiPets;
 
   // Calculate End Time
@@ -403,7 +490,7 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
       // Ensure the backend has this item in the cart, since it reads from cart based on user instruction to not touch backend
       try {
         await axiosInstance.delete("/cart");
-      } catch (err) {
+      } catch {
         // ignore error if cart is already empty
       }
 
@@ -418,6 +505,7 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
         appointmentDate,
         paymentMethod: "wallet",
         notes: note || "",
+        ...(appliedVoucher?.code ? { voucherCode: appliedVoucher.code } : {}),
       });
 
       const bookingNumber = result?.data?.booking?.bookingNumber;
@@ -455,6 +543,10 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
       setSelectedSlot("");
       setSelectedPet("");
       setNote("");
+      setAppliedVoucher(null);
+      setVoucherInput("");
+      setVoucherMessage("");
+      setVoucherError("");
     } catch (error) {
       console.error("Booking error:", error);
       console.error("Response data:", error?.response?.data);
@@ -485,6 +577,34 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleApplyVoucher = () => {
+    setVoucherError("");
+    setVoucherMessage("");
+
+    const code = voucherInput.trim().toUpperCase();
+    if (!code) {
+      setVoucherError("Please enter a voucher code.");
+      return;
+    }
+
+    const found = availableVouchers.find(
+      (voucher) => String(voucher.code || "").toUpperCase() === code,
+    );
+
+    if (!found) {
+      setVoucherError("Voucher code is invalid or unavailable for your account.");
+      return;
+    }
+
+    if (!isVoucherApplicableToService(found)) {
+      setVoucherError("Voucher cannot be applied to this service yet (min spend or service mismatch).");
+      return;
+    }
+
+    setAppliedVoucher(found);
+    setVoucherMessage("Voucher applied successfully.");
   };
 
   if (confirmedData) {
@@ -733,7 +853,80 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
           locked={step4Locked}
         />
 
-        {/* Wallet Balance */}
+        {hasValidSession && (
+          <div className="rounded-lg border border-[#1F2A37]/10 bg-[#FAF8F4] p-2.5 space-y-1.5 mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[#1F2A37]/60">Voucher</p>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={voucherInput}
+                onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                className="flex-1 rounded-md border border-[#1F2A37]/15 px-2 py-1.5 text-[11px] outline-none focus:border-[#E07A5F]"
+                placeholder="Enter voucher code"
+              />
+              <button
+                type="button"
+                onClick={handleApplyVoucher}
+                disabled={voucherLoading || !voucherInput.trim()}
+                className="rounded-md bg-[#E07A5F] text-white text-[11px] font-bold px-2.5 py-1.5 disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </div>
+
+            {appliedVoucher && (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700 flex items-center justify-between gap-2">
+                <span>Voucher applied</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppliedVoucher(null);
+                    setVoucherInput("");
+                    setVoucherMessage("");
+                    setVoucherError("");
+                  }}
+                  className="underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {voucherLoading && (
+              <p className="text-[11px] text-[#1F2A37]/55">Checking vouchers...</p>
+            )}
+            {voucherMessage && (
+              <p className="text-[11px] text-emerald-700">{voucherMessage}</p>
+            )}
+            {voucherError && (
+              <p className="text-[11px] text-red-600">{voucherError}</p>
+            )}
+          </div>
+        )}
+
+        <div className="rounded-lg border border-[#1F2A37]/10 bg-[#F5F1EB] p-3 text-xs mb-3 space-y-1.5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[#1F2A37]/60">Payment Bill</p>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500">Service fee:</span>
+            <span className="font-semibold text-[#1F2A37]">
+              {servicePrice.toLocaleString("en-US")}đ
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-500">Voucher discount:</span>
+            <span className="font-semibold text-emerald-600">
+              -{discountAmount.toLocaleString("en-US")}đ
+            </span>
+          </div>
+          <hr className="border-dashed border-gray-300" />
+          <div className="flex justify-between items-center">
+            <span className="text-[#1F2A37] font-bold">Total payable:</span>
+            <span className="font-bold text-[#E07A5F]">
+              {payableAmount.toLocaleString("en-US")}đ
+            </span>
+          </div>
+        </div>
+
         {hasValidSession && (
           <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs mb-3">
             <div className="flex justify-between items-center">
@@ -743,24 +936,18 @@ export default function ServiceBookingPanel({ service, onAddToCartSuccess }) {
               ) : walletBalance !== null ? (
                 <span
                   className={
-                    walletBalance >= servicePrice
+                    walletBalance >= payableAmount
                       ? "text-green-600 font-bold"
                       : "text-red-500 font-bold"
                   }
                 >
-                  {walletBalance.toLocaleString("en-US")} VND
+                  {walletBalance.toLocaleString("en-US")}đ
                 </span>
               ) : (
                 <span className="text-gray-400">Unavailable</span>
               )}
             </div>
-            <div className="flex justify-between items-center mt-1">
-              <span className="text-gray-500">Service fee:</span>
-              <span className="font-bold text-[#E07A5F]">
-                {servicePrice.toLocaleString("en-US")} VND
-              </span>
-            </div>
-            {walletBalance !== null && walletBalance < servicePrice && (
+            {walletBalance !== null && walletBalance < payableAmount && (
               <div className="mt-2 rounded bg-red-50 border border-red-100 px-2 py-1 text-red-600">
                 Insufficient balance. Please{" "}
                 <button

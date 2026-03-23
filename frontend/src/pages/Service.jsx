@@ -342,7 +342,7 @@ const toSpaCard = (service, index = 0) => {
     fullDesc: service.description || "",
     price:
       typeof service.price === "number"
-        ? `$${service.price}`
+        ? `${new Intl.NumberFormat("vi-VN").format(service.price)}đ`
         : service.price || "",
     priceValue: typeof service.price === "number" ? service.price : 0,
     duration:
@@ -1201,7 +1201,7 @@ const ServicePage = () => {
                       </p>
                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1F2A37]/5 gap-2">
                         <span className="text-[#E07A5F] font-black text-[16px]">
-                          ${service.price}
+                          {new Intl.NumberFormat("vi-VN").format(service.price)}đ
                         </span>
                         <div className="flex items-center gap-2">
                           {hasValidSession && (
@@ -1693,7 +1693,7 @@ const ServicePage = () => {
                               </h3>
                               <div className="text-right">
                                 <p className={`font-black text-lg leading-none ${accentTone.price}`}>
-                                  ${room.pricePerNight}
+                                  {new Intl.NumberFormat("vi-VN").format(room.pricePerNight)}đ
                                 </p>
                                 <p className="text-[10px] text-white/45 uppercase tracking-widest">/ night</p>
                               </div>

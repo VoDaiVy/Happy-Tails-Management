@@ -4,7 +4,20 @@
  * triggered by system events (booking status changes, medical record updates, etc.)
  */
 
-const Notification = require('../models/Notification');
+const notificationService = require("../services/notification.service");
+
+const TYPE_MAP = {
+  booking: "order",
+  order: "order",
+  payment: "payment",
+  reminder: "system",
+  system: "system",
+  promotion: "promotion",
+  general: "system",
+  account: "account",
+};
+
+const normalizeType = (type) => TYPE_MAP[String(type || "").toLowerCase()] || "system";
 
 /**
  * Send an automatic notification without blocking the calling request.
@@ -19,18 +32,21 @@ const Notification = require('../models/Notification');
 const sendAutoNotification = async (recipientId, type, title, message, options = {}) => {
   if (!recipientId) return;
   try {
-    await Notification.create({
-      recipient: recipientId,
-      type,
-      title,
-      message,
-      priority: options.priority || 'medium',
-      link:     options.link     || null,
-      metadata: options.metadata || {}
+    await notificationService.send(recipientId, {
+      title: String(title || "Thông báo"),
+      body: String(message || "Bạn có thông báo mới."),
+      type: normalizeType(type),
+      actionUrl: options.actionUrl || options.link || null,
+      imageUrl: options.imageUrl || null,
+      metadata: {
+        ...(options.metadata || {}),
+        sourceType: String(type || "system"),
+        priority: options.priority || "medium",
+      },
     });
   } catch (err) {
     // Never let a notification failure break the main flow
-    console.error('[notificationHelper] Failed to create notification:', err.message);
+    console.error("[notificationHelper] Failed to create notification:", err.message);
   }
 };
 
