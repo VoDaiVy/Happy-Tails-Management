@@ -4,6 +4,11 @@
  */
 
 const GroupCapacityConfig = require('../models/GroupCapacityConfig');
+const {
+  SLOTS_PER_ROOM,
+  deriveRoomCount,
+  syncServiceRoomsForGroup,
+} = require('../services/serviceGroupRoomSync.service');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError } = require('../utils/AppError');
 
@@ -55,7 +60,7 @@ exports.getGroupCapacity = catchAsync(async (req, res, next) => {
  * @access Private (Admin)
  */
 exports.createGroupCapacity = catchAsync(async (req, res, next) => {
-  const { group, maxCapacity, roomCount, slotsPerRoom, description } = req.body;
+  const { group, maxCapacity, slotsPerRoom, description } = req.body;
 
   if (!group || !['wet', 'dry'].includes(group)) {
     return next(new AppError('Group must be either "wet" or "dry"', 400, 'INVALID_GROUP'));
@@ -67,9 +72,23 @@ exports.createGroupCapacity = catchAsync(async (req, res, next) => {
     return next(new AppError(`Group capacity config for "${group}" already exists`, 409, 'CONFIG_EXISTS'));
   }
 
-  const normalizedMaxCapacity = Number(maxCapacity) || 6;
-  const normalizedRoomCount = Number(roomCount) || 2;
-  const normalizedSlotsPerRoom = Number(slotsPerRoom) || 3;
+  if (maxCapacity !== undefined) {
+    const parsedMaxCapacity = Number(maxCapacity);
+    if (!Number.isFinite(parsedMaxCapacity) || parsedMaxCapacity < 1 || parsedMaxCapacity > 20) {
+      return next(new AppError('Max capacity must be a number between 1 and 20', 400, 'INVALID_CAPACITY'));
+    }
+  }
+
+  if (slotsPerRoom !== undefined) {
+    const parsedSlotsPerRoom = Number(slotsPerRoom);
+    if (!Number.isFinite(parsedSlotsPerRoom) || parsedSlotsPerRoom < 1 || parsedSlotsPerRoom > 20) {
+      return next(new AppError('Slots per room must be a number between 1 and 20', 400, 'INVALID_SLOTS_PER_ROOM'));
+    }
+  }
+
+  const normalizedMaxCapacity = Math.max(1, Number(maxCapacity) || 6);
+  const normalizedSlotsPerRoom = Math.max(1, Number(slotsPerRoom) || SLOTS_PER_ROOM);
+  const normalizedRoomCount = deriveRoomCount(normalizedMaxCapacity, normalizedSlotsPerRoom);
 
   const config = await GroupCapacityConfig.create({
     group,
@@ -80,12 +99,20 @@ exports.createGroupCapacity = catchAsync(async (req, res, next) => {
     createdBy: req.user.id
   });
 
+  const syncSummary = await syncServiceRoomsForGroup({
+    group,
+    maxCapacity: normalizedMaxCapacity,
+    slotsPerRoom: normalizedSlotsPerRoom,
+    actorId: req.user.id,
+    isActive: true,
+  });
+
   await config.populate('createdBy', 'name email');
 
   res.status(201).json({
     status: 'success',
     message: 'Group capacity config created successfully',
-    data: { config }
+    data: { config, roomSync: syncSummary }
   });
 });
 
@@ -96,7 +123,7 @@ exports.createGroupCapacity = catchAsync(async (req, res, next) => {
  */
 exports.updateGroupCapacity = catchAsync(async (req, res, next) => {
   const { group } = req.params;
-  const { maxCapacity, roomCount, slotsPerRoom, description, isActive } = req.body;
+  const { maxCapacity, slotsPerRoom, description, isActive } = req.body;
 
   if (!['wet', 'dry'].includes(group)) {
     return next(new AppError('Group must be either "wet" or "dry"', 400, 'INVALID_GROUP'));
@@ -109,24 +136,19 @@ exports.updateGroupCapacity = catchAsync(async (req, res, next) => {
 
   // Update fields
   if (maxCapacity !== undefined) {
-    if (!Number.isFinite(maxCapacity) || maxCapacity < 1 || maxCapacity > 20) {
+    const parsedMaxCapacity = Number(maxCapacity);
+    if (!Number.isFinite(parsedMaxCapacity) || parsedMaxCapacity < 1 || parsedMaxCapacity > 20) {
       return next(new AppError('Max capacity must be a number between 1 and 20', 400, 'INVALID_CAPACITY'));
     }
-    config.maxCapacity = maxCapacity;
-  }
-
-  if (roomCount !== undefined) {
-    if (!Number.isFinite(roomCount) || roomCount < 1) {
-      return next(new AppError('Room count must be a positive number', 400, 'INVALID_ROOM_COUNT'));
-    }
-    config.roomCount = roomCount;
+    config.maxCapacity = parsedMaxCapacity;
   }
 
   if (slotsPerRoom !== undefined) {
-    if (!Number.isFinite(slotsPerRoom) || slotsPerRoom < 1) {
-      return next(new AppError('Slots per room must be a positive number', 400, 'INVALID_SLOTS'));
+    const parsedSlotsPerRoom = Number(slotsPerRoom);
+    if (!Number.isFinite(parsedSlotsPerRoom) || parsedSlotsPerRoom < 1 || parsedSlotsPerRoom > 20) {
+      return next(new AppError('Slots per room must be a number between 1 and 20', 400, 'INVALID_SLOTS_PER_ROOM'));
     }
-    config.slotsPerRoom = slotsPerRoom;
+    config.slotsPerRoom = parsedSlotsPerRoom;
   }
 
   if (description !== undefined) {
@@ -137,14 +159,25 @@ exports.updateGroupCapacity = catchAsync(async (req, res, next) => {
     config.isActive = Boolean(isActive);
   }
 
+  config.roomCount = deriveRoomCount(config.maxCapacity, config.slotsPerRoom);
+
   config.updatedBy = req.user.id;
   await config.save();
+
+  const syncSummary = await syncServiceRoomsForGroup({
+    group,
+    maxCapacity: config.maxCapacity,
+    slotsPerRoom: config.slotsPerRoom,
+    actorId: req.user.id,
+    isActive: config.isActive,
+  });
+
   await config.populate('createdBy updatedBy', 'name email');
 
   res.status(200).json({
     status: 'success',
     message: 'Group capacity config updated successfully',
-    data: { config }
+    data: { config, roomSync: syncSummary }
   });
 });
 
@@ -186,6 +219,7 @@ exports.deleteGroupCapacity = catchAsync(async (req, res, next) => {
 exports.initializeDefaultConfigs = catchAsync(async (req, res, next) => {
   const groups = ['wet', 'dry'];
   const created = [];
+  const syncResults = [];
 
   for (const group of groups) {
     const existing = await GroupCapacityConfig.findOne({ group });
@@ -193,18 +227,43 @@ exports.initializeDefaultConfigs = catchAsync(async (req, res, next) => {
       const config = await GroupCapacityConfig.create({
         group,
         maxCapacity: 6,
-        roomCount: 2,
-        slotsPerRoom: 3,
+        roomCount: deriveRoomCount(6, SLOTS_PER_ROOM),
+        slotsPerRoom: SLOTS_PER_ROOM,
         description: `Default capacity config for ${group} services`,
         createdBy: req.user.id
       });
       created.push(config);
+      syncResults.push(
+        await syncServiceRoomsForGroup({
+          group,
+          maxCapacity: config.maxCapacity,
+          slotsPerRoom: config.slotsPerRoom,
+          actorId: req.user.id,
+          isActive: true,
+        })
+      );
+      continue;
     }
+
+    existing.slotsPerRoom = Math.max(1, Number(existing.slotsPerRoom) || SLOTS_PER_ROOM);
+    existing.roomCount = deriveRoomCount(existing.maxCapacity, existing.slotsPerRoom);
+    existing.updatedBy = req.user.id;
+    await existing.save();
+
+    syncResults.push(
+      await syncServiceRoomsForGroup({
+        group,
+        maxCapacity: existing.maxCapacity,
+        slotsPerRoom: existing.slotsPerRoom,
+        actorId: req.user.id,
+        isActive: existing.isActive,
+      })
+    );
   }
 
   res.status(200).json({
     status: 'success',
     message: `Initialized ${created.length} default group capacity configs`,
-    data: { created }
+    data: { created, roomSync: syncResults }
   });
 });

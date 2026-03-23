@@ -12,6 +12,7 @@ const Transaction = require("../models/Transaction");
 const Voucher = require("../models/Voucher");
 const MedicalRecord = require("../models/MedicalRecord");
 const GroupCapacityConfig = require("../models/GroupCapacityConfig");
+const { deleteImages } = require("../services/upload.service");
 const { catchAsync } = require("../utils/catchAsync");
 const { AppError } = require("../utils/AppError");
 const { sendAutoNotification } = require("../utils/notificationHelper");
@@ -59,6 +60,42 @@ const parseAppointmentDate = ({
     return null;
   }
   return new Date(`${bookingDate}T${bookingTime}:00`);
+};
+
+const getBookingStatusDeadline = (booking) => {
+  const itemEndTimes = (booking?.items || [])
+    .map((item) => new Date(item?.endTime))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  let bookingEndTime = null;
+  if (itemEndTimes.length > 0) {
+    bookingEndTime = new Date(
+      Math.max(...itemEndTimes.map((date) => date.getTime())),
+    );
+  }
+
+  if (!bookingEndTime) {
+    const appointment = parseAppointmentDate({
+      appointmentDate: booking?.bookingDate,
+      bookingDate: booking?.bookingDate,
+      bookingTime: booking?.bookingTime,
+    });
+
+    if (appointment && !Number.isNaN(appointment.getTime())) {
+      const totalDurationMins = (booking?.items || []).reduce((sum, item) => {
+        const duration = Number(item?.service?.duration) || 0;
+        return sum + Math.max(0, duration);
+      }, 0);
+
+      bookingEndTime = new Date(
+        appointment.getTime() + totalDurationMins * 60 * 1000,
+      );
+    }
+  }
+
+  if (!bookingEndTime || Number.isNaN(bookingEndTime.getTime())) return null;
+
+  return new Date(bookingEndTime.getTime() + 15 * 60 * 1000);
 };
 
 const startOfDay = (date) => {
@@ -549,6 +586,17 @@ const validateCapacityAndAssignRooms = async (scheduledItems, serviceRoomRuntime
 
 const MEDICAL_STAGE_ORDER = { received: 0, processing: 1, completed: 2 };
 
+const STAFF_ALLOWED_STATUS_TRANSITIONS = {
+  pending: ["confirmed"],
+  confirmed: ["in-progress", "cancelled"],
+  "in-progress": ["completed", "cancelled"],
+  completed: ["in-progress"],
+  cancelled: ["in-progress"],
+};
+
+const isStaffTransitionAllowed = (fromStatus, toStatus) =>
+  (STAFF_ALLOWED_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
+
 const normalizeMedicalPhotos = (photos = []) => {
   if (!Array.isArray(photos)) return [];
 
@@ -571,6 +619,9 @@ const appendMedicalNote = (existingNotes, label, notes) => {
   const merged = `[${label}] ${incoming}`;
   return current ? `${current}\n${merged}` : merged;
 };
+
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const toObjectIdString = (value) => {
   if (!value) return null;
@@ -636,6 +687,26 @@ const getUniqueBookingPets = (booking) => {
     petId: entry.petId,
     serviceNames: [...entry.serviceNames],
   }));
+};
+
+const getBookingPetNames = (booking) => {
+  const names = new Set();
+
+  for (const item of booking?.items || []) {
+    const petName = String(item?.pet?.petName || "").trim();
+    if (petName) names.add(petName);
+  }
+
+  const boardingPetName = String(booking?.boardingPet?.petName || "").trim();
+  if (boardingPetName) names.add(boardingPetName);
+
+  return [...names];
+};
+
+const buildPetLabel = (booking) => {
+  const names = getBookingPetNames(booking);
+  if (!names.length) return "thú cưng của bạn";
+  return names.length === 1 ? names[0] : `các bé ${names.join(", ")}`;
 };
 
 const ensureMedicalRecordForBookingPet = async ({
@@ -726,6 +797,43 @@ const applyMedicalStageUpdate = async ({
   record.updatedBy = actorId;
 
   await record.save();
+};
+
+const rollbackCompletedMedicalStage = async ({ bookingId, actorId }) => {
+  const records = await MedicalRecord.find({ booking: bookingId }).select(
+    "completedPhotos processingPhotos receivedPhotos images stageHistory workflowStage updatedBy",
+  );
+
+  if (!records.length) return;
+
+  for (const record of records) {
+    const completedPhotos = Array.isArray(record.completedPhotos)
+      ? record.completedPhotos.filter(Boolean)
+      : [];
+
+    if (completedPhotos.length > 0) {
+      await deleteImages(completedPhotos);
+    }
+
+    if (completedPhotos.length > 0) {
+      const completedSet = new Set(completedPhotos);
+      record.images = (record.images || []).filter((img) => !completedSet.has(img));
+    }
+
+    record.completedPhotos = [];
+    record.stageHistory = (record.stageHistory || []).filter(
+      (entry) => entry?.stage !== "completed",
+    );
+
+    if (Array.isArray(record.processingPhotos) && record.processingPhotos.length > 0) {
+      record.workflowStage = "processing";
+    } else {
+      record.workflowStage = "received";
+    }
+
+    record.updatedBy = actorId;
+    await record.save();
+  }
 };
 
 const buildGuestPetKey = ({ phone, petName, petType }) => {
@@ -1093,6 +1201,60 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   const oldStatus = booking.status;
+
+  if (!status) {
+    return next(new AppError("Status is required", 400, "STATUS_REQUIRED"));
+  }
+
+  if (oldStatus === status) {
+    return res.status(200).json({
+      status: "success",
+      message: "Booking status unchanged",
+      data: { booking },
+    });
+  }
+
+  if (status === "pending") {
+    return next(
+      new AppError(
+        "Staff cannot move booking back to pending",
+        400,
+        "STAFF_PENDING_STATUS_FORBIDDEN",
+      ),
+    );
+  }
+
+  if (status === "confirmed" && oldStatus !== "pending") {
+    return next(
+      new AppError(
+        "Staff cannot set booking back to accepted",
+        400,
+        "STAFF_CONFIRMED_STATUS_FORBIDDEN",
+      ),
+    );
+  }
+
+  if (!isStaffTransitionAllowed(oldStatus, status)) {
+    return next(
+      new AppError(
+        `Invalid status transition from ${oldStatus} to ${status}`,
+        400,
+        "STAFF_STATUS_TRANSITION_FORBIDDEN",
+      ),
+    );
+  }
+
+  const statusDeadline = getBookingStatusDeadline(booking);
+  if (statusDeadline && Date.now() > statusDeadline.getTime()) {
+    return next(
+      new AppError(
+        "Cannot update status because booking time has expired (end time + 15 minutes)",
+        400,
+        "BOOKING_STATUS_UPDATE_WINDOW_EXPIRED",
+      ),
+    );
+  }
+
   booking.status = status;
 
   const usesItemLevelSpaRooms = booking.items?.some(
@@ -1119,7 +1281,7 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   // Require check-in notes/photos and sync them to medical records.
-  if (status === "in-progress" && oldStatus !== "in-progress") {
+  if (status === "in-progress" && oldStatus === "confirmed") {
     if (hasTrackablePets) {
       if (!medicalNotes) {
         return next(
@@ -1160,7 +1322,7 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   // Require check-out notes/photos and mark medical records as completed.
-  if (status === "completed" && oldStatus !== "completed") {
+  if (status === "completed" && oldStatus === "in-progress") {
     if (hasTrackablePets) {
       if (!medicalNotes) {
         return next(
@@ -1243,6 +1405,14 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
     await Room.findByIdAndUpdate(booking.room, { isAvailable: true });
   }
 
+  if (oldStatus === "completed" && status === "in-progress") {
+    await rollbackCompletedMedicalStage({
+      bookingId: booking._id,
+      actorId: req.user.id,
+    });
+    booking.completedAt = undefined;
+  }
+
   if (status === "completed") {
     booking.completedAt = Date.now();
   }
@@ -1250,27 +1420,31 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   await booking.save();
   await booking.populate("customer items.service items.pet assignedStaff room");
 
-  // Notify the customer about the status change
+  // Notify customer about status + medical check-in/check-out milestones.
+  const bookingActionUrl = "/bookings";
+  const petLabel = buildPetLabel(booking);
+  const checkinNoteSnippet = medicalNotes ? ` Check-in notes: ${medicalNotes}` : "";
+
   const notificationMessages = {
     confirmed: {
       title: "Booking Confirmed",
       message:
-        "Your booking has been confirmed. We look forward to seeing you!",
+        "Your booking has been confirmed successfully. You can go to Booking to track details.",
       priority: "high",
     },
     "in-progress": {
-      title: "Check-In Successful",
-      message: "Your pet has been checked in and is now in our care.",
+      title: "Pet Successfully Checked In",
+      message: `${petLabel} has been checked in and started spa care process. Medical record check-in step has been updated.${checkinNoteSnippet} Please go to Booking to view medical record details.`,
       priority: "high",
     },
     completed: {
       title: "Booking Completed",
-      message: "Your booking is complete. Thank you for choosing Happy Tails!",
+      message: "Service completed. You can go to Booking to view full medical records and care history.",
       priority: "medium",
     },
     cancelled: {
       title: "Booking Cancelled",
-      message: "Your booking has been cancelled by staff.",
+      message: "Your booking was cancelled by staff. You can go to Booking to view details and reschedule if needed.",
       priority: "high",
     },
   };
@@ -1281,7 +1455,16 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
       "booking",
       notif.title,
       notif.message,
-      { priority: notif.priority, metadata: { bookingId: booking._id } },
+      {
+        priority: notif.priority,
+        actionUrl: bookingActionUrl,
+        metadata: {
+          bookingId: booking._id,
+          oldStatus,
+          newStatus: status,
+          medicalStage: status === "in-progress" ? "received" : status === "completed" ? "completed" : null,
+        },
+      },
     );
   }
 
@@ -1600,14 +1783,14 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
 
   const day = new Date(date);
   if (Number.isNaN(day.getTime())) {
-    return next(new AppError("Ngày không hợp lệ", 400, "INVALID_DATE"));
+    return next(new AppError("Invalid date", 400, "INVALID_DATE"));
   }
 
   const service = await Service.findById(serviceId);
   if (!service || !service.isActive) {
     return next(
       new AppError(
-        "Dịch vụ không tồn tại hoặc không còn hoạt động",
+        "Service does not exist or is no longer active",
         404,
         "SERVICE_NOT_FOUND",
       ),
@@ -1705,7 +1888,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
   if (!apptDate || !petId) {
     return next(
       new AppError(
-        "Cần chọn thời gian dịch vụ (hoặc dùng giờ nhận phòng) và petId",
+        "Must select service time (or use check-in time) and petId",
         400,
         "MISSING_REQUIRED_FIELDS",
       ),
@@ -1714,14 +1897,14 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   if (Number.isNaN(apptDate.getTime())) {
     return next(
-      new AppError("appointmentDate không hợp lệ", 400, "INVALID_DATE"),
+      new AppError("Invalid appointment date", 400, "INVALID_DATE"),
     );
   }
 
   if (isBeforeNow(apptDate)) {
     return next(
       new AppError(
-        "Không thể chọn lịch trong quá khứ",
+        "Cannot select past appointment date",
         400,
         "PAST_APPOINTMENT_DATE",
       ),
@@ -1747,7 +1930,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   const cart = await Cart.findOne({ userId: req.user.id });
   if (!cart || cart.items.length === 0) {
-    return next(new AppError("Giỏ hàng đang trống", 400, "CART_EMPTY"));
+    return next(new AppError("Cart is empty", 400, "CART_EMPTY"));
   }
 
   cart.recalculate();
@@ -1762,7 +1945,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
   if (serviceCartItems.length === 0) {
     return next(
       new AppError(
-        "Giỏ hàng phải có ít nhất 1 dịch vụ",
+        "Cart must contain at least 1 service",
         400,
         "CART_NO_SERVICE_ITEM",
       ),
@@ -1826,7 +2009,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       if (!stayRange) {
         return next(
           new AppError(
-            "Ngày nhận/trả phòng không hợp lệ",
+            "Invalid check-in/check-out date",
             400,
             "INVALID_STAY_RANGE",
           ),
@@ -1839,7 +2022,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       ) {
         return next(
           new AppError(
-            "Không thể chọn ngày nhận phòng trong quá khứ",
+            "Cannot select past check-in date",
             400,
             "PAST_CHECKIN_DATE",
           ),
@@ -1849,7 +2032,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       if (apptDate < stayRange.checkIn || apptDate >= stayRange.checkOut) {
         return next(
           new AppError(
-            "Lịch hẹn dịch vụ phải nằm trong khoảng thời gian lưu trú",
+            "Appointment must be within stay period",
             400,
             "APPOINTMENT_OUTSIDE_STAY",
           ),
@@ -1861,7 +2044,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
       if (!requestedRoom || !requestedRoom.isActive) {
         return next(
-          new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"),
+          new AppError("Accommodation room not found", 404, "ROOM_NOT_FOUND"),
         );
       }
 
@@ -1899,7 +2082,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         if (!replacement) {
           return next(
             new AppError(
-              "Không còn phòng trống trong khoảng nhận/trả đã chọn. Vui lòng đổi ngày hoặc giờ trả phòng.",
+              "No rooms available for selected check-in/check-out period. Please change dates or times.",
               409,
               "ROOM_STAY_CONFLICT",
             ),
@@ -1957,7 +2140,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     if (petConflict) {
       return next(
         new AppError(
-          "Thú cưng này đã có lịch hẹn trùng với khung giờ trên. Vui lòng chọn thời gian khác.",
+          "This pet already has an overlapping appointment. Please select a different time.",
           409,
           "PET_SCHEDULE_CONFLICT",
         ),
@@ -1989,6 +2172,45 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
           ),
         );
       }
+
+      if (
+        Array.isArray(voucher.targetCustomers) &&
+        voucher.targetCustomers.length > 0 &&
+        !voucher.targetCustomers.some(
+          (customerId) => String(customerId) === String(req.user.id),
+        )
+      ) {
+        return next(
+          new AppError(
+            "This voucher is not assigned to your account",
+            403,
+            "VOUCHER_NOT_ASSIGNED_TO_USER",
+          ),
+        );
+      }
+
+      const voucherNotePattern = new RegExp(
+        `\\bVoucher\\s+${escapeRegex(voucher.code)}\\b`,
+        "i",
+      );
+
+      const usedByCurrentUser = await Transaction.countDocuments({
+        userId: req.user.id,
+        type: "payment",
+        status: { $in: ["pending", "completed"] },
+        notes: { $regex: voucherNotePattern },
+      });
+
+      if (usedByCurrentUser >= 1) {
+        return next(
+          new AppError(
+            "You have already used this voucher",
+            400,
+            "VOUCHER_USER_LIMIT_REACHED",
+          ),
+        );
+      }
+
       if (totalAmount < voucher.minSpend) {
         return next(
           new AppError(
@@ -2131,16 +2353,24 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
           req.user.id,
           "booking",
           "Booking Confirmed",
-          "Đơn booking của bạn đã được xác nhận thành công. Vui lòng đến cửa hàng đúng giờ để staff tiếp nhận pet.",
-          { priority: "high", metadata: { bookingId: booking._id } },
+          "Your booking has been confirmed successfully. Please arrive at the center on time for staff to receive your pet.",
+          {
+            priority: "high",
+            actionUrl: "/bookings",
+            metadata: { bookingId: booking._id, source: "checkout-service" },
+          },
         );
       } else {
         await sendAutoNotification(
           req.user.id,
           "booking",
           "Booking Pending Payment",
-          "Đơn booking đã được tạo ở trạng thái chờ thanh toán. Vui lòng nạp ví và thanh toán lại trong Booking History.",
-          { priority: "high", metadata: { bookingId: booking._id } },
+          "Booking created with pending payment status. Please top up wallet and pay from Booking History.",
+          {
+            priority: "high",
+            actionUrl: "/bookings",
+            metadata: { bookingId: booking._id, source: "checkout-service-pending" },
+          },
         );
       }
 
@@ -2372,7 +2602,11 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
         "booking",
         "Boarding Booking Confirmed",
         "Đơn lưu trú của bạn đã được xác nhận thành công.",
-        { priority: "high", metadata: { bookingId: booking._id } },
+        {
+          priority: "high",
+          actionUrl: "/bookings",
+          metadata: { bookingId: booking._id, source: "checkout-boarding" },
+        },
       );
     } else {
       await sendAutoNotification(
@@ -2380,7 +2614,11 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
         "booking",
         "Boarding Booking Pending Payment",
         "Đơn lưu trú đã được tạo ở trạng thái chờ thanh toán. Vui lòng nạp ví và thanh toán lại trong Booking History.",
-        { priority: "high", metadata: { bookingId: booking._id } },
+        {
+          priority: "high",
+          actionUrl: "/bookings",
+          metadata: { bookingId: booking._id, source: "checkout-boarding-pending" },
+        },
       );
     }
 
@@ -2532,7 +2770,11 @@ exports.payPendingBooking = catchAsync(async (req, res, next) => {
     "booking",
     "Booking Confirmed",
     "Thanh toán thành công. Đơn booking của bạn đã được xác nhận.",
-    { priority: "high", metadata: { bookingId: booking._id } },
+    {
+      priority: "high",
+      actionUrl: "/bookings",
+      metadata: { bookingId: booking._id, source: "pay-pending-booking" },
+    },
   );
 
   return res.status(200).json({

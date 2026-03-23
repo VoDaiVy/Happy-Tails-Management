@@ -90,6 +90,12 @@ const FILTER_TABS = [
   { key: "unavailable", label: "In Use", icon: Bed },
 ];
 
+const deriveRoomCountFromConfig = (maxCapacity, slotsPerRoom) => {
+  const normalizedCapacity = Math.max(1, Number(maxCapacity) || 1);
+  const normalizedSlotsPerRoom = Math.max(1, Number(slotsPerRoom) || 1);
+  return Math.max(1, Math.ceil(normalizedCapacity / normalizedSlotsPerRoom));
+};
+
 const RoomManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -399,12 +405,20 @@ const RoomManagement = () => {
   };
 
   const handleGroupCapacityFieldChange = (groupKey, field, value) => {
+    const parsedValue = Math.max(1, Number(value) || 1);
     setGroupCapacities((prev) => ({
       ...prev,
-      [groupKey]: {
-        ...prev[groupKey],
-        [field]: Number(value),
-      },
+      [groupKey]: (() => {
+        const nextConfig = {
+          ...prev[groupKey],
+          [field]: parsedValue,
+        };
+        nextConfig.roomCount = deriveRoomCountFromConfig(
+          nextConfig.maxCapacity,
+          nextConfig.slotsPerRoom,
+        );
+        return nextConfig;
+      })(),
     }));
   };
 
@@ -416,7 +430,6 @@ const RoomManagement = () => {
       const target = groupCapacities[groupKey];
       await updateGroupCapacity(groupKey, {
         maxCapacity: Number(target.maxCapacity),
-        roomCount: Number(target.roomCount),
         slotsPerRoom: Number(target.slotsPerRoom),
       });
 
@@ -799,15 +812,23 @@ const RoomManagement = () => {
                               </label>
                               <input
                                 type="number"
+                                  min="1"
+                                  max="20"
                                 value={config?.slotsPerRoom ?? 1}
-                                disabled
-                                className="w-full h-9 px-3 border border-[#2D3436]/10 rounded-xl text-sm bg-[#F5F6F8] text-[#2D3436]/60"
+                                  onChange={(e) =>
+                                    handleGroupCapacityFieldChange(
+                                      groupKey,
+                                      "slotsPerRoom",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full h-9 px-3 border border-[#2D3436]/12 rounded-xl text-sm bg-white"
                               />
                             </div>
                           </div>
 
                           <p className="text-[11px] text-[#2D3436]/48 mt-2.5 mb-2">
-                            Note: slot = capacity, only Max Capacity is editable.
+                              Note: Room Count is auto-calculated = ceil(Max Capacity / Slots per room).
                           </p>
 
                           <button

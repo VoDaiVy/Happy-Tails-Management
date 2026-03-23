@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -28,6 +28,7 @@ import {
 import { checkoutBooking, getAvailableSlots } from "../api/bookingApi";
 import { getMyPets } from "../api/petApi";
 import { getWallet } from "../api/walletApi";
+import { getAvailableVouchersForCustomer } from "../api/voucherApi";
 import { getErrorMessage } from "../utils/apiResponseHandler";
 
 const VND = new Intl.NumberFormat("vi-VN");
@@ -38,6 +39,14 @@ const splitDateTime = (date, time) => new Date(`${date}T${time}:00`).toISOString
 const STAY_OPEN_MINUTES = 8 * 60;
 const STAY_CLOSE_MINUTES = 23 * 60;
 const STAY_INTERVAL_MINUTES = 15;
+const EMPTY_SUMMARY = {
+  serviceSubtotal: 0,
+  staySubtotal: 0,
+  serviceDurationTotal: 0,
+  stayDurationTotal: 0,
+  grandTotal: 0,
+  totalItems: 0,
+};
 
 const minutesToSlot = (minutes) => {
   const h = Math.floor(minutes / 60);
@@ -45,7 +54,28 @@ const minutesToSlot = (minutes) => {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
+const toObjectIdString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return String(value._id || value.id || "");
+  return "";
+};
+
+const calculateVoucherDiscount = (voucher, amount) => {
+  const total = Math.max(0, Number(amount) || 0);
+  if (!voucher || total <= 0) return 0;
+
+  if (voucher.discountType === "percentage") {
+    const raw = (total * Number(voucher.discountValue || 0)) / 100;
+    const maxDiscount = voucher.maxDiscount ? Number(voucher.maxDiscount) : Infinity;
+    return Math.max(0, Math.min(raw, maxDiscount));
+  }
+
+  return Math.max(0, Number(voucher.discountValue || 0));
+};
+
 export default function CartPage() {
+  const MotionDiv = motion.div;
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(() => {
@@ -80,18 +110,17 @@ export default function CartPage() {
   const [checkoutSuccess, setCheckoutSuccess] = useState("");
   const [walletBalance, setWalletBalance] = useState(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [availableVouchers, setAvailableVouchers] = useState([]);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherMessage, setVoucherMessage] = useState("");
+  const [voucherError, setVoucherError] = useState("");
 
   const hasToken = Boolean(localStorage.getItem("accessToken"));
 
-  const items = cart?.items || [];
-  const summary = cart?.summary || {
-    serviceSubtotal: 0,
-    staySubtotal: 0,
-    serviceDurationTotal: 0,
-    stayDurationTotal: 0,
-    grandTotal: 0,
-    totalItems: 0,
-  };
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
+  const summary = useMemo(() => cart?.summary || EMPTY_SUMMARY, [cart?.summary]);
 
   const serviceItems = useMemo(
     () => items.filter((item) => (item.type || "service") === "service"),
@@ -106,6 +135,13 @@ export default function CartPage() {
   const effectiveAppointmentDate = checkoutMode === "service-stay" ? stayCheckInDate : selectedDate;
   const effectiveAppointmentTime = checkoutMode === "service-stay" ? stayCheckInTime : selectedTime;
   const stayUnitPrice = Number(stayItem?.unitPrice ?? stayItem?.price ?? 0);
+  const cartServiceIds = useMemo(
+    () =>
+      serviceItems
+        .map((item) => toObjectIdString(item?.serviceId))
+        .filter(Boolean),
+    [serviceItems],
+  );
 
   const calculatedStayNights = useMemo(() => {
     if (!stayItem || !stayCheckInDate || !stayCheckOutDate || !stayCheckOutTime) return 0;
@@ -119,7 +155,7 @@ export default function CartPage() {
 
     const diffMs = checkOut.getTime() - checkIn.getTime();
     return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-  }, [stayItem?._id, stayCheckInDate, stayCheckOutDate, stayCheckInTime, stayCheckOutTime]);
+  }, [stayItem, stayCheckInDate, stayCheckOutDate, stayCheckInTime, stayCheckOutTime]);
 
   const effectiveSummary = useMemo(() => {
     const serviceSubtotal = Number(summary.serviceSubtotal || 0);
@@ -135,12 +171,39 @@ export default function CartPage() {
       grandTotal: serviceSubtotal + staySubtotal,
       totalItems: Number(summary.totalItems || 0),
     };
-  }, [summary, stayItem?._id, stayUnitPrice, calculatedStayNights]);
+  }, [summary, stayItem, stayUnitPrice, calculatedStayNights]);
+
+  const isVoucherApplicableToCart = useMemo(
+    () => (voucher) => {
+      if (!voucher) return false;
+
+      const minSpend = Number(voucher.minSpend || 0);
+      if (Number(effectiveSummary.grandTotal || 0) < minSpend) return false;
+
+      const applicableServices = Array.isArray(voucher.applicableServices)
+        ? voucher.applicableServices.map((id) => toObjectIdString(id)).filter(Boolean)
+        : [];
+
+      if (!applicableServices.length) return true;
+      return applicableServices.some((id) => cartServiceIds.includes(id));
+    },
+    [effectiveSummary.grandTotal, cartServiceIds],
+  );
+
+  const discountAmount = useMemo(() => {
+    if (!appliedVoucher || !isVoucherApplicableToCart(appliedVoucher)) return 0;
+    return calculateVoucherDiscount(appliedVoucher, effectiveSummary.grandTotal);
+  }, [appliedVoucher, isVoucherApplicableToCart, effectiveSummary.grandTotal]);
+
+  const grandTotalAfterDiscount = useMemo(
+    () => Math.max(0, Number(effectiveSummary.grandTotal || 0) - Number(discountAmount || 0)),
+    [effectiveSummary.grandTotal, discountAmount],
+  );
 
   const requiredTopUpAmount = useMemo(() => {
     if (walletBalance === null) return 0;
-    return Math.max(0, Math.ceil(Number(effectiveSummary.grandTotal || 0) - Number(walletBalance || 0)));
-  }, [effectiveSummary.grandTotal, walletBalance]);
+    return Math.max(0, Math.ceil(Number(grandTotalAfterDiscount || 0) - Number(walletBalance || 0)));
+  }, [grandTotalAfterDiscount, walletBalance]);
 
   const canAffordCheckout = walletBalance === null || requiredTopUpAmount <= 0;
 
@@ -152,9 +215,9 @@ export default function CartPage() {
     canAffordCheckout
   );
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     if (!hasToken) {
-      setCart({ items: [], summary });
+      setCart({ items: [], summary: EMPTY_SUMMARY });
       setLoading(false);
       return;
     }
@@ -165,15 +228,15 @@ export default function CartPage() {
       const result = await getCart();
       setCart(result.data);
     } catch (err) {
-      setError(err?.response?.data?.message || "Không tải được giỏ hàng.");
+      setError(err?.response?.data?.message || "Unable to load cart.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [hasToken]);
 
   useEffect(() => {
     loadCart();
-  }, []);
+  }, [loadCart]);
 
   useEffect(() => {
     let alive = true;
@@ -193,6 +256,44 @@ export default function CartPage() {
       alive = false;
     };
   }, [hasToken]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!hasToken) {
+      setAvailableVouchers([]);
+      return;
+    }
+
+    setVoucherLoading(true);
+    getAvailableVouchersForCustomer({ limit: 50 })
+      .then((res) => {
+        if (!alive) return;
+        const rows = Array.isArray(res?.data?.data?.vouchers)
+          ? res.data.data.vouchers
+          : [];
+        setAvailableVouchers(rows);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setAvailableVouchers([]);
+      })
+      .finally(() => {
+        if (alive) setVoucherLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [hasToken]);
+
+  useEffect(() => {
+    if (!appliedVoucher) return;
+    if (isVoucherApplicableToCart(appliedVoucher)) return;
+
+    setAppliedVoucher(null);
+    setVoucherMessage("");
+    setVoucherError("This voucher is no longer applicable to this cart.");
+  }, [appliedVoucher, isVoucherApplicableToCart]);
 
   useEffect(() => {
     let alive = true;
@@ -226,7 +327,7 @@ export default function CartPage() {
     setStayCheckOutDate(metadata.checkOutDate ? toISODate(new Date(metadata.checkOutDate)) : "");
     setStayCheckInTime(metadata.checkInTime || "09:00");
     setStayCheckOutTime(metadata.checkOutTime || "10:00");
-  }, [stayItem?._id]);
+  }, [stayItem]);
 
   const firstServiceId = serviceItems[0]?.serviceId?._id || serviceItems[0]?.serviceId;
   const serviceTimeSlots = useMemo(() => generateTimeSlots(15), []);
@@ -287,7 +388,7 @@ export default function CartPage() {
       const result = await updateCartItem(itemId, nextQty);
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không cập nhật được số lượng.");
+      setCheckoutError(err?.response?.data?.message || "Unable to update quantity.");
     } finally {
       setActionBusy(false);
     }
@@ -300,7 +401,7 @@ export default function CartPage() {
       const result = await removeCartItem(itemId);
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không xóa được sản phẩm.");
+      setCheckoutError(err?.response?.data?.message || "Unable to remove item.");
     } finally {
       setActionBusy(false);
     }
@@ -313,7 +414,7 @@ export default function CartPage() {
       const result = await clearCart();
       setCart(result.data);
     } catch (err) {
-      setCheckoutError(err?.response?.data?.message || "Không xóa được giỏ hàng.");
+      setCheckoutError(err?.response?.data?.message || "Unable to clear cart.");
     } finally {
       setActionBusy(false);
     }
@@ -324,22 +425,22 @@ export default function CartPage() {
     setCheckoutSuccess("");
 
     if (!canAffordCheckout) {
-      setCheckoutError("Số dư ví không đủ. Vui lòng nạp thêm để tiếp tục thanh toán.");
+      setCheckoutError("Insufficient wallet balance. Please top up to continue checkout.");
       return;
     }
 
     if (!canCheckout) {
-      setCheckoutError("Vui lòng chọn thời gian và thú cưng trước khi thanh toán.");
+      setCheckoutError("Please select a time and pet before checkout.");
       return;
     }
 
     if (checkoutMode === "service-stay" && (!stayCheckInDate || !stayCheckOutDate || !stayCheckOutTime)) {
-      setCheckoutError("Vui lòng nhập ngày nhận/trả phòng hợp lệ cho gói lưu trú.");
+      setCheckoutError("Please enter a valid check-in/check-out date for the stay package.");
       return;
     }
 
     if (checkoutMode === "service-stay" && calculatedStayNights <= 0) {
-      setCheckoutError("Vui lòng chọn from/to hợp lệ để tính số đêm lưu trú.");
+      setCheckoutError("Please choose a valid from/to range to calculate stay nights.");
       return;
     }
 
@@ -349,6 +450,7 @@ export default function CartPage() {
         appointmentDate: splitDateTime(effectiveAppointmentDate, effectiveAppointmentTime),
         petId: selectedPet,
         notes,
+        ...(appliedVoucher?.code ? { voucherCode: appliedVoucher.code } : {}),
         ...(checkoutMode === "service-stay"
           ? {
               stayCheckInDate,
@@ -363,19 +465,51 @@ export default function CartPage() {
       const bookingNo = result?.data?.booking?.bookingNumber;
       setCheckoutSuccess(
         bookingNo
-          ? `Đặt lịch thành công (#${bookingNo}). Booking summary đã được chốt.`
-          : "Đặt lịch thành công.",
+          ? `Booking successful (#${bookingNo}). Booking summary has been finalized.`
+          : "Booking successful.",
       );
 
       setSelectedTime("");
       setSelectedPet("");
       setNotes("");
+      setAppliedVoucher(null);
+      setVoucherInput("");
+      setVoucherMessage("");
+      setVoucherError("");
       await loadCart();
     } catch (err) {
-      setCheckoutError(getErrorMessage(err) || "Thanh toán thất bại. Vui lòng thử lại.");
+      setCheckoutError(getErrorMessage(err) || "Checkout failed. Please try again.");
     } finally {
       setCheckoutBusy(false);
     }
+  };
+
+  const handleApplyVoucher = () => {
+    setVoucherError("");
+    setVoucherMessage("");
+
+    const code = voucherInput.trim().toUpperCase();
+    if (!code) {
+      setVoucherError("Please enter a voucher code.");
+      return;
+    }
+
+    const found = availableVouchers.find(
+      (voucher) => String(voucher.code || "").toUpperCase() === code,
+    );
+
+    if (!found) {
+      setVoucherError("Voucher code is invalid or unavailable for your account.");
+      return;
+    }
+
+    if (!isVoucherApplicableToCart(found)) {
+      setVoucherError("Voucher cannot be applied to this cart yet (min spend or service mismatch).");
+      return;
+    }
+
+    setAppliedVoucher(found);
+    setVoucherMessage("Voucher applied successfully.");
   };
 
   return (
@@ -410,19 +544,19 @@ export default function CartPage() {
             <ShoppingCart size={20} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-[#1F2A37]">Giỏ hàng & Booking</h1>
-            <p className="text-sm text-[#1F2A37]/60">Chọn dịch vụ, lưu trú và xác nhận lịch hẹn</p>
+            <h1 className="text-2xl font-black text-[#1F2A37]">Shopping Cart & Booking</h1>
+            <p className="text-sm text-[#1F2A37]/60">Select services, accommodation, and confirm appointment</p>
           </div>
         </div>
 
         {!hasToken && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-5 text-amber-800 text-sm">
-            Vui lòng đăng nhập để sử dụng giỏ hàng và thanh toán booking.
+            Please log in to use shopping cart and process booking payment.
           </div>
         )}
 
         {loading ? (
-          <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center text-[#1F2A37]/60">Đang tải giỏ hàng...</div>
+          <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center text-[#1F2A37]/60">Loading cart...</div>
         ) : error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 text-sm">{error}</div>
         ) : (
@@ -431,15 +565,15 @@ export default function CartPage() {
               {items.length === 0 ? (
                 <div className="rounded-2xl border border-[#1F2A37]/10 bg-white p-8 text-center">
                   <ShoppingCart size={24} className="mx-auto text-[#1F2A37]/40 mb-2" />
-                  <p className="text-[#1F2A37]/70 font-semibold">Giỏ hàng đang trống</p>
-                  <p className="text-sm text-[#1F2A37]/50 mt-1">Hãy thêm dịch vụ hoặc phòng lưu trú để bắt đầu.</p>
+                  <p className="text-[#1F2A37]/70 font-semibold">Cart is empty</p>
+                  <p className="text-sm text-[#1F2A37]/50 mt-1">Add services or accommodation rooms to get started.</p>
                 </div>
               ) : (
                 <>
                   {items.map((item) => {
                     const type = item.type || "service";
                     return (
-                      <motion.div
+                      <MotionDiv
                         key={item._id}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -454,8 +588,8 @@ export default function CartPage() {
                               <p className="font-bold text-[#1F2A37]">{item.name}</p>
                               <p className="text-xs text-[#1F2A37]/60 mt-1">
                                 {type === "stay"
-                                  ? `${calculatedStayNights || item.duration || item.metadata?.nights || 0} đêm`
-                                  : `${item.duration || 0} phút x ${item.quantity || 1}`}
+                                  ? `${calculatedStayNights || item.duration || item.metadata?.nights || 0} nights`
+                                  : `${item.duration || 0} minutes x ${item.quantity || 1}`}
                               </p>
                               {type === "stay" && stayCheckInDate && stayCheckOutDate && (
                                 <p className="text-xs text-[#1F2A37]/55 mt-1">
@@ -463,10 +597,10 @@ export default function CartPage() {
                                 </p>
                               )}
                               {type === "stay" && !stayCheckInDate && !stayCheckOutDate && (
-                                <p className="text-xs text-[#1F2A37]/55 mt-1">Chưa chọn from/to lưu trú</p>
+                                <p className="text-xs text-[#1F2A37]/55 mt-1">Haven't selected check-in/check-out dates yet</p>
                               )}
                               {!!item.note && (
-                                <p className="text-xs text-[#1F2A37]/60 italic mt-1">Ghi chú: {item.note}</p>
+                                <p className="text-xs text-[#1F2A37]/60 italic mt-1">Note: {item.note}</p>
                               )}
                             </div>
                           </div>
@@ -475,7 +609,7 @@ export default function CartPage() {
                             <p className="text-sm font-bold text-[#E07A5F]">
                               {VND.format(type === "stay" ? effectiveSummary.staySubtotal : item.subtotal || 0)}đ
                             </p>
-                            <p className="text-xs text-[#1F2A37]/50 mt-0.5">{VND.format(item.unitPrice || item.price || 0)}đ / đơn vị</p>
+                            <p className="text-xs text-[#1F2A37]/50 mt-0.5">{VND.format(item.unitPrice || item.price || 0)}đ / unit</p>
                           </div>
                         </div>
 
@@ -499,7 +633,7 @@ export default function CartPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-[#1F2A37]/55">Số lượng cố định theo kỳ lưu trú</span>
+                            <span className="text-xs text-[#1F2A37]/55">Quantity is fixed per stay period</span>
                           )}
 
                           <button
@@ -507,10 +641,10 @@ export default function CartPage() {
                             onClick={() => handleRemove(item._id)}
                             className="inline-flex items-center gap-1.5 text-sm text-red-500 hover:text-red-600"
                           >
-                            <Trash2 size={14} /> Xóa
+                            <Trash2 size={14} /> Remove
                           </button>
                         </div>
-                      </motion.div>
+                      </MotionDiv>
                     );
                   })}
 
@@ -519,7 +653,7 @@ export default function CartPage() {
                     onClick={handleClear}
                     className="text-sm text-red-600 hover:text-red-700 font-semibold"
                   >
-                    Xóa toàn bộ giỏ hàng
+                    Clear entire cart
                   </button>
                 </>
               )}
@@ -528,69 +662,13 @@ export default function CartPage() {
             <aside className="rounded-2xl border border-[#1F2A37]/10 bg-white p-5 h-fit sticky top-24 space-y-4">
               <h2 className="text-lg font-black text-[#1F2A37]">Booking Summary</h2>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Số dư ví</span>
-                  <span>
-                    {walletLoading
-                      ? "Đang tải..."
-                      : walletBalance !== null
-                        ? `${VND.format(walletBalance)}đ`
-                        : "Không khả dụng"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Phí dịch vụ</span>
-                  <span>{VND.format(effectiveSummary.serviceSubtotal)}đ</span>
-                </div>
-                <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Thời gian dịch vụ</span>
-                  <span>{effectiveSummary.serviceDurationTotal} phút</span>
-                </div>
-                <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Phí lưu trú</span>
-                  <span>{VND.format(effectiveSummary.staySubtotal)}đ</span>
-                </div>
-                <div className="flex justify-between text-[#1F2A37]/70">
-                  <span>Thời gian lưu trú</span>
-                  <span>{effectiveSummary.stayDurationTotal} đêm</span>
-                </div>
-                <hr className="border-dashed border-[#1F2A37]/15" />
-                <div className="flex justify-between font-black text-[#1F2A37]">
-                  <span>Tổng thanh toán</span>
-                  <span className="text-[#E07A5F]">{VND.format(effectiveSummary.grandTotal)}đ</span>
-                </div>
-              </div>
-
-              {!walletLoading && walletBalance !== null && requiredTopUpAmount > 0 && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  <p>
-                    Số dư không đủ. Cần nạp thêm <span className="font-bold">{VND.format(requiredTopUpAmount)}đ</span> để thanh toán đơn này.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentPath = `${location.pathname}${location.search || ""}${location.hash || ""}`;
-                      const params = new URLSearchParams();
-                      params.set("topupAmount", String(requiredTopUpAmount));
-                      params.set("returnTo", currentPath);
-                      params.set("source", "cart-checkout");
-                      navigate(`/wallet?${params.toString()}`);
-                    }}
-                    className="mt-2 underline font-semibold"
-                  >
-                    Top up your wallet
-                  </button>
-                </div>
-              )}
-
               {items.length > 0 && (
                 <>
                   <div className="rounded-xl bg-[#F9F6F1] border border-[#1F2A37]/10 p-3 space-y-3">
                     <p className="text-xs font-bold uppercase tracking-wide text-[#1F2A37]/60">Checkout Form ({checkoutMode === "service-only" ? "Service only" : "Service + Stay"})</p>
 
                     <div>
-                      <label className="text-xs font-semibold text-[#1F2A37]/70">Thú cưng</label>
+                      <label className="text-xs font-semibold text-[#1F2A37]/70">Pet</label>
                       <div className="grid grid-cols-2 gap-2 mt-1">
                         {pets.map((pet) => (
                           <button
@@ -607,14 +685,14 @@ export default function CartPage() {
                             <p className="text-[11px] opacity-70">{pet.breed || pet.petType}</p>
                           </button>
                         ))}
-                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">Bạn chưa có pet khả dụng.</p>}
+                        {pets.length === 0 && <p className="text-xs text-[#1F2A37]/55">You don't have any available pets.</p>}
                       </div>
                     </div>
 
                     {checkoutMode === "service-only" && (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày hẹn</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Appointment Date</label>
                           {selectedPet ? (
                             <CalendarPicker
                               selectedDate={selectedDate}
@@ -627,21 +705,21 @@ export default function CartPage() {
                             />
                           ) : (
                             <div className="mt-1 rounded-lg border border-dashed border-[#1F2A37]/20 px-3 py-2 text-xs text-[#1F2A37]/55">
-                              Vui lòng chọn thú cưng trước khi chọn ngày hẹn.
+                              Please select a pet before choosing appointment date.
                             </div>
                           )}
                         </div>
 
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ hẹn</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Appointment Time</label>
                           {!selectedPet || !selectedDate ? (
                             <div className="text-xs text-[#1F2A37]/60 py-2">
                               {!selectedPet
-                                ? "Vui lòng chọn thú cưng trước."
-                                : "Vui lòng chọn ngày hẹn trước."}
+                                ? "Please select a pet first."
+                                : "Please select appointment date first."}
                             </div>
                           ) : slotLoading ? (
-                            <div className="text-xs text-[#1F2A37]/60 py-2">Đang kiểm tra slot...</div>
+                            <div className="text-xs text-[#1F2A37]/60 py-2">Checking available slots...</div>
                           ) : (
                             <TimeSlotPicker
                               selectedDate={selectedDate}
@@ -659,7 +737,7 @@ export default function CartPage() {
                     {checkoutMode === "service-stay" && (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày nhận phòng</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-in Date</label>
                           <CalendarPicker
                             selectedDate={stayCheckInDate}
                             onChange={(d) => {
@@ -671,7 +749,7 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ nhận phòng (khung giờ lưu trú)</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-in Time (boarding hours)</label>
                           <TimeSlotPicker
                             selectedDate={stayCheckInDate}
                             slots={stayTimeSlots}
@@ -682,7 +760,7 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Ngày trả phòng</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-out Date</label>
                           <CalendarPicker
                             selectedDate={stayCheckOutDate}
                             onChange={setStayCheckOutDate}
@@ -690,7 +768,7 @@ export default function CartPage() {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-[#1F2A37]/70">Giờ trả phòng</label>
+                          <label className="text-xs font-semibold text-[#1F2A37]/70">Check-out Time</label>
                           <input
                             type="time"
                             value={stayCheckOutTime}
@@ -702,13 +780,13 @@ export default function CartPage() {
                     )}
 
                     <div>
-                      <label className="text-xs font-semibold text-[#1F2A37]/70">Ghi chú</label>
+                      <label className="text-xs font-semibold text-[#1F2A37]/70">Notes</label>
                       <textarea
                         rows={2}
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-[#1F2A37]/15 px-3 py-2 text-xs outline-none focus:border-[#E07A5F]"
-                        placeholder="Ví dụ: thú cưng nhạy cảm với tiếng ồn"
+                        placeholder="Example: pet is sensitive to loud noises"
                       />
                     </div>
                   </div>
@@ -725,21 +803,134 @@ export default function CartPage() {
                     </div>
                   )}
 
+                  <div className="rounded-lg border border-[#1F2A37]/10 bg-[#FAF8F4] p-2.5 space-y-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#1F2A37]/60">Voucher</p>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={voucherInput}
+                        onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                        className="flex-1 rounded-md border border-[#1F2A37]/15 px-2 py-1.5 text-[11px] outline-none focus:border-[#E07A5F]"
+                        placeholder="Enter voucher code"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyVoucher}
+                        disabled={voucherLoading || !voucherInput.trim()}
+                        className="rounded-md bg-[#E07A5F] text-white text-[11px] font-bold px-2.5 py-1.5 disabled:opacity-50"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {appliedVoucher && (
+                      <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700 flex items-center justify-between gap-2">
+                        <span>Voucher applied successfully</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedVoucher(null);
+                            setVoucherInput("");
+                            setVoucherMessage("");
+                            setVoucherError("");
+                          }}
+                          className="underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
+                    {voucherLoading && (
+                      <p className="text-[11px] text-[#1F2A37]/55">Checking voucher...</p>
+                    )}
+                    {voucherMessage && (
+                      <p className="text-[11px] text-emerald-700">{voucherMessage}</p>
+                    )}
+                    {voucherError && (
+                      <p className="text-[11px] text-red-600">{voucherError}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-[#1F2A37]/10 bg-[#F9F6F1] p-3 space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#1F2A37]/60">Payment Bill</p>
+                    <div className="flex justify-between text-[#1F2A37]/70 text-sm">
+                      <span>Service Fee</span>
+                      <span>{VND.format(effectiveSummary.serviceSubtotal)}đ</span>
+                    </div>
+                    <div className="flex justify-between text-[#1F2A37]/70 text-sm">
+                      <span>Service Duration</span>
+                      <span>{effectiveSummary.serviceDurationTotal} minutes</span>
+                    </div>
+                    <div className="flex justify-between text-[#1F2A37]/70 text-sm">
+                      <span>Accommodation Fee</span>
+                      <span>{VND.format(effectiveSummary.staySubtotal)}đ</span>
+                    </div>
+                    <div className="flex justify-between text-[#1F2A37]/70 text-sm">
+                      <span>Accommodation Duration</span>
+                      <span>{effectiveSummary.stayDurationTotal} nights</span>
+                    </div>
+                    <div className="flex justify-between text-[#1F2A37]/70 text-sm">
+                      <span>Voucher Discount</span>
+                      <span className="text-emerald-700">-{VND.format(discountAmount)}đ</span>
+                    </div>
+                    <hr className="border-dashed border-[#1F2A37]/15" />
+                    <div className="flex justify-between font-black text-[#1F2A37] text-sm">
+                      <span>Total Payment</span>
+                      <span className="text-[#E07A5F]">{VND.format(grandTotalAfterDiscount)}đ</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[#1F2A37]/10 bg-white px-3 py-2 text-sm">
+                    <div className="flex justify-between text-[#1F2A37]/70">
+                      <span>Wallet Balance</span>
+                      <span>
+                        {walletLoading
+                          ? "Loading..."
+                          : walletBalance !== null
+                            ? `${VND.format(walletBalance)}đ`
+                            : "Unavailable"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!walletLoading && walletBalance !== null && requiredTopUpAmount > 0 && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      <p>
+                        Insufficient balance. You need to top up <span className="font-bold">{VND.format(requiredTopUpAmount)}đ</span> to process this booking.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentPath = `${location.pathname}${location.search || ""}${location.hash || ""}`;
+                          const params = new URLSearchParams();
+                          params.set("topupAmount", String(requiredTopUpAmount));
+                          params.set("returnTo", currentPath);
+                          params.set("source", "cart-checkout");
+                          navigate(`/wallet?${params.toString()}`);
+                        }}
+                        className="mt-2 underline font-semibold"
+                      >
+                        Top up your wallet
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     disabled={!canCheckout || checkoutBusy || checkoutMode === "service-stay" && (!stayCheckInDate || !stayCheckInTime || !stayCheckOutDate || !stayCheckOutTime || calculatedStayNights <= 0)}
                     onClick={handleCheckout}
                     className="w-full rounded-xl bg-[#E07A5F] text-white font-bold py-3 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#cb6d55]"
                   >
-                    {checkoutBusy ? "Đang xử lý..." : "Thanh toán & Tạo booking"}
+                    {checkoutBusy ? "Processing..." : "Process Payment & Create Booking"}
                   </button>
 
                   <p className="text-[11px] text-[#1F2A37]/55 flex items-center gap-1">
-                    <CalendarDays size={12} /> Không chọn được ngày quá khứ, slot hết chỗ sẽ tự khóa.
+                    <CalendarDays size={12} /> Cannot select past dates, fully booked slots will auto-lock.
                   </p>
                   <p className="text-[11px] text-[#1F2A37]/55 flex items-center gap-1">
                     <Clock3 size={12} /> {checkoutMode === "service-stay"
-                      ? "Giờ nhận phòng dùng khung giờ lưu trú của phòng, không lấy theo slot dịch vụ."
-                      : "Slot đang kiểm tra theo dịch vụ cụ thể, tránh chặn nhầm toàn hệ thống."}
+                      ? "Check-in time uses boarding room hours, not service slot times."
+                      : "Slots are checked per specific service to avoid system-wide locking."}
                   </p>
                 </>
               )}

@@ -4,8 +4,14 @@
  */
 
 const Voucher = require('../models/Voucher');
+const Transaction = require('../models/Transaction');
 const { catchAsync } = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
+
+const extractVoucherCodeFromNote = (note = '') => {
+  const match = String(note).match(/\bVoucher\s+([A-Z0-9_-]{4,20})\b/i);
+  return match?.[1] ? String(match[1]).toUpperCase() : null;
+};
 
 /**
  * Get available vouchers for current customer
@@ -19,6 +25,21 @@ exports.getAvailableVouchersForCustomer = catchAsync(async (req, res, next) => {
   const skip = (parsedPage - 1) * parsedLimit;
 
   const now = new Date();
+
+  const userVoucherTransactions = await Transaction.find({
+    userId: req.user.id,
+    type: 'payment',
+    status: { $in: ['pending', 'completed'] },
+    notes: { $regex: /\bVoucher\s+/i },
+  })
+    .select('notes')
+    .lean();
+
+  const usedVoucherCodes = [...new Set(
+    userVoucherTransactions
+      .map((txn) => extractVoucherCodeFromNote(txn.notes))
+      .filter(Boolean),
+  )];
 
   const filter = {
     isActive: true,
@@ -46,6 +67,10 @@ exports.getAvailableVouchersForCustomer = catchAsync(async (req, res, next) => {
         { description: { $regex: search, $options: 'i' } },
       ],
     });
+  }
+
+  if (usedVoucherCodes.length > 0) {
+    filter.code = { $nin: usedVoucherCodes };
   }
 
   const [vouchers, total] = await Promise.all([

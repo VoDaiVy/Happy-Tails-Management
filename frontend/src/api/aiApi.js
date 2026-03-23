@@ -3,15 +3,13 @@ import axiosInstance from "./axiosInstance";
 /**
  * Chat with AI Assistant
  * @param {string} message - User message
- * @param {Array} conversationHistory - Previous messages
  * @returns {Promise} AI response
  */
-export const chatWithAI = async (message, conversationHistory = []) => {
+export const chatWithAI = async (message) => {
   try {
-    console.log('🤖 Calling AI Chat API...', { message, historyLength: conversationHistory.length });
+    console.log('🤖 Calling AI Chat API...', { message });
     const response = await axiosInstance.post("/ai/chat", {
       message,
-      conversationHistory,
     });
     console.log('✅ AI Chat API Success:', response.data);
     return response.data;
@@ -24,6 +22,16 @@ export const chatWithAI = async (message, conversationHistory = []) => {
     });
     throw error;
   }
+};
+
+/**
+ * Get persisted AI chat history for current customer
+ * @param {number} limit - Max message count
+ * @returns {Promise}
+ */
+export const getAIChatHistory = async (limit = 100) => {
+  const response = await axiosInstance.get('/ai/chat/history', { params: { limit } });
+  return response.data;
 };
 
 /**

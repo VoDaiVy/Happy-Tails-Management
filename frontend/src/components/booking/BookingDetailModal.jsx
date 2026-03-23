@@ -63,13 +63,18 @@ const STAFF_STATUS_LABELS = {
   cancelled: "Đã hủy",
 };
 
-const STAFF_STATUS_OPTIONS = [
-  { value: "pending", label: STAFF_STATUS_LABELS.pending },
-  { value: "confirmed", label: STAFF_STATUS_LABELS.confirmed },
-  { value: "in-progress", label: STAFF_STATUS_LABELS["in-progress"] },
-  { value: "completed", label: STAFF_STATUS_LABELS.completed },
-  { value: "cancelled", label: STAFF_STATUS_LABELS.cancelled },
-];
+const STAFF_STATUS_TRANSITIONS = {
+  confirmed: ["in-progress", "cancelled"],
+  "in-progress": ["completed", "cancelled"],
+  completed: ["in-progress"],
+  cancelled: ["in-progress"],
+};
+
+const getStaffStatusOptions = (currentStatus) =>
+  (STAFF_STATUS_TRANSITIONS[currentStatus] || []).map((statusValue) => ({
+    value: statusValue,
+    label: STAFF_STATUS_LABELS[statusValue] || statusValue,
+  }));
 
 // Payment method labels
 const PAYMENT_LABELS = {
@@ -115,7 +120,6 @@ const BookingDetailModal = ({
     booking?.assignedStaff?._id || ""
   );
   const [isUpdating, setIsUpdating] = useState(false);
-  const [nextStatus, setNextStatus] = useState(booking?.status || "");
   const [medicalRecords, setMedicalRecords] = useState([]);
   const [medicalLoading, setMedicalLoading] = useState(false);
   const [medicalError, setMedicalError] = useState(null);
@@ -123,7 +127,6 @@ const BookingDetailModal = ({
 
   useEffect(() => {
     setSelectedStaff(booking?.assignedStaff?._id || "");
-    setNextStatus(booking?.status || "");
   }, [booking?._id, booking?.assignedStaff?._id, booking?.status]);
 
   useEffect(() => {
@@ -287,6 +290,7 @@ const BookingDetailModal = ({
   };
 
   const customer = getCustomerInfo();
+  const staffStatusOptions = getStaffStatusOptions(booking?.status);
 
   // Get status label based on role
   const getStatusLabel = () => {
@@ -308,7 +312,15 @@ const BookingDetailModal = ({
   };
 
   // Handle status update
-  const handleStatusUpdate = async (newStatus) => {
+  const handleStatusUpdate = async (newStatus, requireConfirm = false) => {
+    if (requireConfirm) {
+      const actionLabel = STAFF_STATUS_LABELS[newStatus] || newStatus;
+      const confirmed = window.confirm(
+        `Bạn có chắc muốn chuyển trạng thái sang \"${actionLabel}\" không?`,
+      );
+      if (!confirmed) return;
+    }
+
     setIsUpdating(true);
     try {
       await onUpdateStatus(booking, newStatus);
@@ -355,60 +367,37 @@ const BookingDetailModal = ({
 
       // My booking -> Show status actions
       if (isMyBooking) {
-        const canSubmitManualStatus = nextStatus && nextStatus !== booking.status;
+        const manualTargetStatus = staffStatusOptions[0]?.value || "";
+        const canSubmitManualStatus = Boolean(manualTargetStatus);
+        const requiresMedicalWorkflow =
+          (booking.status === "confirmed" && manualTargetStatus === "in-progress") ||
+          (booking.status === "in-progress" && manualTargetStatus === "completed");
 
         return (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 space-y-3">
-            {booking.status === "confirmed" && (
-              <button
-                onClick={() => handleStatusUpdate("in-progress")}
-                disabled={isUpdating}
-                className="w-full py-3 px-4 bg-purple-600 text-white font-medium rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                <PlayCircle size={20} />
-                Bắt đầu thực hiện
-              </button>
-            )}
-
-            {booking.status === "in-progress" && (
-              <button
-                onClick={() => handleStatusUpdate("completed")}
-                disabled={isUpdating}
-                className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                <CheckCircle size={20} />
-                Complete
-              </button>
-            )}
-
             <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-2">
               <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                 Manual Status Update
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
-                <select
-                  value={nextStatus}
-                  onChange={(e) => setNextStatus(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B8C51]/20 focus:border-[#5B8C51]"
-                  disabled={isUpdating}
-                >
-                  {STAFF_STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
                 <button
-                  onClick={() => handleStatusUpdate(nextStatus)}
+                  onClick={() => handleStatusUpdate(manualTargetStatus, true)}
                   disabled={!canSubmitManualStatus || isUpdating}
-                  className="px-4 py-2 rounded-lg bg-[#5B8C51] text-white text-sm font-medium hover:bg-[#4a7a42] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 rounded-lg bg-[#5B8C51] text-white text-sm font-medium hover:bg-[#4a7a42] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update
+                  {canSubmitManualStatus
+                    ? `Chuyển sang ${STAFF_STATUS_LABELS[manualTargetStatus] || manualTargetStatus}`
+                    : "Không có trạng thái khả dụng"}
                 </button>
               </div>
-              {(nextStatus === "in-progress" || nextStatus === "completed") && (
+              {requiresMedicalWorkflow && (
                 <p className="text-[11px] text-gray-500">
                   When moving to check-in or checkout, note and photo upload is required.
+                </p>
+              )}
+              {staffStatusOptions.length === 0 && (
+                <p className="text-[11px] text-gray-500">
+                  No manual transition available for this status.
                 </p>
               )}
             </div>

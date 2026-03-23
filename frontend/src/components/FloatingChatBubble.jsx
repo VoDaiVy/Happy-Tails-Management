@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, User, Bot, Sparkles } from 'lucide-react';
-import { chatWithAI } from '../api/aiApi';
+import { chatWithAI, getAIChatHistory } from '../api/aiApi';
 
 const FloatingChatBubble = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const [hiddenByModal, setHiddenByModal] = useState(false);
 
   // Only show for logged-in customers
@@ -21,6 +23,12 @@ const FloatingChatBubble = () => {
   })();
   
   const messagesEndRef = useRef(null);
+
+  const createWelcomeMessage = () => ({
+    role: 'assistant',
+    content: 'Xin chào! 👋 Tôi là trợ lý AI của Happy Tails. Bạn cần tư vấn gì về thú cưng và dịch vụ spa?',
+    timestamp: new Date().toISOString(),
+  });
 
   // Hide when another modal is open anywhere in the app
   useEffect(() => {
@@ -37,18 +45,40 @@ const FloatingChatBubble = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize with welcome message
+  // Load persisted chat history on first open
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([
-        {
-          role: 'assistant',
-          content: 'Xin chào! 👋 Tôi là trợ lý AI của Happy Tails. Bạn cần tư vấn gì về thú cưng?',
-          timestamp: new Date().toISOString()
+    if (!isOpen || hasLoadedHistory) return;
+
+    let cancelled = false;
+    const loadHistory = async () => {
+      setIsHistoryLoading(true);
+      try {
+        const result = await getAIChatHistory(120);
+        if (cancelled) return;
+
+        const history = Array.isArray(result?.data?.messages) ? result.data.messages : [];
+        if (history.length > 0) {
+          setMessages(history);
+        } else {
+          setMessages([createWelcomeMessage()]);
         }
-      ]);
-    }
-  }, [isOpen, messages.length]);
+      } catch (error) {
+        if (cancelled) return;
+        setMessages([createWelcomeMessage()]);
+      } finally {
+        if (!cancelled) {
+          setIsHistoryLoading(false);
+          setHasLoadedHistory(true);
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, hasLoadedHistory]);
 
   // Only render for logged-in customers
   if (!isCustomer || hiddenByModal) return null;
@@ -56,7 +86,7 @@ const FloatingChatBubble = () => {
   const handleToggleChat = () => setIsOpen(!isOpen);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading || isHistoryLoading) return;
 
     const userMessage = {
       role: 'user',
@@ -69,13 +99,7 @@ const FloatingChatBubble = () => {
     setIsLoading(true);
 
     try {
-      // Prepare conversation history (exclude timestamps)
-      const conversationHistory = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content
-      }));
-
-      const result = await chatWithAI(inputMessage, conversationHistory);
+      const result = await chatWithAI(inputMessage);
 
       const aiMessage = {
         role: 'assistant',
@@ -324,6 +348,19 @@ const FloatingChatBubble = () => {
                 </motion.div>
               )}
 
+              {isHistoryLoading && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex justify-start"
+                >
+                  <div className="flex items-center space-x-2.5 bg-white px-4 py-3 rounded-2xl border border-cyan-200 shadow-md">
+                    <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" strokeWidth={2.5} />
+                    <span className="text-sm text-cyan-600 font-medium">Đang tải lịch sử chat...</span>
+                  </div>
+                </motion.div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -338,7 +375,7 @@ const FloatingChatBubble = () => {
                   onKeyPress={handleKeyPress}
                   placeholder="Nhập câu hỏi của bạn..."
                   rows="1"
-                  disabled={isLoading}
+                  disabled={isLoading || isHistoryLoading}
                   className="flex-1 px-4 py-3 border-2 border-cyan-200 rounded-2xl focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20 resize-none text-sm disabled:bg-gray-50 disabled:text-gray-400 transition-all duration-200 placeholder:text-gray-400 bg-white max-h-20 overflow-y-auto"
                   style={{
                     boxShadow: '0 2px 8px rgba(6, 182, 212, 0.08)',
@@ -347,7 +384,7 @@ const FloatingChatBubble = () => {
                 />
                 <motion.button
                   onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
+                  disabled={!inputMessage.trim() || isLoading || isHistoryLoading}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                   className="px-4 py-3 bg-linear-to-br from-cyan-500 via-blue-500 to-blue-600 text-white rounded-2xl hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed h-11 w-11 flex items-center justify-center shrink-0 group"

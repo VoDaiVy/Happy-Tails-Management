@@ -342,7 +342,7 @@ const toSpaCard = (service, index = 0) => {
     fullDesc: service.description || "",
     price:
       typeof service.price === "number"
-        ? `$${service.price}`
+        ? `${new Intl.NumberFormat("vi-VN").format(service.price)}đ`
         : service.price || "",
     priceValue: typeof service.price === "number" ? service.price : 0,
     duration:
@@ -372,7 +372,7 @@ const extractServicesFromApiResponse = (result) => {
   return [];
 };
 
-const BOARDING_ROOM_SHOWCASE = [
+const BOARDING_ROOM_FALLBACK = [
   {
     id: "boarding-standard-101",
     name: "Standard Room",
@@ -465,6 +465,39 @@ const BOARDING_ROOM_SHOWCASE = [
   },
 ];
 
+const mapRoomTypeMeta = (roomType = "standard") => {
+  const normalized = String(roomType || "standard").toLowerCase();
+  const isVip = normalized === "vip";
+
+  return {
+    roomType: normalized,
+    slug: isVip ? "vip-penthouse" : "standard-room",
+    accent: isVip ? "orange" : "green",
+    image: isVip ? "/viproom.jpg" : "/standard.webp",
+  };
+};
+
+const mapBoardingRoomFromApi = (room = {}) => {
+  const meta = mapRoomTypeMeta(room.type);
+  const roomNumber = String(room.roomNumber || "").trim();
+
+  return {
+    id: String(room._id || `boarding-${roomNumber || Date.now()}`),
+    name: room.name || (meta.roomType === "vip" ? "VIP Room" : "Standard Room"),
+    slug: meta.slug,
+    roomType: meta.roomType,
+    roomNumber: roomNumber || "N/A",
+    capacity: Number(room.capacity || 1),
+    pricePerNight: Number(room.pricePerNight || 0),
+    accent: meta.accent,
+    image: Array.isArray(room.images) && room.images[0] ? room.images[0] : meta.image,
+    description: room.description || "Comfortable boarding room for your pet.",
+    features: Array.isArray(room.amenities) && room.amenities.length > 0
+      ? room.amenities.slice(0, 3)
+      : ["Comfortable bedding", "Daily care", "Safe monitoring"],
+  };
+};
+
 const ServicePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, token } = useAuth();
@@ -519,6 +552,7 @@ const ServicePage = () => {
   const [searchError, setSearchError] = useState("");
   const [spaServices, setSpaServices] = useState([]);
   const [spaLoading, setSpaLoading] = useState(true);
+  const [boardingRooms, setBoardingRooms] = useState(BOARDING_ROOM_FALLBACK);
   const [cartMessage, setCartMessage] = useState("");
   const [flyToCartItems, setFlyToCartItems] = useState([]);
   const [activeBoardingIndex, setActiveBoardingIndex] = useState(0);
@@ -579,7 +613,12 @@ const ServicePage = () => {
       .toLowerCase();
 
     try {
-      const res = await getRoomsList({ type: roomType, isAvailable: "true", isActive: "true" });
+      const res = await getRoomsList({
+        serviceType: "boarding",
+        type: roomType,
+        isAvailable: "true",
+        isActive: "true",
+      });
       const rooms = Array.isArray(res?.data?.rooms)
         ? res.data.rooms
         : Array.isArray(res?.rooms)
@@ -718,6 +757,47 @@ const ServicePage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadBoardingRooms = async () => {
+      try {
+        const res = await getRoomsList({
+          serviceType: "boarding",
+          isActive: "true",
+          isAvailable: "true",
+        });
+
+        const rows = Array.isArray(res?.data?.rooms)
+          ? res.data.rooms
+          : Array.isArray(res?.rooms)
+            ? res.rooms
+            : Array.isArray(res?.data)
+              ? res.data
+              : [];
+
+        const mapped = rows.map(mapBoardingRoomFromApi);
+        if (!alive) return;
+
+        setBoardingRooms(mapped.length > 0 ? mapped : BOARDING_ROOM_FALLBACK);
+      } catch {
+        if (!alive) return;
+        setBoardingRooms(BOARDING_ROOM_FALLBACK);
+      }
+    };
+
+    loadBoardingRooms();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeBoardingIndex <= boardingRooms.length - 1) return;
+    setActiveBoardingIndex(Math.max(0, boardingRooms.length - 1));
+  }, [boardingRooms.length, activeBoardingIndex]);
+
   const handleSearch = async () => {
     setIsSearching(true);
     try {
@@ -792,7 +872,7 @@ const ServicePage = () => {
     const track = boardingTrackRef.current;
     if (!track) return;
 
-    const total = BOARDING_ROOM_SHOWCASE.length;
+    const total = boardingRooms.length;
     const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
 
     if (index <= 0) {
@@ -816,7 +896,7 @@ const ServicePage = () => {
   };
 
   const handleBoardingNav = (direction) => {
-    const total = BOARDING_ROOM_SHOWCASE.length;
+    const total = boardingRooms.length;
     if (!total) return;
 
     const nextIndex =
@@ -843,7 +923,7 @@ const ServicePage = () => {
     }
 
     if (track.scrollLeft >= maxScrollLeft - edgeThreshold) {
-      const lastIndex = BOARDING_ROOM_SHOWCASE.length - 1;
+      const lastIndex = boardingRooms.length - 1;
       if (activeBoardingIndex !== lastIndex) setActiveBoardingIndex(lastIndex);
       return;
     }
@@ -875,18 +955,18 @@ const ServicePage = () => {
   }, []);
 
   useEffect(() => {
-    if (showSearchResults || isBoardingHovered) return undefined;
+    if (showSearchResults || isBoardingHovered || boardingRooms.length <= 1) return undefined;
 
     const timer = window.setInterval(() => {
       setActiveBoardingIndex((prev) => {
-        const next = (prev + 1) % BOARDING_ROOM_SHOWCASE.length;
+        const next = (prev + 1) % boardingRooms.length;
         scrollToBoardingCard(next);
         return next;
       });
     }, 4200);
 
     return () => window.clearInterval(timer);
-  }, [showSearchResults, isBoardingHovered]);
+  }, [showSearchResults, isBoardingHovered, boardingRooms.length]);
 
   return (
     <div className="bg-[#F5F1EB] min-h-screen font-sans text-[#1F2A37] selection:bg-[#E07A5F] selection:text-white overflow-x-hidden">
@@ -1121,7 +1201,7 @@ const ServicePage = () => {
                       </p>
                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#1F2A37]/5 gap-2">
                         <span className="text-[#E07A5F] font-black text-[16px]">
-                          ${service.price}
+                          {new Intl.NumberFormat("vi-VN").format(service.price)}đ
                         </span>
                         <div className="flex items-center gap-2">
                           {hasValidSession && (
@@ -1523,7 +1603,7 @@ const ServicePage = () => {
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-white/60 text-[12px] uppercase tracking-[0.2em] font-bold">
-                      5 Boarding Rooms
+                      {boardingRooms.length} Boarding Rooms
                     </p>
                     <div className="flex items-center gap-2">
                       <button
@@ -1538,7 +1618,7 @@ const ServicePage = () => {
                       <button
                         type="button"
                         onClick={() => handleBoardingNav("next")}
-                        disabled={activeBoardingIndex === BOARDING_ROOM_SHOWCASE.length - 1}
+                        disabled={activeBoardingIndex === boardingRooms.length - 1}
                         className="w-9 h-9 rounded-full border border-white/20 text-white/80 hover:text-white hover:border-white/35 disabled:opacity-35 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                         aria-label="Next room"
                       >
@@ -1555,7 +1635,7 @@ const ServicePage = () => {
                       onMouseLeave={() => setIsBoardingHovered(false)}
                       className="flex gap-3 overflow-x-auto overflow-y-hidden snap-x snap-proximity pt-3 pb-3 -mx-2 px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                     >
-                    {BOARDING_ROOM_SHOWCASE.map((room, index) => {
+                    {boardingRooms.map((room, index) => {
                       const distance = Math.abs(index - activeBoardingIndex);
                       const isActive = index === activeBoardingIndex;
                       const accentTone =
@@ -1613,7 +1693,7 @@ const ServicePage = () => {
                               </h3>
                               <div className="text-right">
                                 <p className={`font-black text-lg leading-none ${accentTone.price}`}>
-                                  ${room.pricePerNight}
+                                  {new Intl.NumberFormat("vi-VN").format(room.pricePerNight)}đ
                                 </p>
                                 <p className="text-[10px] text-white/45 uppercase tracking-widest">/ night</p>
                               </div>
@@ -1669,7 +1749,7 @@ const ServicePage = () => {
                   </div>
 
                   <div className="mt-2 flex items-center justify-center gap-2">
-                    {BOARDING_ROOM_SHOWCASE.map((room, index) => (
+                    {boardingRooms.map((room, index) => (
                       <button
                         key={room.id}
                         type="button"
