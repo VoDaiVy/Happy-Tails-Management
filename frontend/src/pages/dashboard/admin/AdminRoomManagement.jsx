@@ -434,6 +434,7 @@ const RoomManagement = () => {
       });
 
       await fetchGroupCapacityConfigs();
+      await fetchRooms();
     } catch (err) {
       setGroupCapacityError(
         err?.response?.data?.message || "Không thể cập nhật group capacity",
