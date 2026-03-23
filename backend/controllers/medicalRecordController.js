@@ -1,9 +1,3 @@
-/**
- * Medical Record Controller
- * Staff/Admin: create, update, view all records
- * Customer: view only their own pets' records
- */
-
 const MedicalRecord  = require('../models/MedicalRecord');
 const UserPet        = require('../models/UserPet');
 const User           = require('../models/User');
@@ -269,7 +263,15 @@ exports.updateStage = catchAsync(async (req, res, next) => {
     'system',
     'Medical Record Updated',
     `Your pet's medical record is now: ${stageLabels[stage]}`,
-    { priority: stage === 'completed' ? 'high' : 'medium', metadata: { recordId: record._id } }
+    {
+      priority: stage === 'completed' ? 'high' : 'medium',
+      actionUrl: '/bookings',
+      metadata: {
+        recordId: record._id,
+        bookingId: record.booking,
+        stage,
+      },
+    }
   );
 
   res.status(200).json({

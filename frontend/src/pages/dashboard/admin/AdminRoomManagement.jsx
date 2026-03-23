@@ -21,6 +21,8 @@ import {
   ChevronDown,
   Loader2,
   CheckCircle2,
+  Waves,
+  Wind,
 } from "lucide-react";
 import AdminFilterBar from "../../../components/dashboard/AdminFilterBar";
 import {
@@ -29,6 +31,11 @@ import {
   updateRoom,
   deleteRoom,
 } from "../../../api/roomApi";
+import {
+  getGroupCapacities,
+  initGroupCapacities,
+  updateGroupCapacity,
+} from "../../../api/groupCapacityApi";
 import { getErrorMessage } from "../../../utils/apiResponseHandler";
 
 // Room types
@@ -37,6 +44,32 @@ const ROOM_TYPES = [
   { value: "deluxe", label: "Deluxe", color: "bg-blue-100 text-blue-700" },
   { value: "suite", label: "Suite", color: "bg-purple-100 text-purple-700" },
   { value: "vip", label: "VIP", color: "bg-amber-100 text-amber-700" },
+];
+
+const SERVICE_TYPES = [
+  {
+    value: "boarding",
+    label: "Boarding",
+    color: "bg-violet-50 text-violet-700 border-violet-100",
+  },
+  {
+    value: "service",
+    label: "Service",
+    color: "bg-cyan-50 text-cyan-700 border-cyan-100",
+  },
+];
+
+const SERVICE_GROUPS = [
+  {
+    value: "dry",
+    label: "Dry",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  },
+  {
+    value: "wet",
+    label: "Wet",
+    color: "bg-sky-50 text-sky-700 border-sky-100",
+  },
 ];
 
 // Pet types
@@ -57,6 +90,12 @@ const FILTER_TABS = [
   { key: "unavailable", label: "In Use", icon: Bed },
 ];
 
+const deriveRoomCountFromConfig = (maxCapacity, slotsPerRoom) => {
+  const normalizedCapacity = Math.max(1, Number(maxCapacity) || 1);
+  const normalizedSlotsPerRoom = Math.max(1, Number(slotsPerRoom) || 1);
+  return Math.max(1, Math.ceil(normalizedCapacity / normalizedSlotsPerRoom));
+};
+
 const RoomManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,13 +112,16 @@ const RoomManagement = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState(null);
-  useScrollLock(showModal || showDeleteModal);
+  const [showGroupCapacityModal, setShowGroupCapacityModal] = useState(false);
+  useScrollLock(showModal || showDeleteModal || showGroupCapacityModal);
 
   // Form state
   const [formData, setFormData] = useState({
     roomNumber: "",
     name: "",
     type: "standard",
+    serviceType: "boarding",
+    group: "",
     capacity: 1,
     amenities: [],
     petTypes: ["dog", "cat"],
@@ -91,6 +133,43 @@ const RoomManagement = () => {
   const [formError, setFormError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [isTypeOpen, setIsTypeOpen] = useState(false);
+
+  const [groupCapacities, setGroupCapacities] = useState({
+    wet: { group: "wet", maxCapacity: 6, roomCount: 2, slotsPerRoom: 3 },
+    dry: { group: "dry", maxCapacity: 6, roomCount: 2, slotsPerRoom: 3 },
+  });
+  const [groupCapacityLoading, setGroupCapacityLoading] = useState(true);
+  const [groupCapacitySaving, setGroupCapacitySaving] = useState("");
+  const [groupCapacityError, setGroupCapacityError] = useState("");
+
+  const normalizeGroupCapacities = (response) => {
+    const raw = Array.isArray(response?.data?.configs)
+      ? response.data.configs
+      : Array.isArray(response?.configs)
+        ? response.configs
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+    const normalized = {
+      wet: { group: "wet", maxCapacity: 6, roomCount: 2, slotsPerRoom: 3 },
+      dry: { group: "dry", maxCapacity: 6, roomCount: 2, slotsPerRoom: 3 },
+    };
+
+    raw.forEach((item) => {
+      const key = String(item?.group || "").toLowerCase();
+      if (!normalized[key]) return;
+      normalized[key] = {
+        ...normalized[key],
+        ...item,
+        maxCapacity: Number(item?.maxCapacity) || normalized[key].maxCapacity,
+        roomCount: Number(item?.roomCount) || normalized[key].roomCount,
+        slotsPerRoom: Number(item?.slotsPerRoom) || normalized[key].slotsPerRoom,
+      };
+    });
+
+    return normalized;
+  };
 
   const clearFieldError = (fieldName) => {
     setFieldErrors((prev) => {
@@ -139,6 +218,35 @@ const RoomManagement = () => {
     fetchRooms();
   }, [fetchRooms]);
 
+  const fetchGroupCapacityConfigs = useCallback(async () => {
+    try {
+      setGroupCapacityLoading(true);
+      setGroupCapacityError("");
+
+      let response = await getGroupCapacities();
+      let normalized = normalizeGroupCapacities(response);
+      const missingAny = !response?.data?.configs || response.data.configs.length === 0;
+
+      if (missingAny) {
+        await initGroupCapacities();
+        response = await getGroupCapacities();
+        normalized = normalizeGroupCapacities(response);
+      }
+
+      setGroupCapacities(normalized);
+    } catch (err) {
+      setGroupCapacityError(
+        err?.response?.data?.message || "Không thể tải group capacity",
+      );
+    } finally {
+      setGroupCapacityLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGroupCapacityConfigs();
+  }, [fetchGroupCapacityConfigs]);
+
   // Filter rooms by search
   const filteredRooms = rooms.filter((room) => {
     if (!searchQuery) return true;
@@ -157,6 +265,8 @@ const RoomManagement = () => {
       roomNumber: "",
       name: "",
       type: "standard",
+      serviceType: "boarding",
+      group: "",
       capacity: 1,
       pricePerNight: 10,
       amenities: [],
@@ -179,6 +289,8 @@ const RoomManagement = () => {
       roomNumber: room.roomNumber || "",
       name: room.name || "",
       type: room.type || "standard",
+      serviceType: room.serviceType || "boarding",
+      group: room.group || "",
       capacity: room.capacity || 1,
       pricePerNight: room.pricePerNight ?? 0,
       amenities: room.amenities || [],
@@ -207,6 +319,12 @@ const RoomManagement = () => {
     if (!roomNumber) nextErrors.roomNumber = "Vui lòng nhập mã phòng";
     if (!roomName) nextErrors.name = "Vui lòng nhập tên phòng";
     if (!formData.type) nextErrors.type = "Vui lòng chọn loại phòng";
+    if (!formData.serviceType) {
+      nextErrors.serviceType = "Vui lòng chọn service type";
+    }
+    if (formData.serviceType === "service" && !formData.group) {
+      nextErrors.group = "Service room cần chọn group wet/dry";
+    }
     if (!Number.isFinite(capacity) || capacity < 1) {
       nextErrors.capacity = "Sức chứa phải từ 1 trở lên";
     }
@@ -232,6 +350,7 @@ const RoomManagement = () => {
         name: roomName,
         capacity,
         pricePerNight,
+        group: formData.serviceType === "service" ? formData.group : undefined,
       };
 
       if (modalMode === "create") {
@@ -272,6 +391,58 @@ const RoomManagement = () => {
     return roomType || ROOM_TYPES[0];
   };
 
+  const getServiceTypeBadge = (serviceType) => {
+    return (
+      SERVICE_TYPES.find((type) => type.value === serviceType) ||
+      SERVICE_TYPES[0]
+    );
+  };
+
+  const getServiceGroupBadge = (group) => {
+    return (
+      SERVICE_GROUPS.find((item) => item.value === group) || SERVICE_GROUPS[0]
+    );
+  };
+
+  const handleGroupCapacityFieldChange = (groupKey, field, value) => {
+    const parsedValue = Math.max(1, Number(value) || 1);
+    setGroupCapacities((prev) => ({
+      ...prev,
+      [groupKey]: (() => {
+        const nextConfig = {
+          ...prev[groupKey],
+          [field]: parsedValue,
+        };
+        nextConfig.roomCount = deriveRoomCountFromConfig(
+          nextConfig.maxCapacity,
+          nextConfig.slotsPerRoom,
+        );
+        return nextConfig;
+      })(),
+    }));
+  };
+
+  const handleSaveGroupCapacity = async (groupKey) => {
+    try {
+      setGroupCapacitySaving(groupKey);
+      setGroupCapacityError("");
+
+      const target = groupCapacities[groupKey];
+      await updateGroupCapacity(groupKey, {
+        maxCapacity: Number(target.maxCapacity),
+        slotsPerRoom: Number(target.slotsPerRoom),
+      });
+
+      await fetchGroupCapacityConfigs();
+    } catch (err) {
+      setGroupCapacityError(
+        err?.response?.data?.message || "Không thể cập nhật group capacity",
+      );
+    } finally {
+      setGroupCapacitySaving("");
+    }
+  };
+
   const selectedType = ROOM_TYPES.find((type) => type.value === formData.type);
   const isEditMode = modalMode === "edit";
   const modalTitle = isEditMode ? "Edit Room" : "Add New Room";
@@ -303,14 +474,25 @@ const RoomManagement = () => {
             Manage accommodation rooms for pets
           </p>
         </div>
-        <Motion.button
-          onClick={handleCreate}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2 shrink-0"
-        >
-          <Plus size={18} /> Add Room
-        </Motion.button>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Motion.button
+            type="button"
+            onClick={() => setShowGroupCapacityModal(true)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="h-11 px-4 rounded-xl border border-[#E4D5CC] bg-white text-[#2D3436] text-sm font-semibold shadow-sm hover:bg-[#FDF8F5] transition-all inline-flex items-center gap-2"
+          >
+            <Activity size={16} className="text-[#D97853]" /> Group Capacity
+          </Motion.button>
+          <Motion.button
+            onClick={handleCreate}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-[#D97853] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-[0_5px_15px_rgba(217,120,83,0.3)] hover:bg-[#c66846] transition-all flex items-center gap-2"
+          >
+            <Plus size={18} /> Add Room
+          </Motion.button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -383,6 +565,8 @@ const RoomManagement = () => {
                   <tr className="bg-[#FDFBF7] border-b border-[#2D3436]/5 text-xs font-bold text-[#2D3436]">
                     <th className="px-6 py-4 whitespace-nowrap">Room</th>
                     <th className="px-6 py-4 whitespace-nowrap">Type</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Service Type</th>
+                    <th className="px-6 py-4 whitespace-nowrap">Group</th>
                     <th className="px-6 py-4 whitespace-nowrap text-center">
                       Capacity
                     </th>
@@ -398,6 +582,8 @@ const RoomManagement = () => {
                 <tbody className="text-sm">
                   {filteredRooms.map((room, index) => {
                     const typeBadge = getRoomTypeBadge(room.type);
+                    const serviceTypeBadge = getServiceTypeBadge(room.serviceType);
+                    const serviceGroupBadge = getServiceGroupBadge(room.group);
                     return (
                       <Motion.tr
                         key={room._id}
@@ -423,6 +609,26 @@ const RoomManagement = () => {
                           >
                             {typeBadge.label}
                           </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium border ${serviceTypeBadge.color}`}
+                          >
+                            {serviceTypeBadge.label}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          {room.serviceType === "service" ? (
+                            <span
+                              className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium border ${serviceGroupBadge.color}`}
+                            >
+                              {serviceGroupBadge.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-[#2D3436]/35">-</span>
+                          )}
                         </td>
 
                         {/* Capacity */}
@@ -499,6 +705,155 @@ const RoomManagement = () => {
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
+        {showGroupCapacityModal && (
+          <Motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowGroupCapacityModal(false)}
+          >
+            <Motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-[780px] bg-[#FFFEFD] rounded-[22px] border border-[#EEDFD5] shadow-[0_28px_68px_rgba(17,24,39,0.28)] overflow-hidden"
+            >
+              <div className="px-5 md:px-6 py-4 border-b border-[#EFE2DA] bg-white flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-[31px] font-extrabold text-[#1F2933] leading-tight">
+                    Group Capacity
+                  </h3>
+                  <p className="text-[13px] text-[#2D3436]/55 font-medium mt-1">
+                    Configure max concurrent pets by service group (Wet / Dry)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGroupCapacityModal(false)}
+                  className="p-2 rounded-xl text-[#7C6A6F] hover:text-[#2D3436] hover:bg-[#F7F3F0]"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 md:p-6">
+                {groupCapacityError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 mb-4">
+                    {groupCapacityError}
+                  </div>
+                )}
+
+                {groupCapacityLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-[#2D3436]/55 py-8">
+                    <Loader2 size={16} className="animate-spin" /> Loading group capacity...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(["wet", "dry"]).map((groupKey) => {
+                      const config = groupCapacities[groupKey];
+                      const isWet = groupKey === "wet";
+
+                      return (
+                        <div
+                          key={groupKey}
+                          className={`rounded-2xl border p-3.5 ${
+                            isWet
+                              ? "border-[#BFD9F2] bg-[#F3F8FF]"
+                              : "border-[#F1D7BB] bg-[#FFF8EE]"
+                          }`}
+                        >
+                          <div className="rounded-xl bg-white/70 px-3 py-2 border border-white/80 flex items-start gap-2.5 mb-3">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isWet ? "bg-[#DDEBFA] text-[#2B6FA3]" : "bg-[#FFE9CC] text-[#D77A28]"}`}>
+                              {isWet ? <Waves size={14} /> : <Wind size={14} />}
+                            </div>
+                            <div>
+                              <p className="text-[27px] leading-none font-black text-[#2D3436]">
+                                {isWet ? "Wet Group" : "Dry Group"}
+                              </p>
+                              <p className="text-xs text-[#2D3436]/55">Active: Yes</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold text-[#2D3436]/75 mb-1">
+                                Max Capacity
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={config?.maxCapacity ?? 1}
+                                onChange={(e) =>
+                                  handleGroupCapacityFieldChange(
+                                    groupKey,
+                                    "maxCapacity",
+                                    e.target.value,
+                                  )
+                                }
+                                className="w-full h-9 px-3 border border-[#2D3436]/12 rounded-xl text-sm bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-[#2D3436]/75 mb-1">
+                                Room Count
+                              </label>
+                              <input
+                                type="number"
+                                value={config?.roomCount ?? 1}
+                                disabled
+                                className="w-full h-9 px-3 border border-[#2D3436]/10 rounded-xl text-sm bg-[#F5F6F8] text-[#2D3436]/60"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-[#2D3436]/75 mb-1">
+                                Slots/Room
+                              </label>
+                              <input
+                                type="number"
+                                  min="1"
+                                  max="20"
+                                value={config?.slotsPerRoom ?? 1}
+                                  onChange={(e) =>
+                                    handleGroupCapacityFieldChange(
+                                      groupKey,
+                                      "slotsPerRoom",
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="w-full h-9 px-3 border border-[#2D3436]/12 rounded-xl text-sm bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-[#2D3436]/48 mt-2.5 mb-2">
+                              Note: Room Count is auto-calculated = ceil(Max Capacity / Slots per room).
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSaveGroupCapacity(groupKey)}
+                            disabled={groupCapacitySaving === groupKey}
+                            className="h-9 px-3.5 rounded-xl bg-[#E19A79] text-white text-sm font-bold hover:bg-[#D88660] disabled:opacity-60 inline-flex items-center gap-1.5"
+                          >
+                            {groupCapacitySaving === groupKey ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <CheckCircle2 size={13} />
+                            )}
+                            Save
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Motion.div>
+          </Motion.div>
+        )}
+
         {showModal && (
           <Motion.div
             initial={{ opacity: 0 }}
@@ -673,6 +1028,61 @@ const RoomManagement = () => {
                       </p>
                     )}
                   </div>
+
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5 tracking-[0.01em]">
+                      Service Type <span className="text-[#D97853]">*</span>
+                    </label>
+                    <select
+                      value={formData.serviceType}
+                      onChange={(e) => {
+                        const nextServiceType = e.target.value;
+                        updateFormField("serviceType", nextServiceType);
+                        if (nextServiceType !== "service") {
+                          updateFormField("group", "");
+                        }
+                      }}
+                      className={getInputClassName("serviceType")}
+                    >
+                      {SERVICE_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors.serviceType && (
+                      <p className="mt-1.5 text-xs font-medium text-red-600">
+                        {fieldErrors.serviceType}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5 tracking-[0.01em]">
+                      Group {formData.serviceType === "service" && <span className="text-[#D97853]">*</span>}
+                    </label>
+                    <select
+                      value={formData.group}
+                      disabled={formData.serviceType !== "service"}
+                      onChange={(e) => updateFormField("group", e.target.value)}
+                      className={getInputClassName("group")}
+                    >
+                      <option value="">None</option>
+                      {SERVICE_GROUPS.map((group) => (
+                        <option key={group.value} value={group.value}>
+                          {group.label}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors.group && (
+                      <p className="mt-1.5 text-xs font-medium text-red-600">
+                        {fieldErrors.group}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block text-[13px] font-semibold text-[#2D3436] mb-1.5 tracking-[0.01em]">
                       Capacity <span className="text-[#D97853]">*</span>

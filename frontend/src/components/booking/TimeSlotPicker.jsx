@@ -32,6 +32,8 @@ const TimeSlotPicker = ({
   startHour = 8,
   endHour = 17,
   disabledSlots = [],
+  compact = false,
+  maxHeightClass,
 }) => {
   const slots = useMemo(
     () => generateTimeSlots(serviceType, startHour, endHour),
@@ -50,7 +52,9 @@ const TimeSlotPicker = ({
         </span>
       </label>
 
-      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1.5 max-h-48 overflow-y-auto pr-1">
+      <div
+        className={`grid grid-cols-4 gap-1.5 overflow-y-auto pr-1 ${maxHeightClass || "max-h-48"}`}
+      >
         {slots.map((slot) => {
           const isSelected = selectedTime === slot;
           const isDisabled = disabledSlots.includes(slot);
@@ -63,7 +67,8 @@ const TimeSlotPicker = ({
               whileTap={!isDisabled ? { scale: 0.95 } : undefined}
               onClick={() => !isDisabled && onChange(slot)}
               className={`
-                px-2 py-1.5 rounded-lg text-sm font-medium transition-colors
+                ${compact ? "px-1.5 py-1 rounded-md text-xs" : "px-2 py-1.5 rounded-lg text-sm"}
+                font-medium transition-colors
                 ${
                   isSelected
                     ? "bg-[#FF8C00] text-white shadow-sm"

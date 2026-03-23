@@ -87,9 +87,12 @@ export function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={30}
     >
-     
       <ScrollView contentContainerStyle={styles.centerWrap} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
+          <Pressable style={styles.backButton} onPress={() => navigation.navigate("Landing")}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+
           <Text style={[styles.paw, styles.pawTopLeft]}>🐾</Text>
           <Text style={[styles.paw, styles.pawRightMid]}>🐾</Text>
           <Text style={[styles.paw, styles.pawBottomMid]}>🐾</Text>
@@ -256,6 +259,22 @@ const styles = StyleSheet.create({
     bottom: 40,
     left: 26,
     color: "#E8D2B5",
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D9DFE8",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  backText: {
+    color: "#475569",
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: "700",
   },
   closeRow: {
     alignItems: "flex-end",

@@ -14,9 +14,10 @@ import {
   X,
   Stethoscope,
   MessageSquare,
-  Star
+  Star,
+  Wallet
 } from 'lucide-react';
-import { getMyBookings, getBookingById, getMyPetsMedicalRecords } from '../api/bookingApi';
+import { getMyBookings, getBookingById, getMyPetsMedicalRecords, payPendingBooking } from '../api/bookingApi';
 import { getMyFeedback, createFeedback } from '../api/feedbackApi';
 import MedicalRecordShowcase from '../components/medical/MedicalRecordShowcase';
 
@@ -96,10 +97,12 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const BookingCard = ({ booking, onViewDetail, onLeaveFeedback, hasFeedback }) => {
+const BookingCard = ({ booking, onViewDetail, onLeaveFeedback, hasFeedback, onPayPending, payingBookingId }) => {
   const pets = booking.items?.map((item) => item.pet?.petName || item.pet?.name).filter(Boolean);
   const services = booking.items?.map((item) => item.service?.name).filter(Boolean);
   const showFeedbackButton = booking.status === 'completed';
+  const canRetryPayment = booking.status === 'pending' && booking.paymentMethod === 'wallet' && !booking.isPaid;
+  const isPaying = payingBookingId === booking._id;
   const { isOpen: isFeedbackWindowOpen, deadlineAt } = getFeedbackWindow(booking);
   const canLeaveFeedback = showFeedbackButton && isFeedbackWindowOpen && !hasFeedback;
   const isFeedbackExpired = showFeedbackButton && !hasFeedback && !isFeedbackWindowOpen;
@@ -152,21 +155,33 @@ const BookingCard = ({ booking, onViewDetail, onLeaveFeedback, hasFeedback }) =>
         <span className="font-bold text-[#FF8C42]">{formatMoney(booking.totalAmount)}</span>
       </div>
 
-      <div className={`mt-1 grid gap-2 ${showFeedbackButton ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className="mt-1 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => onViewDetail(booking)}
-          className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
         >
           <Eye size={16} /> View Detail
         </button>
+
+        {canRetryPayment && (
+          <button
+            type="button"
+            disabled={isPaying}
+            onClick={() => onPayPending(booking)}
+            className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isPaying ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}
+            {isPaying ? 'Processing...' : 'Pay Now'}
+          </button>
+        )}
 
         {showFeedbackButton && (
           <button
             type="button"
             disabled={!canLeaveFeedback}
             onClick={() => onLeaveFeedback(booking)}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-colors ${
+            className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-semibold transition-colors ${
               hasFeedback
                 ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 cursor-default'
                 : isFeedbackExpired
@@ -418,6 +433,8 @@ const BookingHistory = () => {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackError, setFeedbackError] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [payingBookingId, setPayingBookingId] = useState(null);
+  const [paymentMessage, setPaymentMessage] = useState('');
 
   const fetchBookings = useCallback(async () => {
     setLoadingBookings(true);
@@ -554,6 +571,34 @@ const BookingHistory = () => {
     }
   };
 
+  const handlePayPending = async (booking) => {
+    if (!booking?._id || payingBookingId) return;
+
+    setPayingBookingId(booking._id);
+    setPaymentMessage('');
+
+    try {
+      const result = await payPendingBooking(booking._id);
+      setPaymentMessage(result?.message || 'Booking payment successful.');
+      await fetchBookings();
+
+      if (selectedBooking?._id === booking._id) {
+        const latest = await getBookingById(booking._id).catch(() => null);
+        if (latest?.data?.booking) {
+          setSelectedBooking(latest.data.booking);
+        }
+      }
+    } catch (err) {
+      const message =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.message ||
+        'Unable to process payment right now.';
+      setPaymentMessage(message);
+    } finally {
+      setPayingBookingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7]">
       <div className="bg-white border-b border-slate-100">
@@ -569,6 +614,12 @@ const BookingHistory = () => {
       </div>
 
       <div className="container mx-auto px-6 py-6 max-w-5xl">
+        {paymentMessage && (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+            {paymentMessage}
+          </div>
+        )}
+
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
           {STATUS_FILTERS.map((filter) => (
             <button
@@ -611,6 +662,8 @@ const BookingHistory = () => {
                       onViewDetail={handleViewDetail}
                       onLeaveFeedback={openFeedbackModal}
                       hasFeedback={Boolean(feedbackByBooking[booking._id])}
+                      onPayPending={handlePayPending}
+                      payingBookingId={payingBookingId}
                     />
                   ))}
                 </div>

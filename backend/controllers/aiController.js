@@ -5,6 +5,7 @@ const Service = require('../models/Service');
 const Booking = require('../models/Booking');
 const Transaction = require('../models/Transaction');
 const Voucher = require('../models/Voucher');
+const AIConversation = require('../models/AIConversation');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError } = require('../utils/AppError');
 
@@ -15,6 +16,196 @@ const AI_CONFIG = {
   geminiKey: process.env.GEMINI_API_KEY,
   timeout: 30000, // 30 seconds
   model: process.env.AI_MODEL || (process.env.AI_PROVIDER === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o')
+};
+
+const CHAT_HISTORY_LIMIT = 200;
+const CHAT_CONTEXT_WINDOW = 16;
+const MESSAGE_MAX_LENGTH = 1000;
+
+const VIETNAMESE_CHAR_REGEX = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+
+const DOMAIN_KEYWORDS = [
+  'spa', 'pet', 'dog', 'cat', 'puppy', 'kitten', 'groom', 'grooming', 'boarding', 'bath', 'haircut',
+  'trim', 'nail', 'ear cleaning', 'health scan', 'veterinary', 'vet', 'booking', 'appointment',
+  'room', 'service', 'voucher', 'wallet', 'camera', 'medical record', 'policy', 'feedback',
+  'thu cung', 'thú cưng', 'cho', 'chó', 'meo', 'mèo', 'spa thú cưng', 'tam', 'tắm', 'cat tia',
+  'cắt tỉa', 'cat mong', 'cắt móng', 'giu', 'giữ', 'luu tru', 'lưu trú', 'dat lich', 'đặt lịch',
+  'lich hen', 'lịch hẹn', 'dich vu', 'dịch vụ', 'phong', 'phòng', 'gia', 'giá', 'voucher',
+  'vi', 'ví', 'camera', 'benh an', 'bệnh án', 'suc khoe', 'sức khỏe', 'chinh sach', 'chính sách',
+  'happy tails', 'pet care', 'cham soc', 'chăm sóc', 'khuyen mai', 'khuyến mãi', 'thanh toan', 'thanh toán',
+  'mo cua', 'mở cửa', 'gio', 'giờ'
+];
+
+const GREETING_KEYWORDS = [
+  'hi', 'hello', 'hey', 'xin chao', 'xin chào', 'chao', 'chào', 'alo', 'yo'
+];
+
+const SERVICE_QUERY_KEYWORDS = [
+  'dich vu nao',
+  'dịch vụ nào',
+  'danh sach dich vu',
+  'danh sách dịch vụ',
+  'co nhung dich vu nao',
+  'có những dịch vụ nào',
+  'list service',
+  'list services',
+  'what services',
+  'available services',
+  'service list',
+  'goi dich vu',
+  'gói dịch vụ',
+];
+
+const isVietnameseText = (text = '') => {
+  const normalized = String(text).toLowerCase();
+  return VIETNAMESE_CHAR_REGEX.test(normalized)
+    || normalized.includes('xin chao')
+    || normalized.includes('thú cưng')
+    || normalized.includes('dịch vụ');
+};
+
+const isSpaRelatedMessage = (message = '') => {
+  const normalized = String(message).toLowerCase().trim();
+  if (!normalized) return false;
+
+  const compact = normalized
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (GREETING_KEYWORDS.some((keyword) => compact.includes(keyword))) {
+    return true;
+  }
+
+  return DOMAIN_KEYWORDS.some((keyword) => compact.includes(keyword));
+};
+
+const normalizeCompactText = (text = '') => {
+  return String(text)
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const isServiceCatalogQuery = (message = '') => {
+  const compact = normalizeCompactText(message);
+  return SERVICE_QUERY_KEYWORDS.some((keyword) => compact.includes(keyword));
+};
+
+const getOutOfScopeReply = (message = '') => {
+  if (isVietnameseText(message)) {
+    return 'Mình chỉ có thể hỗ trợ các câu hỏi liên quan đến Happy Tails Pet Care & Spa (dịch vụ, đặt lịch, lưu trú, giá, ví/voucher, chăm sóc thú cưng và tính năng trong hệ thống). Bạn vui lòng hỏi đúng chủ đề này nhé.';
+  }
+
+  return 'I can only help with Happy Tails Pet Care & Spa topics (services, bookings, boarding, pricing, wallet/voucher, pet care, and in-app features). Please ask something related to those topics.';
+};
+
+const formatServiceSummary = (serviceDocs = []) => {
+  if (!serviceDocs.length) {
+    return '- No active services found in database at the moment.';
+  }
+
+  return serviceDocs
+    .slice(0, 40)
+    .map((service) => {
+      const price = Number(service.price || 0).toLocaleString('vi-VN');
+      const duration = service.duration ? `${service.duration} minutes` : 'N/A';
+      const categoryName = service.category?.name || 'General';
+      return `- ${service.name} | Category: ${categoryName} | Duration: ${duration} | Price: ${price} VND`;
+    })
+    .join('\n');
+};
+
+const buildChatSystemPrompt = ({ now, serviceSummary }) => {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  return `You are Happy Tails Customer AI Assistant.
+
+CURRENT TIME INFORMATION:
+- Current year: ${currentYear}
+- Current month: ${currentMonth}
+- Current day: ${currentDay}
+- Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')}
+
+PROJECT CONTEXT (HAPPY TAILS PET CARE & SPA):
+- Core services: grooming, spa treatment, bathing, pet boarding/stay, AI health scan support.
+- Customer features in app: account/login, pet profile management, cart, booking checkout, room/stay selection, wallet payment, voucher usage, booking history, medical record tracking, policy/news viewing, feedback submission, and camera monitoring for eligible stay bookings.
+- Active service catalog from database:
+${serviceSummary}
+
+STRICT SCOPE RULES:
+1) Only answer questions related to Happy Tails services, pet care, and app features above.
+2) If the user asks unrelated topics (politics, coding help, general world facts, entertainment, etc.), refuse briefly and ask them to return to Happy Tails topics.
+3) Never fabricate unavailable services, prices, or features.
+4) If exact data is missing, say that clearly and suggest checking in-app pages or contacting staff.
+5) Respond in the same language as the user (Vietnamese/English).
+6) Keep answers concise, friendly, and practical for customers.`;
+};
+
+const buildServiceCatalogReply = (serviceDocs = [], sourceLabel = 'database', isVietnamese = true) => {
+  if (!serviceDocs.length) {
+    return isVietnamese
+      ? 'Hiện tại hệ thống chưa có dịch vụ nào đang hoạt động. Bạn vui lòng quay lại sau hoặc liên hệ staff để được hỗ trợ.'
+      : 'There are currently no active services in the system. Please try again later or contact staff for support.';
+  }
+
+  const seen = new Set();
+  const deduped = [];
+  for (const service of serviceDocs) {
+    const key = normalizeCompactText(service.name || '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(service);
+  }
+
+  const grouped = deduped.reduce((acc, service) => {
+    const category = service.category?.name || (isVietnamese ? 'Khác' : 'Other');
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(service);
+    return acc;
+  }, {});
+
+  const lines = [];
+  if (isVietnamese) {
+    lines.push(`Mình lấy trực tiếp từ ${sourceLabel}. Hiện có ${deduped.length} dịch vụ đang hoạt động:`);
+  } else {
+    lines.push(`I fetched this directly from the ${sourceLabel}. There are currently ${deduped.length} active services:`);
+  }
+
+  Object.entries(grouped).forEach(([categoryName, services]) => {
+    lines.push('');
+    lines.push(isVietnamese ? `- Nhóm ${categoryName}:` : `- Category ${categoryName}:`);
+    services.forEach((service) => {
+      const price = Number(service.price || 0).toLocaleString('vi-VN');
+      lines.push(`  * ${service.name} (${price} VND)`);
+    });
+  });
+
+  return lines.join('\n');
+};
+
+const saveConversationMessages = async ({ userId, userMessage, assistantMessage, timestamp = new Date() }) => {
+  await AIConversation.findOneAndUpdate(
+    { userId },
+    {
+      $setOnInsert: { userId },
+      $set: { lastMessageAt: timestamp },
+      $push: {
+        messages: {
+          $each: [
+            { role: 'user', content: userMessage, timestamp },
+            { role: 'assistant', content: assistantMessage, timestamp: new Date() },
+          ],
+          $slice: -CHAT_HISTORY_LIMIT,
+        },
+      },
+    },
+    { upsert: true, new: true }
+  );
 };
 
 /**
@@ -195,61 +386,130 @@ const callAI = async (messages, useVision = false) => {
  * @access Private
  */
 exports.chatWithAI = catchAsync(async (req, res, next) => {
-  const { message, conversationHistory = [] } = req.body;
+  const { message } = req.body;
+
+  if (req.user.role !== 'customer') {
+    return next(new AppError('Only customers can use AI chat', 403, 'FORBIDDEN'));
+  }
 
   if (!message || message.trim().length === 0) {
     return next(new AppError('Message is required', 400, 'MESSAGE_REQUIRED'));
   }
 
-  // Get current time in Vietnam timezone
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
-  const currentHour = now.getHours();
-  const currentMinute = now.getMinutes();
-  
-  const timeContext = `[Context: Current time is ${currentHour}:${currentMinute.toString().padStart(2, '0')}, ${currentDay}/${currentMonth}/${currentYear}]`;
+  const cleanedMessage = String(message).trim();
+  if (cleanedMessage.length > MESSAGE_MAX_LENGTH) {
+    return next(
+      new AppError(`Message must be less than ${MESSAGE_MAX_LENGTH} characters`, 400, 'MESSAGE_TOO_LONG')
+    );
+  }
 
-  // System prompt - multilingual support
+  const now = new Date();
+  if (!isSpaRelatedMessage(cleanedMessage)) {
+    const outOfScopeReply = getOutOfScopeReply(cleanedMessage);
+    await saveConversationMessages({
+      userId: req.user.id,
+      userMessage: cleanedMessage,
+      assistantMessage: outOfScopeReply,
+      timestamp: now,
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        response: outOfScopeReply,
+        timestamp: new Date().toISOString(),
+        outOfScope: true,
+      },
+    });
+  }
+
+  const [conversation, services] = await Promise.all([
+    AIConversation.findOne({ userId: req.user.id }).select('messages'),
+    Service.find({ isActive: true })
+      .populate('category', 'name')
+      .select('name price duration category')
+      .lean(),
+  ]);
+
+  if (isServiceCatalogQuery(cleanedMessage)) {
+    const directReply = buildServiceCatalogReply(services, 'database hệ thống', isVietnameseText(cleanedMessage));
+
+    await saveConversationMessages({
+      userId: req.user.id,
+      userMessage: cleanedMessage,
+      assistantMessage: directReply,
+      timestamp: now,
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        response: directReply,
+        timestamp: new Date().toISOString(),
+        outOfScope: false,
+        source: 'database',
+      },
+    });
+  }
+
+  const serviceSummary = formatServiceSummary(services);
+
   const systemPrompt = {
     role: 'system',
-    content: `You are an AI pet care assistant for Happy Tails Pet Care & Spa.
-
-CURRENT TIME INFORMATION:
-- Current year: ${currentYear}
-- Current month: ${currentMonth}  
-- Current day: ${currentDay}
-- Current time: ${currentHour}:${currentMinute.toString().padStart(2, '0')}
-
-WHEN ASKED ABOUT TIME: Use the exact numbers above, DO NOT make up different times.
-
-Your responsibilities:
-- Provide advice on pet health care, nutrition, and training
-- Answer questions about spa, grooming, and boarding services
-- Give professional and friendly recommendations
-
-IMPORTANT: Respond in the SAME LANGUAGE as the user's question. If they ask in Vietnamese, respond in Vietnamese. If they ask in English, respond in English. Always use a warm and caring tone.`
+    content: buildChatSystemPrompt({ now, serviceSummary }),
   };
 
-  // Add time context to user message
-  const userMessageWithContext = `${timeContext}\n\n${message}`;
+  const historyMessages = (conversation?.messages || [])
+    .slice(-CHAT_CONTEXT_WINDOW)
+    .map((msg) => ({ role: msg.role, content: msg.content }));
 
-  // Build messages array
   const messages = [
     systemPrompt,
-    ...conversationHistory.slice(-10),
-    { role: 'user', content: userMessageWithContext }
+    ...historyMessages,
+    { role: 'user', content: cleanedMessage },
   ];
 
   const aiResponse = await callAI(messages);
+  await saveConversationMessages({
+    userId: req.user.id,
+    userMessage: cleanedMessage,
+    assistantMessage: aiResponse,
+    timestamp: now,
+  });
 
   res.status(200).json({
     status: 'success',
     data: {
       response: aiResponse,
-      timestamp: new Date().toISOString()
-    }
+      timestamp: new Date().toISOString(),
+      outOfScope: false,
+    },
+  });
+});
+
+/**
+ * Get AI chat history
+ * @route GET /api/ai/chat/history
+ * @access Private (Customer)
+ */
+exports.getChatHistory = catchAsync(async (req, res, next) => {
+  if (req.user.role !== 'customer') {
+    return next(new AppError('Only customers can view AI chat history', 403, 'FORBIDDEN'));
+  }
+
+  const limitRaw = Number(req.query.limit || 100);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), CHAT_HISTORY_LIMIT) : 100;
+
+  const conversation = await AIConversation.findOne({ userId: req.user.id }).select('messages lastMessageAt');
+  const messages = (conversation?.messages || []).slice(-limit);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      messages,
+      total: conversation?.messages?.length || 0,
+      lastMessageAt: conversation?.lastMessageAt || null,
+    },
   });
 });
 

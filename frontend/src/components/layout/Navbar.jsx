@@ -497,9 +497,11 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   title="Shopping Cart"
                 >
                   <ShoppingCart size={18} />
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none border border-white">
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none border border-white">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* ── Notification Bell ── */}
@@ -1008,9 +1010,11 @@ const Navbar = ({ onLoginClick, onRegisterClick, user, onLogout }) => {
                   <span className="inline-flex items-center gap-3">
                     <ShoppingCart size={16} /> Shopping Cart
                   </span>
-                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
+                  {cartCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF8C42] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => {

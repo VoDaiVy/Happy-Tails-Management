@@ -4,8 +4,18 @@
  */
 
 const Room = require('../models/Room');
+const Booking = require('../models/Booking');
 const { catchAsync } = require('../utils/catchAsync');
 const { AppError, createError } = require('../utils/AppError');
+
+const ACTIVE_STAY_STATUSES = ['pending', 'confirmed', 'in-progress'];
+
+const parseStayDateTime = (date, fallbackTime = '00:00') => {
+  if (!date) return null;
+  const normalizedDate = String(date).split('T')[0];
+  const dt = new Date(`${normalizedDate}T${fallbackTime}:00`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+};
 
 /**
  * Get all rooms
@@ -13,7 +23,17 @@ const { AppError, createError } = require('../utils/AppError');
  * @access Public
  */
 exports.getAllRooms = catchAsync(async (req, res, next) => {
-  const { type, isAvailable, isActive = 'true', petType } = req.query;
+  const {
+    type,
+    serviceType,
+    isAvailable,
+    isActive = 'true',
+    petType,
+    checkInDate,
+    checkInTime = '00:00',
+    checkOutDate,
+    checkOutTime = '10:00',
+  } = req.query;
   
   const filter = {};
   
@@ -22,6 +42,7 @@ exports.getAllRooms = catchAsync(async (req, res, next) => {
   }
   
   if (type) filter.type = type;
+  if (serviceType) filter.serviceType = serviceType;
   if (isAvailable !== undefined) filter.isAvailable = isAvailable === 'true';
   if (petType) filter.petTypes = petType;
 
@@ -29,10 +50,71 @@ exports.getAllRooms = catchAsync(async (req, res, next) => {
     .populate('createdBy', 'name email')
     .sort('roomNumber');
 
+  let roomPayload = rooms.map((room) => {
+    const plain = room.toObject();
+    return {
+      ...plain,
+      remainingCapacity: Math.max(1, Number(plain.capacity) || 1),
+      activeOccupancy: 0,
+      hasCapacity: true,
+    };
+  });
+
+  if (checkInDate && checkOutDate && roomPayload.length > 0) {
+    const checkIn = parseStayDateTime(checkInDate, checkInTime);
+    const checkOut = parseStayDateTime(checkOutDate, checkOutTime);
+
+    if (!checkIn || !checkOut || checkOut <= checkIn) {
+      return next(new AppError('Invalid stay range', 400, 'INVALID_STAY_RANGE'));
+    }
+
+    const roomIds = roomPayload.map((r) => r._id);
+
+    const occupancyRows = await Booking.aggregate([
+      {
+        $match: {
+          status: { $in: ACTIVE_STAY_STATUSES },
+          'stayInfo.enabled': true,
+          'stayInfo.checkInDate': { $lt: checkOut },
+          'stayInfo.checkOutDate': { $gt: checkIn },
+          $or: [{ room: { $in: roomIds } }, { 'stayInfo.room': { $in: roomIds } }],
+        },
+      },
+      {
+        $project: {
+          roomRef: { $ifNull: ['$stayInfo.room', '$room'] },
+        },
+      },
+      {
+        $group: {
+          _id: '$roomRef',
+          occupied: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const occupancyMap = new Map(
+      occupancyRows.map((row) => [String(row._id), Number(row.occupied) || 0]),
+    );
+
+    roomPayload = roomPayload.map((room) => {
+      const totalCapacity = Math.max(1, Number(room.capacity) || 1);
+      const activeOccupancy = occupancyMap.get(String(room._id)) || 0;
+      const remainingCapacity = Math.max(0, totalCapacity - activeOccupancy);
+
+      return {
+        ...room,
+        activeOccupancy,
+        remainingCapacity,
+        hasCapacity: remainingCapacity > 0,
+      };
+    });
+  }
+
   res.status(200).json({
     status: 'success',
-    results: rooms.length,
-    data: { rooms }
+    results: roomPayload.length,
+    data: { rooms: roomPayload }
   });
 });
 
