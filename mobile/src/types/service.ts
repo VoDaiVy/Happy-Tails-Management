@@ -4,6 +4,8 @@ export interface ServiceItem {
   description?: string;
   price: number;
   duration: number;
+  group?: "wet" | "dry";
+  maxCapacity?: number;
   images?: string[];
   petTypes?: string[];
   rating?: number;

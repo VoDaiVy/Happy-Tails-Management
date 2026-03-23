@@ -24,6 +24,15 @@ export type BookingStackParamList = {
   };
 };
 
+export type AdminStackParamList = {
+  AdminHome: undefined;
+  AdminBookingBoard: undefined;
+  AdminUserManagement: undefined;
+  AdminVoucherManagement: undefined;
+  AdminServiceManagement: undefined;
+  AdminRoomManagement: undefined;
+};
+
 export type AccountStackParamList = {
   AccountHome: undefined;
   Profile: undefined;
@@ -43,4 +52,5 @@ export type MainTabParamList = {
   ServicesTab: undefined;
   BookingTab: undefined;
   AccountTab: NavigatorScreenParams<AccountStackParamList> | undefined;
+  AdminTab: NavigatorScreenParams<AdminStackParamList> | undefined;
 };
