@@ -9,8 +9,9 @@ import type { PolicyItem } from "../../types/policy";
 
 type Props = NativeStackScreenProps<InfoStackParamList, "NewsPolicyHome">;
 
-export function NewsPolicyScreen({ navigation }: Props) {
-  const [activeTab, setActiveTab] = useState<"news" | "policy">("news");
+export function NewsPolicyScreen({ navigation, route }: Props) {
+  const initialTab = route.params?.initialTab === "policy" ? "policy" : "news";
+  const [activeTab, setActiveTab] = useState<"news" | "policy">(initialTab);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
@@ -33,6 +34,13 @@ export function NewsPolicyScreen({ navigation }: Props) {
 
     loadData();
   }, []);
+
+  useEffect(() => {
+    const nextTab = route.params?.initialTab;
+    if (nextTab === "news" || nextTab === "policy") {
+      setActiveTab(nextTab);
+    }
+  }, [route.params?.initialTab]);
 
   if (loading) {
     return (

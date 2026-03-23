@@ -162,6 +162,7 @@ export function LoginScreen({ navigation }: Props) {
                 </Pressable>
 
                 {apiMessage ? <Text style={styles.errorCenter}>{apiMessage}</Text> : null}
+                {__DEV__ ? <Text style={styles.debugApiText}>API: {env.apiBaseUrl}</Text> : null}
 
                 <Pressable
                   accessibilityRole="button"
@@ -447,4 +448,5 @@ const styles = StyleSheet.create({
   },
   error: { marginTop: 2, color: "#DC2626", fontSize: 13 },
   errorCenter: { marginTop: 2, color: "#DC2626", fontSize: 13, textAlign: "center" },
+  debugApiText: { marginTop: 2, color: "#64748B", fontSize: 11, textAlign: "center" },
 });

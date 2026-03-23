@@ -130,14 +130,14 @@ const CustomSelect = ({
               left: position.left,
               width: position.width,
             }}
-            className={`bg-[#FFFEFB] rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#E8DED2]/70 overflow-hidden z-[9999] py-1 max-h-56 overflow-y-auto [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/50`}
+            className={`bg-[#FFFEFB] rounded-xl shadow-[0_14px_36px_rgba(36,27,20,0.12)] border border-[#E8DED2]/85 overflow-hidden z-[9999] py-1 max-h-56 overflow-y-auto [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/50`}
           >
             {options.map((opt, idx) => {
               const isSelected = value === opt;
               return (
                 <div
                   key={idx}
-                  className={`px-3.5 py-2.5 text-[13px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#F8F4EF] hover:text-[#2D3436] font-medium" : "border-l-[3px] border-[#D97853] bg-[#FFF5EC] text-[#D97853] font-semibold"}`}
+                  className={`px-3.5 py-2 text-[13px] cursor-pointer transition-colors ${!isSelected ? "text-[#2D3436]/70 hover:bg-[#F8F4EF] hover:text-[#2D3436] font-medium" : "border-l-[3px] border-[#D97853] bg-[#FFF5EC] text-[#D97853] font-semibold"}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange(opt);
@@ -163,7 +163,7 @@ const CustomSelect = ({
 
       <div
         ref={triggerRef}
-        className={`flex items-center justify-between px-3.5 py-2.5 bg-[#FDFBF7] border ${isOpen ? "border-[#D97853]" : "border-[#D8D0C4]/40"} rounded-xl cursor-pointer transition-all ${disabled ? "opacity-60 cursor-not-allowed" : "hover:border-[#D97853]/50"}`}
+        className={`flex min-h-[42px] items-center justify-between px-3.5 py-2 bg-[#FDFBF7] border ${isOpen ? "border-[#D97853] ring-2 ring-[#D97853]/10" : "border-[#D8D0C4]/45"} rounded-xl cursor-pointer transition-all ${disabled ? "cursor-not-allowed bg-[#F8F5F0]" : "hover:border-[#D97853]/50"}`}
         onClick={(e) => {
           if (!disabled) {
             e.stopPropagation();
@@ -178,7 +178,7 @@ const CustomSelect = ({
               className={isOpen ? "text-[#D97853]" : "text-[#2D3436]/40"}
             />
           )}
-          <span className="text-sm font-medium text-[#2D3436]">{value}</span>
+          <span className="text-sm font-semibold text-[#2D3436]">{value}</span>
         </div>
         <ChevronDown
           size={13}
@@ -207,6 +207,11 @@ const DEFAULT_FORM = {
   priority: "Normal",
   status: "Draft",
 };
+
+const CONTROL_CLASS =
+  "w-full min-h-[42px] rounded-xl border border-[#D8D0C4]/45 bg-[#FDFBF7] px-3.5 py-2 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/35 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/12";
+
+const CONTROL_READONLY_CLASS = "bg-[#F9F4EE] border-[#E9DFD3] text-[#3F4B53]";
 
 const STATUS_STYLE = {
   Draft: "border border-[#CBD2D9] bg-[#F5F7FA] text-[#52606D]",
@@ -873,16 +878,15 @@ const StaffNotificationsManagement = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="space-y-6"
+      className="space-y-5"
     >
-      <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <section className="flex flex-col gap-3 rounded-2xl border border-[#E8DDD0]/70 bg-[#FFFCF8] px-4 py-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#D97853]">
+          <h1 className="text-[27px] leading-[1.1] font-black text-[#D97853]">
             Notification Management
           </h1>
-          <p className="mt-1 text-sm text-[#2D3436]/60">
-            Create, schedule, and manage system notifications for customers and
-            user groups
+          <p className="mt-1 text-sm text-[#2D3436]/58">
+            Create, schedule, and track customer notifications in one place.
           </p>
         </div>
 
@@ -890,7 +894,7 @@ const StaffNotificationsManagement = () => {
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={openCreateModal}
-          className="inline-flex items-center gap-2 rounded-2xl bg-[#D97853] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_-16px_rgba(217,120,83,0.75)] transition-colors hover:bg-[#C86A46]"
+          className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D97853] px-4.5 text-sm font-semibold text-white shadow-[0_10px_24px_-14px_rgba(217,120,83,0.78)] transition-colors hover:bg-[#C86A46]"
         >
           <Plus size={17} />
           Create Notification
@@ -900,7 +904,7 @@ const StaffNotificationsManagement = () => {
       <AdminFilterBar
         searchValue={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder="Search by title, content, audience or ID..."
+        searchPlaceholder="Search by title, content, audience, ID..."
         filters={[
           {
             label: "AUDIENCE",
@@ -946,89 +950,85 @@ const StaffNotificationsManagement = () => {
           dateMode === "Created Date" ? "CREATED DATE" : "SCHEDULED DATE"
         }
         extraActions={
-          <button
-            onClick={handleResetFilters}
-            className="flex items-center justify-center min-w-[38px] h-[38px] rounded-full bg-[#F5F7FA] text-[#2D3436]/50 hover:bg-[#D97853]/10 hover:text-[#D97853] transition-all flex-shrink-0"
-            title="Reset Filters"
-          >
-            <RotateCcw size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefreshNotifications}
+              className="flex items-center justify-center min-w-[38px] h-[38px] rounded-xl border border-[#E4D9CD]/75 bg-[#FFFCF8] text-[#6B7C92] hover:border-[#D97853]/35 hover:text-[#D97853] transition-all flex-shrink-0"
+              title="Refresh"
+            >
+              <RotateCcw size={15} />
+            </button>
+            <button
+              onClick={handleResetFilters}
+              className="flex items-center justify-center min-w-[38px] h-[38px] rounded-xl border border-[#E4D9CD]/75 bg-[#FFFCF8] text-[#6B7C92] hover:border-[#D97853]/35 hover:text-[#D97853] transition-all flex-shrink-0"
+              title="Reset Filters"
+            >
+              <Archive size={15} />
+            </button>
+          </div>
         }
       />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#2D3436]/50 mb-1">
-              Total Notifications
-            </p>
-            <p className="text-2xl font-extrabold text-[#2D3436] leading-none">
-              {summary.totalNotifications}
-            </p>
-          </div>
-          <BellRing
-            size={38}
-            strokeWidth={1.5}
-            className="text-[#D97853] opacity-80"
-          />
-        </div>
-
-        <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#2D3436]/50 mb-1">
-              Sent Today
-            </p>
-            <p className="text-2xl font-extrabold text-[#2D3436] leading-none">
-              {summary.sentToday}
-            </p>
-          </div>
-          <Send
-            size={38}
-            strokeWidth={1.5}
-            className="text-[#2F855A] opacity-80"
-          />
-        </div>
-
-        <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#2D3436]/50 mb-1">
-              Scheduled
-            </p>
-            <p className="text-2xl font-extrabold text-[#2D3436] leading-none">
-              {summary.scheduled}
-            </p>
-          </div>
-          <CalendarClock
-            size={38}
-            strokeWidth={1.5}
-            className="text-[#B7791F] opacity-80"
-          />
-        </div>
-
-        <div className="rounded-[20px] border border-[#2D3436]/10 bg-white p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#2D3436]/50 mb-1">
-              Drafts
-            </p>
-            <p className="text-2xl font-extrabold text-[#2D3436] leading-none">
-              {summary.drafts}
-            </p>
-          </div>
-          <FileText
-            size={38}
-            strokeWidth={1.5}
-            className="text-[#64748B] opacity-80"
-          />
-        </div>
+        {[
+          {
+            label: "Total Notifications",
+            value: summary.totalNotifications,
+            icon: BellRing,
+            iconClass: "text-[#C76E3F] bg-[#FFF2E8]",
+          },
+          {
+            label: "Sent Today",
+            value: summary.sentToday,
+            icon: Send,
+            iconClass: "text-[#2D7A4A] bg-[#EBF8F0]",
+          },
+          {
+            label: "Scheduled",
+            value: summary.scheduled,
+            icon: CalendarClock,
+            iconClass: "text-[#AD7321] bg-[#FFF8E7]",
+          },
+          {
+            label: "Drafts",
+            value: summary.drafts,
+            icon: Archive,
+            iconClass: "text-[#55677C] bg-[#EEF2F7]",
+          },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-[#E8DED2]/80 bg-[#FFFEFB] px-4 py-3.5 shadow-[0_10px_24px_-20px_rgba(15,23,42,0.55)]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#6F7E92]">
+                    {card.label}
+                  </p>
+                  <p className="mt-1 text-[28px] leading-none font-black text-[#24364D]">
+                    {card.value}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${card.iconClass}`}
+                >
+                  <Icon size={16} strokeWidth={2} />
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       <section>
-        <div className="overflow-hidden rounded-3xl border border-[#2D3436]/10 bg-white">
-          <div className="flex items-center justify-between border-b border-[#2D3436]/10 px-4 py-3">
+        <div className="overflow-hidden rounded-2xl border border-[#E8DED2]/85 bg-[#FFFEFB]">
+          <div className="flex items-center justify-between border-b border-[#EFE5DA] px-4 py-2.5">
             <p className="text-sm font-semibold text-[#2D3436]">
               Notification List
             </p>
-            <span className="rounded-full bg-[#FFF2E8] px-3 py-1 text-xs font-semibold text-[#B45309]">
+            <span className="rounded-full border border-[#F2DCC7] bg-[#FFF4EA] px-2.5 py-1 text-[11px] font-semibold text-[#AF642F]">
               {filteredNotifications.length} item(s)
             </span>
           </div>
@@ -1036,7 +1036,7 @@ const StaffNotificationsManagement = () => {
           {loading ? (
             <div className="overflow-x-auto">
               <table className="min-w-[980px] w-full">
-                <thead className="bg-[#FCFAF6] text-left text-xs uppercase tracking-wide text-[#2D3436]/60">
+                <thead className="bg-[#FCF7F2] text-left text-[11px] uppercase tracking-wide text-[#67788F]">
                   <tr>
                     {[
                       "Title",
@@ -1049,7 +1049,7 @@ const StaffNotificationsManagement = () => {
                       "Delivery",
                       "Actions",
                     ].map((label) => (
-                      <th key={label} className="px-4 py-3.5 font-semibold">
+                      <th key={label} className="px-4 py-3 font-semibold">
                         {label}
                       </th>
                     ))}
@@ -1116,7 +1116,7 @@ const StaffNotificationsManagement = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-[980px] w-full">
-                <thead className="bg-[#FCFAF6] text-left text-xs uppercase tracking-wide text-[#2D3436]/60">
+                <thead className="bg-[#FCF7F2] text-left text-[11px] uppercase tracking-wide text-[#67788F]">
                   <tr>
                     {[
                       "Title",
@@ -1129,7 +1129,7 @@ const StaffNotificationsManagement = () => {
                       "Delivery",
                       "Actions",
                     ].map((label) => (
-                      <th key={label} className="px-4 py-3.5 font-semibold">
+                      <th key={label} className="px-4 py-3 font-semibold">
                         {label}
                       </th>
                     ))}
@@ -1140,9 +1140,9 @@ const StaffNotificationsManagement = () => {
                   {filteredNotifications.map((item) => (
                     <tr
                       key={item.id}
-                      className="border-b border-[#2D3436]/5 text-sm transition-colors hover:bg-[#FFFAF5]"
+                      className="border-b border-[#F0E7DC] text-sm transition-colors hover:bg-[#FFFAF5]"
                     >
-                      <td className="px-4 py-3.5 align-top">
+                      <td className="px-4 py-3 align-top">
                         <p className="max-w-[270px] truncate font-semibold text-[#2D3436]">
                           {item.title}
                         </p>
@@ -1150,56 +1150,56 @@ const StaffNotificationsManagement = () => {
                           {item.id} • {item.summary || "No preview available"}
                         </p>
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/75">
                         {item.type}
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/75">
                         {item.targetAudience}
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/75">
                         {item.createdBy}
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/75">
                         {formatDateTime(item.createdDate)}
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/75">
                         {formatDateTime(item.scheduledAt)}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[item.status] || STATUS_STYLE.Draft}`}
+                          className={`inline-flex rounded-full px-2.5 py-[3px] text-[11px] font-semibold ${STATUS_STYLE[item.status] || STATUS_STYLE.Draft}`}
                         >
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-[#2D3436]/75">
+                      <td className="px-4 py-3 text-[#2D3436]/70 text-[13px]">
                         {item.delivery || "-"}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => openViewModal(item)}
-                            className="rounded-lg p-2 text-[#2D3436]/60 transition-colors hover:bg-[#EAF2FF] hover:text-[#1D4ED8]"
+                            className="rounded-lg border border-transparent p-1.5 text-[#2D3436]/55 transition-colors hover:border-[#DCE7FB] hover:bg-[#EAF2FF] hover:text-[#1D4ED8]"
                             aria-label="View notification"
                           >
-                            <Eye size={15} />
+                            <Eye size={14} />
                           </button>
                           <button
                             type="button"
                             onClick={() => openEditModal(item)}
-                            className="rounded-lg p-2 text-[#2D3436]/60 transition-colors hover:bg-[#FFF4E8] hover:text-[#B45309]"
+                            className="rounded-lg border border-transparent p-1.5 text-[#2D3436]/55 transition-colors hover:border-[#F4DFC8] hover:bg-[#FFF4E8] hover:text-[#B45309]"
                             aria-label="Edit notification"
                           >
-                            <PenSquare size={15} />
+                            <PenSquare size={14} />
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(item)}
-                            className="rounded-lg p-2 text-[#2D3436]/60 transition-colors hover:bg-[#FFF1F1] hover:text-[#B42318]"
+                            className="rounded-lg border border-transparent p-1.5 text-[#2D3436]/55 transition-colors hover:border-[#F5D8D8] hover:bg-[#FFF1F1] hover:text-[#B42318]"
                             aria-label="Delete notification"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -1218,7 +1218,7 @@ const StaffNotificationsManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/45 p-4 backdrop-blur-[3px]"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/42 p-4 backdrop-blur-[3px]"
             onClick={closeModal}
           >
             <Motion.div
@@ -1226,31 +1226,31 @@ const StaffNotificationsManagement = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-[1080px] overflow-hidden rounded-[24px] border border-[#E8DED2]/80 bg-[#FFFEFB] shadow-[0_32px_100px_-40px_rgba(15,23,42,0.5)]"
+              className="relative w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#E8DED2]/85 bg-[#FFFEFB] shadow-[0_30px_90px_-42px_rgba(15,23,42,0.52)]"
               onClick={(event) => event.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#EDE6DB] bg-gradient-to-r from-[#FFF8F3] via-[#FFFDFB] to-[#FFF7F1] px-7 py-5">
+              <div className="flex items-center justify-between border-b border-[#EEE5D9] bg-gradient-to-r from-[#FFF8F2] via-[#FFFDFB] to-[#FFF7F0] px-6 py-4.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#D97853]/10">
-                    <BellRing size={18} className="text-[#D97853]" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#D97853]/10">
+                    <BellRing size={16} className="text-[#D97853]" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-[#2D3436]">
+                    <h2 className="text-[19px] font-bold text-[#2D3436]">
                       {modalMode === "create"
                         ? "Create Notification"
                         : modalMode === "edit"
                           ? "Update Notification"
                           : "Notification Detail"}
                     </h2>
-                    <p className="text-xs font-medium text-[#2D3436]/45">
+                    <p className="text-xs font-medium text-[#2D3436]/50">
                       Compose and send push notifications to your audience
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={closeModal}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E8DED2] bg-white text-[#2D3436]/55 transition-all hover:bg-[#F8F4EF] hover:border-[#D97853]/30 hover:text-[#D97853]"
+                  className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-[#E8DED2] bg-white text-[#2D3436]/55 transition-all hover:bg-[#F8F4EF] hover:border-[#D97853]/30 hover:text-[#D97853]"
                   aria-label="Close modal"
                 >
                   <X size={17} />
@@ -1262,18 +1262,18 @@ const StaffNotificationsManagement = () => {
                   event.preventDefault();
                   handleSubmitForm("send");
                 }}
-                className="flex flex-col max-h-[82vh]"
+                className="flex flex-col max-h-[84vh]"
               >
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto px-7 py-6 [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/40 [&::-webkit-scrollbar-thumb:hover]:bg-[#D8D0C4]/60">
-                  <div className="grid grid-cols-1 gap-7 lg:grid-cols-2 lg:gap-6">
+                <div className="flex-1 overflow-y-auto px-6 py-5 [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#D8D0C4]/40 [&::-webkit-scrollbar-thumb:hover]:bg-[#D8D0C4]/60">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.06fr_0.94fr] lg:gap-5">
                     {/* Section 1: Basic Information */}
-                    <div className="mb-8 lg:mb-0">
-                      <div className="mb-5 flex items-center gap-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#D97853]/12 text-[11px] font-bold text-[#D97853]">
+                    <div className="mb-7 lg:mb-0">
+                      <div className="mb-4 flex items-center gap-2.5">
+                        <span className="flex h-5.5 w-5.5 items-center justify-center rounded-md bg-[#D97853]/12 text-[10px] font-bold text-[#D97853]">
                           1
                         </span>
-                        <h3 className="text-sm font-bold tracking-wide text-[#2D3436]">
+                        <h3 className="text-xs font-bold tracking-[0.11em] text-[#44566F]">
                           BASIC INFORMATION
                         </h3>
                       </div>
@@ -1293,7 +1293,7 @@ const StaffNotificationsManagement = () => {
                                 title: event.target.value,
                               }))
                             }
-                            className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                            className={`${CONTROL_CLASS} ${modalMode === "view" ? CONTROL_READONLY_CLASS : ""}`}
                             placeholder="e.g. Vaccination Reminder for Premium Members"
                           />
                           {formErrors.title && (
@@ -1304,7 +1304,7 @@ const StaffNotificationsManagement = () => {
                         </div>
 
                         {/* Type + Preview - 2 Column Row */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3.5">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                               Notification Type
@@ -1334,7 +1334,7 @@ const StaffNotificationsManagement = () => {
                                   summary: event.target.value,
                                 }))
                               }
-                              className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                              className={`${CONTROL_CLASS} ${modalMode === "view" ? CONTROL_READONLY_CLASS : ""}`}
                               placeholder="One-line preview text"
                             />
                           </div>
@@ -1355,7 +1355,7 @@ const StaffNotificationsManagement = () => {
                               }))
                             }
                             rows={6}
-                            className="w-full resize-y rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all placeholder:text-[#2D3436]/30 focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                            className={`${CONTROL_CLASS} ${modalMode === "view" ? CONTROL_READONLY_CLASS : ""} min-h-[148px] resize-none leading-relaxed`}
                             placeholder="Write clear and concise notification content..."
                           />
                           {formErrors.content && (
@@ -1368,19 +1368,19 @@ const StaffNotificationsManagement = () => {
                     </div>
 
                     {/* Section 2: Content & Audience */}
-                    <div className="mt-0 lg:border-l lg:border-[#E8DED2]/65 lg:pl-6">
-                      <div className="mb-5 flex items-center gap-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#D97853]/12 text-[11px] font-bold text-[#D97853]">
+                    <div className="mt-0 lg:border-l lg:border-[#E8DED2]/65 lg:pl-5">
+                      <div className="mb-4 flex items-center gap-2.5">
+                        <span className="flex h-5.5 w-5.5 items-center justify-center rounded-md bg-[#D97853]/12 text-[10px] font-bold text-[#D97853]">
                           2
                         </span>
-                        <h3 className="text-sm font-bold tracking-wide text-[#2D3436]">
+                        <h3 className="text-xs font-bold tracking-[0.11em] text-[#44566F]">
                           CONTENT & AUDIENCE
                         </h3>
                       </div>
 
                       <div className="space-y-4">
                         {/* Banner Upload + Preview - 2 Column Row */}
-                        <div className="grid grid-cols-[1fr_220px] gap-4">
+                        <div className="grid grid-cols-[1fr_198px] gap-3.5">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                               Banner Image
@@ -1402,7 +1402,7 @@ const StaffNotificationsManagement = () => {
                                   modalMode === "view" || isUploadingBanner
                                 }
                                 onClick={() => bannerInputRef.current?.click()}
-                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#D8D0C4]/50 bg-white px-4 text-xs font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/50 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[#D8D0C4]/55 bg-white px-3.5 text-xs font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/45 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 {isUploadingBanner ? (
                                   <Loader2 size={14} className="animate-spin" />
@@ -1444,7 +1444,7 @@ const StaffNotificationsManagement = () => {
                               Preview
                             </label>
                             {formState.bannerImage ? (
-                              <div className="h-[68px] w-full overflow-hidden rounded-xl border border-[#E8DED2]/60 bg-[#F8F6F2]">
+                              <div className="h-[64px] w-full overflow-hidden rounded-lg border border-[#E8DED2]/60 bg-[#F8F6F2]">
                                 <img
                                   src={formState.bannerImage}
                                   alt="Banner preview"
@@ -1452,7 +1452,7 @@ const StaffNotificationsManagement = () => {
                                 />
                               </div>
                             ) : (
-                              <div className="flex h-[68px] w-full items-center justify-center rounded-xl border border-dashed border-[#D8D0C4]/40 bg-[#FAF8F5] text-[10px] font-semibold uppercase tracking-widest text-[#2D3436]/25">
+                              <div className="flex h-[64px] w-full items-center justify-center rounded-lg border border-dashed border-[#D8D0C4]/45 bg-[#FAF8F5] text-[10px] font-semibold uppercase tracking-widest text-[#2D3436]/30">
                                 No banner
                               </div>
                             )}
@@ -1460,7 +1460,7 @@ const StaffNotificationsManagement = () => {
                         </div>
 
                         {/* Audience + Priority - 2 Column Row */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3.5">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                               Send To (Audience)
@@ -1506,7 +1506,7 @@ const StaffNotificationsManagement = () => {
                         </div>
 
                         {/* Delivery Mode + Scheduled Date/Time - 2 Column Row */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3.5">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#2D3436]/55">
                               Delivery Mode
@@ -1551,7 +1551,7 @@ const StaffNotificationsManagement = () => {
                                   formState.deliveryMode !== "Schedule later"
                                 }
                                 minDate={new Date()}
-                                className="w-full rounded-xl border border-[#D8D0C4]/40 bg-[#FDFBF7] px-4 py-2.5 text-sm font-medium text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15 disabled:cursor-not-allowed disabled:opacity-55"
+                                className={`${CONTROL_CLASS} ${modalMode === "view" ? CONTROL_READONLY_CLASS : ""}`}
                                 wrapperClassName="w-full"
                                 popperClassName="notification-datepicker-popper"
                                 calendarClassName="notification-datepicker-calendar"
@@ -1596,7 +1596,7 @@ const StaffNotificationsManagement = () => {
 
                         {/* Specific Users Selection */}
                         {formState.audienceMode === "Specific Users" && (
-                          <div className="rounded-xl border border-dashed border-[#D8D0C4]/50 bg-[#FAF8F5] p-4">
+                          <div className="rounded-xl border border-dashed border-[#D8D0C4]/50 bg-[#FAF8F5] p-3.5">
                             <label className="mb-3 block text-[11px] font-bold uppercase tracking-widest text-[#D97853]">
                               Select Specific Users
                             </label>
@@ -1613,7 +1613,7 @@ const StaffNotificationsManagement = () => {
                                   setCustomerSearch(e.target.value)
                                 }
                                 placeholder="Search by name or email..."
-                                className="w-full rounded-lg border border-[#D8D0C4]/40 bg-white py-2 pl-8 pr-3 text-xs text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/15"
+                                className="w-full rounded-lg border border-[#D8D0C4]/45 bg-white py-2 pl-8 pr-3 text-xs text-[#2D3436] outline-none transition-all focus:border-[#D97853] focus:ring-2 focus:ring-[#D97853]/12"
                               />
                             </div>
 
@@ -1690,12 +1690,12 @@ const StaffNotificationsManagement = () => {
                 </div>
 
                 {/* Footer - Sticky */}
-                <div className="flex items-center justify-end gap-3 border-t border-[#EDE6DB] bg-[#FFFDFB] px-7 py-4">
+                <div className="flex items-center justify-end gap-2.5 border-t border-[#EEE5D9] bg-[#FFFDFB] px-6 py-3.5">
                   <button
                     type="button"
                     onClick={closeModal}
                     disabled={isSaving}
-                    className="rounded-xl border border-[#E8DED2] bg-white px-5 py-2.5 text-sm font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/40 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="h-10 rounded-xl border border-[#E8DED2] bg-white px-4 text-sm font-semibold text-[#2D3436]/70 shadow-sm transition-all hover:border-[#D97853]/40 hover:text-[#D97853] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -1705,7 +1705,7 @@ const StaffNotificationsManagement = () => {
                       type="button"
                       onClick={() => handleSubmitForm("draft")}
                       disabled={isSaving}
-                      className="rounded-xl border border-[#D8DEE9] bg-white px-5 py-2.5 text-sm font-semibold text-[#64748B] shadow-sm transition-all hover:border-[#A7B6C7] hover:text-[#475569] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-10 rounded-xl border border-[#D8DEE9] bg-white px-4 text-sm font-semibold text-[#64748B] shadow-sm transition-all hover:border-[#A7B6C7] hover:text-[#475569] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Save Draft
                     </button>
@@ -1715,7 +1715,7 @@ const StaffNotificationsManagement = () => {
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#D97853] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(217,120,83,0.3)] transition-all hover:bg-[#C86A46] hover:shadow-[0_6px_18px_rgba(217,120,83,0.4)] disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#D97853] px-5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(217,120,83,0.3)] transition-all hover:bg-[#C86A46] hover:shadow-[0_6px_18px_rgba(217,120,83,0.4)] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSaving ? (
                         <Loader2 size={15} className="animate-spin" />
@@ -1728,7 +1728,7 @@ const StaffNotificationsManagement = () => {
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#2D3436] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(45,52,54,0.25)] transition-all hover:bg-[#1D2224]"
+                      className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#2D3436] px-5 text-sm font-semibold text-white shadow-[0_4px_12px_rgba(45,52,54,0.25)] transition-all hover:bg-[#1D2224]"
                     >
                       <CheckCircle2 size={15} />
                       Close
@@ -1747,47 +1747,47 @@ const StaffNotificationsManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/45 p-4 backdrop-blur-[2px]"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/42 p-4 backdrop-blur-[2px]"
             onClick={() => setDeleteTarget(null)}
           >
             <Motion.div
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              className="w-full max-w-md rounded-3xl border border-[#F2D6D6] bg-white p-5 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.55)]"
+              className="w-full max-w-[430px] rounded-2xl border border-[#F1D9D9] bg-[#FFFEFB] p-4.5 shadow-[0_22px_60px_-30px_rgba(15,23,42,0.5)]"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF1F1] text-[#B42318]">
-                  <AlertTriangle size={18} />
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFF1F1] text-[#B42318]">
+                  <AlertTriangle size={17} />
                 </span>
 
                 <div>
                   <h3 className="text-base font-semibold text-[#2D3436]">
                     Delete notification?
                   </h3>
-                  <p className="mt-1 text-sm text-[#2D3436]/65">
+                  <p className="mt-1 text-sm leading-relaxed text-[#2D3436]/65">
                     This removes the item from management history. If already
                     sent, delivered logs remain unchanged in customer tracking.
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-[#2D3436]">
+                  <p className="mt-2 text-sm font-semibold text-[#2D3436] truncate max-w-[300px]">
                     {deleteTarget.title}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-5 flex justify-end gap-2">
+              <div className="mt-4.5 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setDeleteTarget(null)}
-                  className="rounded-xl border border-[#E4DFD7] bg-[#FAF7F2] px-3.5 py-2 text-sm font-semibold text-[#2D3436]/75 transition-colors hover:border-[#D97853]/35 hover:text-[#D97853]"
+                  className="h-9 rounded-xl border border-[#E4DFD7] bg-[#FAF7F2] px-3.5 text-sm font-semibold text-[#2D3436]/75 transition-colors hover:border-[#D97853]/35 hover:text-[#D97853]"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#F1B6B6] bg-[#FFF3F3] px-3.5 py-2 text-sm font-semibold text-[#B42318] transition-colors hover:bg-[#FFE7E7]"
+                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-[#F1B6B6] bg-[#FFF1F1] px-3.5 text-sm font-semibold text-[#B42318] transition-colors hover:bg-[#FFE7E7]"
                 >
                   <Trash2 size={14} />
                   Delete

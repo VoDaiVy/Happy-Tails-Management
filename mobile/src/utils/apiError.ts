@@ -96,6 +96,9 @@ const ERROR_CODE_MAP: Record<string, string> = {
   INVALID_PET_TYPE: "Loai thu cung khong hop le.",
   INVALID_GENDER: "Gioi tinh thu cung khong hop le.",
   INVALID_OTP: "Ma OTP khong hop le hoac da het han.",
+  INVALID_CREDENTIALS: "Email hoac mat khau khong dung.",
+  ACCOUNT_LOCKED: "Tai khoan tam thoi bi khoa. Vui long thu lai sau.",
+  ACCOUNT_DISABLED: "Tai khoan da bi vo hieu hoa.",
   USER_NOT_FOUND: "Khong tim thay nguoi dung.",
   PET_NOT_FOUND: "Khong tim thay thu cung.",
   SERVICE_NOT_FOUND: "Khong tim thay dich vu.",
@@ -137,11 +140,16 @@ export function mapBackendErrorMessage(params: {
     return ERROR_CODE_MAP[code];
   }
 
+  // Prefer backend message when available to avoid masking useful auth errors.
+  if (fallback && fallback.trim()) {
+    return fallback;
+  }
+
   if (statusCode === 401) return "Ban can dang nhap de tiep tuc.";
   if (statusCode === 403) return "Ban khong co quyen truy cap.";
   if (statusCode === 404) return "Khong tim thay tai nguyen.";
   if (statusCode === 409) return "Du lieu bi xung dot. Vui long thu lai.";
   if (statusCode === 500) return "He thong dang ban. Vui long thu lai sau.";
 
-  return fallback || "Yeu cau that bai";
+  return "Yeu cau that bai";
 }

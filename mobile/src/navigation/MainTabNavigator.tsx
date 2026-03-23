@@ -126,6 +126,7 @@ export function MainTabNavigator() {
   const showManagementTab = isStaffOrAdminRole(user?.role);
   const [menuVisible, setMenuVisible] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [activeScreenName, setActiveScreenName] = useState("ServiceList");
 
   const userName = useMemo(() => {
     return String(user?.name || "User");
@@ -214,13 +215,32 @@ export function MainTabNavigator() {
     [headerShrinkProgress],
   );
 
+  const getDeepestRouteName = useCallback((state: any): string => {
+    if (!state?.routes || typeof state.index !== "number") return "ServiceList";
+    let route = state.routes[state.index];
+
+    while (route?.state?.routes && typeof route.state.index === "number") {
+      route = route.state.routes[route.state.index];
+    }
+
+    return String(route?.name || "ServiceList");
+  }, []);
+
+  const showFloatingTopBar = activeScreenName !== "MyBookings";
+
   return (
     <View style={styles.root}>
       <Tab.Navigator
+        screenListeners={{
+          state: (event) => {
+            const name = getDeepestRouteName(event.data.state);
+            setActiveScreenName(name);
+          },
+        }}
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: "none" },
-          sceneStyle: { paddingTop: 98 },
+          sceneStyle: { paddingTop: showFloatingTopBar ? 98 : 0 },
         }}
       >
         <Tab.Screen name="ServicesTab" component={ServicesStackNavigator} options={{ title: "Services" }} />
@@ -230,26 +250,28 @@ export function MainTabNavigator() {
         <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Tai khoan" }} />
       </Tab.Navigator>
 
-      <View style={styles.floatingTopBar} pointerEvents="box-none">
-        <Animated.View style={[styles.floatingTopBarInner, animatedTopBarStyle]}>
-          <Animated.View style={[styles.brandWrap, animatedBrandStyle]}>
-            <View style={styles.brandIconWrap}>
-              <Image source={BRAND_ICON} style={styles.brandIcon} resizeMode="cover" />
-              <View style={styles.brandDot} />
-            </View>
-            <View>
-              <Text style={styles.brandCaption}>PET SPA</Text>
-              <Text style={styles.brandText}>
-                <Text style={styles.brandTextPrimary}>Happy</Text>
-                <Text style={styles.brandTextAccent}>Tails</Text>
-              </Text>
-            </View>
+      {showFloatingTopBar ? (
+        <View style={styles.floatingTopBar} pointerEvents="box-none">
+          <Animated.View style={[styles.floatingTopBarInner, animatedTopBarStyle]}>
+            <Animated.View style={[styles.brandWrap, animatedBrandStyle]}>
+              <View style={styles.brandIconWrap}>
+                <Image source={BRAND_ICON} style={styles.brandIcon} resizeMode="cover" />
+                <View style={styles.brandDot} />
+              </View>
+              <View>
+                <Text style={styles.brandCaption}>PET SPA</Text>
+                <Text style={styles.brandText}>
+                  <Text style={styles.brandTextPrimary}>Happy</Text>
+                  <Text style={styles.brandTextAccent}>Tails</Text>
+                </Text>
+              </View>
+            </Animated.View>
+            <Pressable onPress={() => setMenuVisible(true)} style={styles.menuBtn}>
+              <Text style={styles.menuBtnText}>☰</Text>
+            </Pressable>
           </Animated.View>
-          <Pressable onPress={() => setMenuVisible(true)} style={styles.menuBtn}>
-            <Text style={styles.menuBtnText}>☰</Text>
-          </Pressable>
-        </Animated.View>
-      </View>
+        </View>
+      ) : null}
 
       <SideMenu
         visible={menuVisible}

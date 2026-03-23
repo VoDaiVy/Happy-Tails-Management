@@ -41,7 +41,11 @@ export type BookingStackParamList = {
 };
 
 export type InfoStackParamList = {
-  NewsPolicyHome: undefined;
+  NewsPolicyHome:
+    | {
+        initialTab?: "news" | "policy";
+      }
+    | undefined;
   NewsDetail: {
     slug: string;
     title?: string;
@@ -76,13 +80,40 @@ export type AccountStackParamList = {
   };
   ChangePassword: undefined;
   NotificationCenter: undefined;
-  Feedback: undefined;
+  Feedback:
+    | {
+        bookingId?: string;
+        serviceId?: string;
+      }
+    | undefined;
+};
+
+export type StaffManagementStackParamList = {
+  StaffOverview: undefined;
+  StaffBookings:
+    | {
+        refreshAt?: number;
+        toastMessage?: string;
+      }
+    | undefined;
+  StaffOfflineOrder: undefined;
+  StaffSchedule:
+    | {
+        refreshAt?: number;
+        toastMessage?: string;
+      }
+    | undefined;
+  StaffScheduleDetail: {
+    bookingId: string;
+  };
+  StaffMedicalRecords: undefined;
+  StaffNewsManagement: undefined;
 };
 
 export type MainTabParamList = {
   ServicesTab: NavigatorScreenParams<ServicesStackParamList> | undefined;
   BookingTab: NavigatorScreenParams<BookingStackParamList> | undefined;
   InfoTab: NavigatorScreenParams<InfoStackParamList> | undefined;
-  ManagementTab: undefined;
+  ManagementTab: NavigatorScreenParams<StaffManagementStackParamList> | undefined;
   AccountTab: NavigatorScreenParams<AccountStackParamList> | undefined;
 };

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,13 +17,18 @@ import {
   updateFeedback,
 } from "../../api/modules/feedbackApi";
 import { useAuth } from "../../context/AuthContext";
+import type { AccountStackParamList } from "../../navigation/types";
 import type { EligibleFeedbackBooking, FeedbackItem } from "../../types/feedback";
 import { canUseCustomerFeatures } from "../../utils/role";
 
 const RATING_OPTIONS = [1, 2, 3, 4, 5];
 
-export function FeedbackScreen() {
+type Props = NativeStackScreenProps<AccountStackParamList, "Feedback">;
+
+export function FeedbackScreen({ route }: Props) {
   const { user } = useAuth();
+  const preselectedBookingId = route.params?.bookingId || "";
+  const preselectedServiceId = route.params?.serviceId || "";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
@@ -37,6 +43,18 @@ export function FeedbackScreen() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const canAccess = canUseCustomerFeatures(user?.role);
+
+  useEffect(() => {
+    if (preselectedBookingId) {
+      setSelectedBookingId(preselectedBookingId);
+    }
+  }, [preselectedBookingId]);
+
+  useEffect(() => {
+    if (preselectedServiceId) {
+      setSelectedServiceId(preselectedServiceId);
+    }
+  }, [preselectedServiceId]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

@@ -35,6 +35,22 @@ export const axiosClient = axios.create({
   },
 });
 
+const PUBLIC_AUTH_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/google",
+  "/auth/refresh-token",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/verify-email",
+  "/auth/resend-verification",
+];
+
+function isPublicAuthRequest(url?: string) {
+  if (!url) return false;
+  return PUBLIC_AUTH_PATHS.some((path) => url.includes(path));
+}
+
 axiosClient.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -85,8 +101,9 @@ axiosClient.interceptors.response.use(
     const originalRequest = error.config as { _retry?: boolean; url?: string; headers?: Record<string, string> };
     const requestUrl = originalRequest?.url || "";
     const isRefreshRequest = requestUrl.includes("/auth/refresh-token");
+    const isPublicAuth = isPublicAuthRequest(requestUrl);
 
-    if (statusCode === 401 && !originalRequest?._retry && !isRefreshRequest) {
+    if (statusCode === 401 && !originalRequest?._retry && !isRefreshRequest && !isPublicAuth) {
       originalRequest._retry = true;
 
       if (!refreshPromise) {

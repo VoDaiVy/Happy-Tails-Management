@@ -225,15 +225,6 @@ export function LandingScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <View style={styles.footerWrap}>
-            <Text style={styles.footerCopy}>2024 HappyTails. All rights reserved.</Text>
-            <View style={styles.footerLinks}>
-              <Text style={styles.footerLink}>Privacy Policy</Text>
-              <Text style={styles.footerLink}>Terms of Service</Text>
-              <Text style={styles.footerLink}>Cookie Settings</Text>
-            </View>
-          </View>
-
           <View pointerEvents="none" style={[styles.circle, styles.circleOne]} />
           <View pointerEvents="none" style={[styles.circle, styles.circleTwo]} />
           <View pointerEvents="none" style={[styles.circle, styles.circleThree]} />
@@ -723,29 +714,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  footerWrap: {
-    marginTop: 26,
-    borderTopWidth: 1,
-    borderTopColor: "#E3E6EA",
-    paddingTop: 14,
-  },
-  footerCopy: {
-    textAlign: "center",
-    color: "#AAB3C0",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  footerLinks: {
-    marginTop: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  footerLink: {
-    color: "#8E9AA9",
-    fontSize: 12,
-    lineHeight: 16,
-  },
-
   circle: {
     position: "absolute",
     borderRadius: 999,
