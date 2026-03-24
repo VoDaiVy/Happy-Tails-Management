@@ -3,6 +3,7 @@ import {
   AdminBookingBoardScreen,
   AdminControlCenterScreen,
   AdminMedicalRecordsScreen,
+  AdminTransactionDetailScreen,
   AdminRoomManagementScreen,
   AdminServiceManagementScreen,
   AdminTransactionsScreen,
@@ -27,6 +28,7 @@ export function AdminStackNavigator() {
       <Stack.Screen name="AdminRoomManagement" component={AdminRoomManagementScreen} />
       <Stack.Screen name="AdminMedicalRecords" component={AdminMedicalRecordsScreen} />
       <Stack.Screen name="AdminTransactions" component={AdminTransactionsScreen} />
+      <Stack.Screen name="AdminTransactionDetail" component={AdminTransactionDetailScreen} />
     </Stack.Navigator>
   );
 }

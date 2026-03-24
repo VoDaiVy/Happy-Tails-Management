@@ -4,5 +4,6 @@ export { AdminMedicalRecordsScreen } from "./AdminMedicalRecordsScreen";
 export { AdminRoomManagementScreen } from "./AdminRoomManagementScreen";
 export { AdminServiceManagementScreen } from "./AdminServiceManagementScreen";
 export { AdminTransactionsScreen } from "./AdminTransactionsScreen";
+export { AdminTransactionDetailScreen } from "./AdminTransactionDetailScreen";
 export { AdminUserManagementScreen } from "./AdminUserManagementScreen";
 export { AdminVoucherManagementScreen } from "./AdminVoucherManagementScreen";

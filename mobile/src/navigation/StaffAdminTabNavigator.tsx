@@ -57,7 +57,7 @@ type DrawerMenuSection = {
   items: DrawerMenuItem[];
 };
 
-type BottomTabKey = "home" | "schedule" | "profile";
+type BottomTabKey = "home" | "schedule" | "profile" | "transactions" | "users" | "overview" | "bookings";
 
 const ADMIN_MENU_SECTIONS: DrawerMenuSection[] = [
   {
@@ -227,10 +227,12 @@ function BottomNavItem({
 }) {
   return (
     <Pressable style={styles.bottomNavItem} onPress={onPress}>
-      <View style={[styles.bottomNavIconWrap, active && styles.bottomNavIconWrapActive]}>
-        <Feather name={icon} size={18} color={active ? "#FFFFFF" : "#7F8B9A"} />
+      <View style={styles.navItemWrap}>
+        <View style={[styles.navIconBubble, active && styles.navIconBubbleActive]}>
+          <Feather name={icon} size={19} color={active ? "#D57037" : "#8C8278"} />
+        </View>
+        <Text style={[styles.navItemLabel, active && styles.navItemLabelActive]}>{label}</Text>
       </View>
-      <Text style={[styles.bottomNavLabel, active && styles.bottomNavLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -370,7 +372,7 @@ export function StaffAdminTabNavigator() {
   const isAdmin = isAdminRole(user?.role);
   const [menuVisible, setMenuVisible] = useState(false);
   const [activeItem, setActiveItem] = useState<MenuItemKey>(isAdmin ? "adminOverview" : "overview");
-  const [activeBottomTab, setActiveBottomTab] = useState<BottomTabKey>("home");
+  const [activeBottomTab, setActiveBottomTab] = useState<BottomTabKey>(isAdmin ? "overview" : "home");
 
   const userName = useMemo(() => String(user?.name || "User"), [user]);
   const userEmail = useMemo(() => String(user?.email || ""), [user]);
@@ -383,15 +385,24 @@ export function StaffAdminTabNavigator() {
 
   const syncActiveFromRoute = useCallback((tabName?: string, nestedScreen?: string) => {
     if (tabName === "AdminTab") {
-      setActiveBottomTab("home");
-      if (nestedScreen === "AdminBookingBoard") {
-        setActiveItem("adminBookings");
+      setActiveBottomTab("overview");
+      
+      if (nestedScreen === "AdminTransactions") {
+        setActiveBottomTab("transactions");
+        setActiveItem("adminTransactions");
         return;
       }
       if (nestedScreen === "AdminUserManagement") {
+        setActiveBottomTab("users");
         setActiveItem("adminUsers");
         return;
       }
+      if (nestedScreen === "AdminBookingBoard") {
+        setActiveBottomTab("bookings");
+        setActiveItem("adminBookings");
+        return;
+      }
+
       if (nestedScreen === "AdminRoomManagement") {
         setActiveItem("adminRooms");
         return;
@@ -402,10 +413,6 @@ export function StaffAdminTabNavigator() {
       }
       if (nestedScreen === "AdminMedicalRecords") {
         setActiveItem("adminMedical");
-        return;
-      }
-      if (nestedScreen === "AdminTransactions") {
-        setActiveItem("adminTransactions");
         return;
       }
       if (nestedScreen === "AdminVoucherManagement") {
@@ -514,25 +521,28 @@ export function StaffAdminTabNavigator() {
 
   const onBottomNavigate = useCallback(
     (key: BottomTabKey) => {
-      if (key === "home") {
-        if (isAdmin) {
-          onNavigateFromMenu("AdminTab", "AdminHome");
-        } else {
-          onNavigateFromMenu("ManagementTab", "StaffOverview");
-        }
+      if (key === "home" || key === "overview") {
+        if (isAdmin) onNavigateFromMenu("AdminTab", "AdminHome");
+        else onNavigateFromMenu("ManagementTab", "StaffOverview");
         return;
       }
-
-      if (key === "schedule") {
-        if (isAdmin) {
-          onNavigateFromMenu("AdminTab", "AdminBookingBoard");
-        } else {
-          onNavigateFromMenu("ManagementTab", "StaffSchedule");
-        }
+      if (key === "transactions") {
+        if (isAdmin) onNavigateFromMenu("AdminTab", "AdminTransactions");
         return;
       }
-
-      onNavigateFromMenu("AccountTab", "Profile");
+      if (key === "users") {
+        if (isAdmin) onNavigateFromMenu("AdminTab", "AdminUserManagement");
+        return;
+      }
+      if (key === "bookings" || key === "schedule") {
+        if (isAdmin) onNavigateFromMenu("AdminTab", "AdminBookingBoard");
+        else onNavigateFromMenu("ManagementTab", "StaffSchedule");
+        return;
+      }
+      if (key === "profile") {
+        onNavigateFromMenu("AccountTab", "Profile");
+        return;
+      }
     },
     [isAdmin, onNavigateFromMenu],
   );
@@ -550,7 +560,7 @@ export function StaffAdminTabNavigator() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: "none" },
-          sceneStyle: { paddingTop: 96, paddingBottom: Math.max(insets.bottom + 74, 80) },
+          sceneStyle: { paddingTop: 96, paddingBottom: Math.max(insets.bottom + 74, 84), backgroundColor: "transparent" },
         }}
       >
         {isAdmin ? <Tab.Screen name="AdminTab" component={AdminStackNavigator} options={{ title: "Admin" }} /> : null}
@@ -579,15 +589,22 @@ export function StaffAdminTabNavigator() {
       </View>
 
       <View style={styles.bottomNavWrap} pointerEvents="box-none">
-        <View style={[styles.bottomNavInner, { marginBottom: Math.max(insets.bottom, 8) }]}> 
-          <BottomNavItem label="Home" icon="home" active={activeBottomTab === "home"} onPress={() => onBottomNavigate("home")} />
-          <BottomNavItem
-            label="Schedule"
-            icon="calendar"
-            active={activeBottomTab === "schedule"}
-            onPress={() => onBottomNavigate("schedule")}
-          />
-          <BottomNavItem label="Profile" icon="user" active={activeBottomTab === "profile"} onPress={() => onBottomNavigate("profile")} />
+        <View style={[styles.bottomNavInner, { marginBottom: Math.max(insets.bottom + 2, 8) }]}> 
+          {isAdmin ? (
+            <>
+              <BottomNavItem label="Transact" icon="file-text" active={activeBottomTab === "transactions"} onPress={() => onBottomNavigate("transactions")} />
+              <BottomNavItem label="Users" icon="users" active={activeBottomTab === "users"} onPress={() => onBottomNavigate("users")} />
+              <BottomNavItem label="Overview" icon="grid" active={activeBottomTab === "overview"} onPress={() => onBottomNavigate("overview")} />
+              <BottomNavItem label="Bookings" icon="calendar" active={activeBottomTab === "bookings"} onPress={() => onBottomNavigate("bookings")} />
+              <BottomNavItem label="Profile" icon="user" active={activeBottomTab === "profile"} onPress={() => onBottomNavigate("profile")} />
+            </>
+          ) : (
+            <>
+              <BottomNavItem label="Home" icon="home" active={activeBottomTab === "overview"} onPress={() => onBottomNavigate("overview")} />
+              <BottomNavItem label="Schedule" icon="calendar" active={activeBottomTab === "schedule"} onPress={() => onBottomNavigate("schedule")} />
+              <BottomNavItem label="Profile" icon="user" active={activeBottomTab === "profile"} onPress={() => onBottomNavigate("profile")} />
+            </>
+          )}
         </View>
       </View>
 
@@ -659,51 +676,69 @@ const styles = StyleSheet.create({
   headerAvatarText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
   bottomNavWrap: {
     position: "absolute",
-    left: 18,
-    right: 18,
+    left: 16,
+    right: 16,
     bottom: 0,
     zIndex: 35,
+    backgroundColor: "transparent",
   },
   bottomNavInner: {
-    minHeight: 66,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#EFE3D5",
-    backgroundColor: "#FFFEFC",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    minHeight: 72,
+    borderRadius: 36,
+    backgroundColor: "#FFFCF8",
     flexDirection: "row",
     justifyContent: "space-between",
-    shadowColor: "#5A4A35",
-    shadowOpacity: 0.06,
-    shadowRadius: 9,
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    shadowColor: "#4A2D14",
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: "rgba(226, 209, 191, 0.75)",
+  },
+  bottomNavItem: {
+    height: 56,
+    minWidth: 52,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 1,
+  },
+  navItemWrap: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  navIconBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  navIconBubbleActive: {
+    backgroundColor: "rgba(238, 158, 106, 0.2)",
+    shadowColor: "#D97A3E",
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  bottomNavItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  bottomNavIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bottomNavIconWrapActive: {
-    backgroundColor: "#DD8450",
-  },
-  bottomNavLabel: {
-    color: "#7F8D9F",
+  navItemLabel: {
+    color: "#8A7E72",
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.15,
   },
-  bottomNavLabelActive: {
-    color: "#B15F2E",
+  navItemLabelActive: {
+    color: "#D16E36",
+    fontSize: 10,
     fontWeight: "800",
+    letterSpacing: 0.2,
   },
   menuOverlayRoot: {
     ...StyleSheet.absoluteFillObject,

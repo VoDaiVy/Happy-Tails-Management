@@ -118,6 +118,9 @@ export type AdminStackParamList = {
   AdminServiceManagement: undefined;
   AdminMedicalRecords: undefined;
   AdminTransactions: undefined;
+  AdminTransactionDetail: {
+    transactionId: string;
+  };
   AdminVoucherManagement: undefined;
 };
 

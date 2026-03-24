@@ -25,6 +25,7 @@ export interface TopServicesQuery {
 }
 
 export interface AdminTransactionsQuery {
+  search?: string;
   userId?: string;
   type?: "deposit" | "payment" | "refund";
   status?: "pending" | "completed" | "failed" | "cancelled";
