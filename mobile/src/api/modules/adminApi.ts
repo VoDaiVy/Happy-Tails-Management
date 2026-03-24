@@ -73,9 +73,10 @@ export async function getAdminTopServices(query: TopServicesQuery = {}) {
 
 export async function getAdminUsersList(query: AdminUsersQuery = {}) {
   const response = await axiosClient.get("/admin/users/list", { params: query });
-  const payload = extractPayload<{ users?: AuthUser[] }>(response.data);
+  const payload = extractPayload<{ users?: AuthUser[] } | AuthUser[]>(response.data);
+  const users = Array.isArray(payload) ? payload : payload.users || [];
   return {
-    users: payload.users || [],
+    users,
     pagination: extractPagination<Record<string, unknown>>(response.data) || undefined,
   };
 }
@@ -129,9 +130,10 @@ export async function getSystemStatistics() {
 
 export async function getAdminTransactions(query: AdminTransactionsQuery = {}) {
   const response = await axiosClient.get("/admin/transactions", { params: query });
-  const payload = extractPayload<{ transactions?: Record<string, unknown>[] }>(response.data);
+  const payload = extractPayload<{ transactions?: Record<string, unknown>[] } | Record<string, unknown>[]>(response.data);
+  const transactions = Array.isArray(payload) ? payload : payload.transactions || [];
   return {
-    transactions: payload.transactions || [],
+    transactions,
     pagination: extractPagination<Record<string, unknown>>(response.data) || undefined,
   };
 }

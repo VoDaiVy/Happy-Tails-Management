@@ -110,10 +110,22 @@ export type StaffManagementStackParamList = {
   StaffNewsManagement: undefined;
 };
 
+export type AdminStackParamList = {
+  AdminHome: undefined;
+  AdminBookingBoard: undefined;
+  AdminUserManagement: undefined;
+  AdminRoomManagement: undefined;
+  AdminServiceManagement: undefined;
+  AdminMedicalRecords: undefined;
+  AdminTransactions: undefined;
+  AdminVoucherManagement: undefined;
+};
+
 export type MainTabParamList = {
   ServicesTab: NavigatorScreenParams<ServicesStackParamList> | undefined;
   BookingTab: NavigatorScreenParams<BookingStackParamList> | undefined;
   InfoTab: NavigatorScreenParams<InfoStackParamList> | undefined;
   ManagementTab: NavigatorScreenParams<StaffManagementStackParamList> | undefined;
+  AdminTab: NavigatorScreenParams<AdminStackParamList> | undefined;
   AccountTab: NavigatorScreenParams<AccountStackParamList> | undefined;
 };

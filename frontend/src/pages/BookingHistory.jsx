@@ -85,6 +85,40 @@ const formatDateTime = (value) => {
 
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('vi-VN')} VND`;
 
+const getBookingPets = (booking = {}) => {
+  const fromItems = (booking.items || [])
+    .map((item) => item?.pet?.petName || item?.pet?.name)
+    .filter(Boolean);
+
+  if (fromItems.length > 0) return fromItems;
+
+  const boardingPetName =
+    booking?.boardingPet?.petName ||
+    booking?.boardingPet?.name ||
+    null;
+
+  return boardingPetName ? [boardingPetName] : [];
+};
+
+const getBookingServices = (booking = {}) => {
+  const fromItems = (booking.items || [])
+    .map((item) => item?.service?.name)
+    .filter(Boolean);
+
+  if (fromItems.length > 0) return fromItems;
+
+  if (booking?.stayInfo?.enabled) {
+    const roomName =
+      booking?.stayInfo?.roomName ||
+      booking?.stayInfo?.room?.name ||
+      null;
+
+    return [roomName ? `Boarding Stay - ${roomName}` : 'Boarding Stay'];
+  }
+
+  return [];
+};
+
 const StatusBadge = ({ status }) => {
   const cfg = STATUS_MAP[status] || STATUS_MAP.pending;
   const Icon = cfg.icon;
@@ -98,8 +132,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const BookingCard = ({ booking, onViewDetail, onLeaveFeedback, hasFeedback, onPayPending, payingBookingId }) => {
-  const pets = booking.items?.map((item) => item.pet?.petName || item.pet?.name).filter(Boolean);
-  const services = booking.items?.map((item) => item.service?.name).filter(Boolean);
+  const pets = getBookingPets(booking);
+  const services = getBookingServices(booking);
   const showFeedbackButton = booking.status === 'completed';
   const canRetryPayment = booking.status === 'pending' && booking.paymentMethod === 'wallet' && !booking.isPaid;
   const isPaying = payingBookingId === booking._id;
@@ -318,8 +352,8 @@ const FeedbackModal = ({ booking, rating, comment, error, submitting, onClose, o
 const BookingDetailModal = ({ booking, records, loading, error, onClose }) => {
   if (!booking) return null;
 
-  const pets = booking.items?.map((item) => item.pet?.petName || item.pet?.name).filter(Boolean);
-  const services = booking.items?.map((item) => item.service?.name).filter(Boolean);
+  const pets = getBookingPets(booking);
+  const services = getBookingServices(booking);
 
   return (
     <AnimatePresence>

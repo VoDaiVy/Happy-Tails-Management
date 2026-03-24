@@ -6,6 +6,8 @@ import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View 
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
+import { isAdminRole } from "../utils/role";
+import { AdminStackNavigator } from "./AdminStackNavigator";
 import { AccountStackNavigator } from "./AccountStackNavigator";
 import { InfoStackNavigator } from "./InfoStackNavigator";
 import type { MainTabParamList } from "./types";
@@ -21,6 +23,14 @@ type MenuIcon =
   | { pack: "mci"; name: MaterialIconName };
 
 type MenuItemKey =
+  | "adminOverview"
+  | "adminBookings"
+  | "adminUsers"
+  | "adminRooms"
+  | "adminServices"
+  | "adminMedical"
+  | "adminTransactions"
+  | "adminVouchers"
   | "overview"
   | "bookings"
   | "schedule"
@@ -48,6 +58,62 @@ type DrawerMenuSection = {
 };
 
 type BottomTabKey = "home" | "schedule" | "profile";
+
+const ADMIN_MENU_SECTIONS: DrawerMenuSection[] = [
+  {
+    title: "Admin",
+    items: [
+      {
+        key: "adminOverview",
+        label: "Overview",
+        icon: { pack: "feather", name: "shield" },
+        route: { tab: "AdminTab", nestedScreen: "AdminHome" },
+      },
+      {
+        key: "adminBookings",
+        label: "Bookings",
+        icon: { pack: "mci", name: "calendar-check-outline" },
+        route: { tab: "AdminTab", nestedScreen: "AdminBookingBoard" },
+      },
+      {
+        key: "adminUsers",
+        label: "Users",
+        icon: { pack: "feather", name: "users" },
+        route: { tab: "AdminTab", nestedScreen: "AdminUserManagement" },
+      },
+      {
+        key: "adminRooms",
+        label: "Rooms",
+        icon: { pack: "mci", name: "door-open" },
+        route: { tab: "AdminTab", nestedScreen: "AdminRoomManagement" },
+      },
+      {
+        key: "adminServices",
+        label: "Services",
+        icon: { pack: "feather", name: "briefcase" },
+        route: { tab: "AdminTab", nestedScreen: "AdminServiceManagement" },
+      },
+      {
+        key: "adminMedical",
+        label: "Medical",
+        icon: { pack: "mci", name: "file-document-outline" },
+        route: { tab: "AdminTab", nestedScreen: "AdminMedicalRecords" },
+      },
+      {
+        key: "adminTransactions",
+        label: "Transactions",
+        icon: { pack: "feather", name: "dollar-sign" },
+        route: { tab: "AdminTab", nestedScreen: "AdminTransactions" },
+      },
+      {
+        key: "adminVouchers",
+        label: "Vouchers",
+        icon: { pack: "feather", name: "tag" },
+        route: { tab: "AdminTab", nestedScreen: "AdminVoucherManagement" },
+      },
+    ],
+  },
+];
 
 const STAFF_MENU_SECTIONS: DrawerMenuSection[] = [
   {
@@ -115,6 +181,8 @@ interface StaffMenuProps {
   onNavigate: (tab: keyof MainTabParamList, nestedScreen?: string, nestedParams?: Record<string, unknown>) => void;
   userName: string;
   userEmail: string;
+  roleLabel: "ADMIN" | "STAFF";
+  menuSections: DrawerMenuSection[];
   onSignOut: () => void;
   activeItem: MenuItemKey;
   onSelectItem: (item: MenuItemKey) => void;
@@ -173,6 +241,8 @@ function StaffMenu({
   onNavigate,
   userName,
   userEmail,
+  roleLabel,
+  menuSections,
   onSignOut,
   activeItem,
   onSelectItem,
@@ -232,8 +302,8 @@ function StaffMenu({
           <View style={styles.menuBrandWrap}>
             <Image source={BRAND_ICON} style={styles.menuBrandIcon} resizeMode="cover" />
             <View>
-              <Text style={styles.roleBadge}>STAFF</Text>
-              <Text style={styles.menuBrandText}>HappyTails Staff</Text>
+              <Text style={styles.roleBadge}>{roleLabel}</Text>
+              <Text style={styles.menuBrandText}>HappyTails {roleLabel === "ADMIN" ? "Admin" : "Staff"}</Text>
             </View>
           </View>
           <Pressable onPress={onClose} style={styles.closeBtn}>
@@ -246,7 +316,7 @@ function StaffMenu({
           contentContainerStyle={[styles.menuBodyContent, { paddingBottom: Math.max(insets.bottom, 8) + 12 }]}
           showsVerticalScrollIndicator={false}
         >
-          {STAFF_MENU_SECTIONS.map((section) => (
+          {menuSections.map((section) => (
             <View key={section.title} style={styles.sectionWrap}>
               <SectionTitle title={section.title} />
               {section.items.map((item) => {
@@ -297,14 +367,55 @@ export function StaffAdminTabNavigator() {
   const { user, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const isAdmin = isAdminRole(user?.role);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [activeItem, setActiveItem] = useState<MenuItemKey>("overview");
+  const [activeItem, setActiveItem] = useState<MenuItemKey>(isAdmin ? "adminOverview" : "overview");
   const [activeBottomTab, setActiveBottomTab] = useState<BottomTabKey>("home");
 
   const userName = useMemo(() => String(user?.name || "User"), [user]);
   const userEmail = useMemo(() => String(user?.email || ""), [user]);
+  const roleLabel = isAdmin ? "ADMIN" : "STAFF";
+  const menuSections = isAdmin ? ADMIN_MENU_SECTIONS : STAFF_MENU_SECTIONS;
+
+  useEffect(() => {
+    setActiveItem(isAdmin ? "adminOverview" : "overview");
+  }, [isAdmin]);
 
   const syncActiveFromRoute = useCallback((tabName?: string, nestedScreen?: string) => {
+    if (tabName === "AdminTab") {
+      setActiveBottomTab("home");
+      if (nestedScreen === "AdminBookingBoard") {
+        setActiveItem("adminBookings");
+        return;
+      }
+      if (nestedScreen === "AdminUserManagement") {
+        setActiveItem("adminUsers");
+        return;
+      }
+      if (nestedScreen === "AdminRoomManagement") {
+        setActiveItem("adminRooms");
+        return;
+      }
+      if (nestedScreen === "AdminServiceManagement") {
+        setActiveItem("adminServices");
+        return;
+      }
+      if (nestedScreen === "AdminMedicalRecords") {
+        setActiveItem("adminMedical");
+        return;
+      }
+      if (nestedScreen === "AdminTransactions") {
+        setActiveItem("adminTransactions");
+        return;
+      }
+      if (nestedScreen === "AdminVoucherManagement") {
+        setActiveItem("adminVouchers");
+        return;
+      }
+      setActiveItem("adminOverview");
+      return;
+    }
+
     if (tabName === "ManagementTab") {
       if (nestedScreen === "StaffBookings") {
         setActiveBottomTab("home");
@@ -379,6 +490,16 @@ export function StaffAdminTabNavigator() {
     (tab: keyof MainTabParamList, nestedScreen?: string, nestedParams?: Record<string, unknown>) => {
       setMenuVisible(false);
 
+      if (!isAdmin && tab === "AdminTab") {
+        navigation.navigate("ManagementTab", { screen: "StaffOverview" });
+        return;
+      }
+
+      if (isAdmin && tab === "ManagementTab") {
+        navigation.navigate("AdminTab", { screen: "AdminHome" });
+        return;
+      }
+
       syncActiveFromRoute(tab, nestedScreen);
 
       if (nestedScreen) {
@@ -388,24 +509,32 @@ export function StaffAdminTabNavigator() {
 
       navigation.navigate(tab);
     },
-    [navigation, syncActiveFromRoute],
+    [isAdmin, navigation, syncActiveFromRoute],
   );
 
   const onBottomNavigate = useCallback(
     (key: BottomTabKey) => {
       if (key === "home") {
-        onNavigateFromMenu("ManagementTab", "StaffOverview");
+        if (isAdmin) {
+          onNavigateFromMenu("AdminTab", "AdminHome");
+        } else {
+          onNavigateFromMenu("ManagementTab", "StaffOverview");
+        }
         return;
       }
 
       if (key === "schedule") {
-        onNavigateFromMenu("ManagementTab", "StaffSchedule");
+        if (isAdmin) {
+          onNavigateFromMenu("AdminTab", "AdminBookingBoard");
+        } else {
+          onNavigateFromMenu("ManagementTab", "StaffSchedule");
+        }
         return;
       }
 
       onNavigateFromMenu("AccountTab", "Profile");
     },
-    [onNavigateFromMenu],
+    [isAdmin, onNavigateFromMenu],
   );
 
   return (
@@ -417,14 +546,15 @@ export function StaffAdminTabNavigator() {
             syncActiveFromRoute(tabName, nestedScreen);
           },
         }}
-        initialRouteName="ManagementTab"
+         initialRouteName={isAdmin ? "AdminTab" : "ManagementTab"}
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: "none" },
           sceneStyle: { paddingTop: 96, paddingBottom: Math.max(insets.bottom + 74, 80) },
         }}
       >
-        <Tab.Screen name="ManagementTab" component={StaffManagementStackNavigator} options={{ title: "Management" }} />
+        {isAdmin ? <Tab.Screen name="AdminTab" component={AdminStackNavigator} options={{ title: "Admin" }} /> : null}
+        {!isAdmin ? <Tab.Screen name="ManagementTab" component={StaffManagementStackNavigator} options={{ title: "Management" }} /> : null}
         <Tab.Screen name="InfoTab" component={InfoStackNavigator} options={{ title: "News & Policy" }} />
         <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Tai khoan" }} />
       </Tab.Navigator>
@@ -438,7 +568,7 @@ export function StaffAdminTabNavigator() {
           <View style={styles.brandWrap}>
             <View>
               <Text style={styles.brandText}>Happy Tails</Text>
-              <Text style={styles.headerCaption}>STAFF</Text>
+              <Text style={styles.headerCaption}>{roleLabel}</Text>
             </View>
           </View>
 
@@ -467,6 +597,8 @@ export function StaffAdminTabNavigator() {
         onNavigate={onNavigateFromMenu}
         userName={userName}
         userEmail={userEmail}
+        roleLabel={roleLabel}
+        menuSections={menuSections}
         activeItem={activeItem}
         onSelectItem={setActiveItem}
         onSignOut={() => {

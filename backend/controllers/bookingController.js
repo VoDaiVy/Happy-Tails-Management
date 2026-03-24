@@ -48,11 +48,21 @@ const normalizeText = (value = "") =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
-const parseAppointmentDate = ({
-  appointmentDate,
-  bookingDate,
-  bookingTime,
-}) => {
+const roomSupportsPetType = (room, petType) => {
+  const roomPetTypes = Array.isArray(room?.petTypes)
+    ? room.petTypes.map((value) => normalizeText(value).trim()).filter(Boolean)
+    : [];
+
+  // Backward compatibility for legacy room records without pet type constraints.
+  if (roomPetTypes.length === 0) return true;
+
+  const normalizedPetType = normalizeText(petType).trim();
+  if (!normalizedPetType) return false;
+
+  return roomPetTypes.includes(normalizedPetType);
+};
+
+const parseAppointmentDate = ({ appointmentDate, bookingDate, bookingTime }) => {
   if (appointmentDate) {
     return new Date(appointmentDate);
   }
@@ -1071,6 +1081,7 @@ exports.getMyBookings = catchAsync(async (req, res, next) => {
       { path: "items.pet", select: "petName petType breed" },
       { path: "assignedStaff", select: "name email" },
       { path: "boardingPet", select: "petName petType breed" },
+      { path: "stayInfo.room", select: "roomNumber name type" },
     ])
     .sort("-createdAt");
 
@@ -1149,7 +1160,7 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   const booking = await Booking.findById(req.params.id)
 
     .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy boardingPet",
+      "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room",
     );
 
   if (!booking) {
@@ -1157,9 +1168,14 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   }
 
   // Check permission: customer can only see their own bookings
+  const bookingCustomerId =
+    typeof booking.customer === "object" && booking.customer !== null
+      ? String(booking.customer._id || booking.customer.id || "")
+      : String(booking.customer || "");
+
   if (
     req.user.role === "customer" &&
-    booking.customer.toString() !== req.user.id
+    bookingCustomerId !== String(req.user.id)
   ) {
     return next(
       new AppError(
@@ -1942,14 +1958,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     (item) => (item.type || "service") === "stay",
   );
 
-  if (serviceCartItems.length === 0) {
-    return next(
-      new AppError(
-        "Cart must contain at least 1 service",
-        400,
-        "CART_NO_SERVICE_ITEM",
-      ),
-    );
+  if (serviceCartItems.length === 0 && !stayCartItem) {
+    return next(new AppError("Giỏ hàng phải có ít nhất 1 dịch vụ", 400, "CART_NO_SERVICE_ITEM"));
   }
 
   const rawItems = serviceCartItems.map((item) => ({
@@ -1976,10 +1986,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
 
   const serviceMap = buildServiceMap(services);
   const expandedItems = expandRequestedItems(rawItems, serviceMap);
-  if (expandedItems.length === 0) {
-    return next(
-      new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"),
-    );
+  if (expandedItems.length === 0 && !stayCartItem) {
+    return next(new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"));
   }
 
   const sortedItems = sortWetBeforeDry(expandedItems);
@@ -2049,13 +2057,14 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       }
 
       let selectedRoom = requestedRoom;
+      const requestedRoomSupportsPet = roomSupportsPetType(requestedRoom, pet.petType);
       const requestedRemainingCapacity = await getRoomRemainingCapacity(
         requestedRoom,
         stayRange.checkIn,
         stayRange.checkOut,
       );
 
-      if (requestedRemainingCapacity <= 0) {
+      if (requestedRemainingCapacity <= 0 || !requestedRoomSupportsPet) {
         const roomFilter = {
           isActive: true,
           type: requestedRoom.type,
@@ -2068,6 +2077,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         });
         let replacement = null;
         for (const candidate of candidateRooms) {
+          if (!roomSupportsPetType(candidate, pet.petType)) continue;
+
           const candidateRemainingCapacity = await getRoomRemainingCapacity(
             candidate,
             stayRange.checkIn,
@@ -2080,6 +2091,16 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         }
 
         if (!replacement) {
+          if (!requestedRoomSupportsPet) {
+            return next(
+              new AppError(
+                `Phòng lưu trú hiện tại không hỗ trợ pet type \"${pet.petType || "unknown"}\". Vui lòng chọn phòng phù hợp.`,
+                400,
+                "PET_TYPE_NOT_SUPPORTED",
+              ),
+            );
+          }
+
           return next(
             new AppError(
               "No rooms available for selected check-in/check-out period. Please change dates or times.",
@@ -2124,27 +2145,62 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       bookingRoomId = selectedRoom._id;
     }
 
-    const overallStart = scheduledItems[0].startTime;
-    const overallEnd = scheduledItems[scheduledItems.length - 1].endTime;
-    const petConflict = await Booking.findOne({
-      status: { $nin: ["cancelled", "completed"] },
-      items: {
-        $elemMatch: {
-          pet: petId,
-          startTime: { $lt: overallEnd },
-          endTime: { $gt: overallStart },
+    if (scheduledItems.length > 0) {
+      const overallStart = scheduledItems[0].startTime;
+      const overallEnd = scheduledItems[scheduledItems.length - 1].endTime;
+      const petConflict = await Booking.findOne({
+        status: { $nin: ["cancelled", "completed"] },
+        items: {
+          $elemMatch: {
+            pet: petId,
+            startTime: { $lt: overallEnd },
+            endTime: { $gt: overallStart },
+          },
         },
-      },
-    }).lean();
+      }).lean();
 
-    if (petConflict) {
-      return next(
-        new AppError(
-          "This pet already has an overlapping appointment. Please select a different time.",
-          409,
-          "PET_SCHEDULE_CONFLICT",
-        ),
-      );
+      if (petConflict) {
+        return next(
+          new AppError(
+            "Thú cưng này đã có lịch hẹn trùng với khung giờ trên. Vui lòng chọn thời gian khác.",
+            409,
+            "PET_SCHEDULE_CONFLICT",
+          ),
+        );
+      }
+    }
+
+    if (stayInfo) {
+      const stayPetConflict = await Booking.findOne({
+        status: { $nin: ["cancelled", "completed"] },
+        $or: [
+          {
+            boardingPet: petId,
+            "stayInfo.enabled": true,
+            "stayInfo.checkInDate": { $lt: stayInfo.checkOutDate },
+            "stayInfo.checkOutDate": { $gt: stayInfo.checkInDate },
+          },
+          {
+            items: {
+              $elemMatch: {
+                pet: petId,
+                startTime: { $lt: stayInfo.checkOutDate },
+                endTime: { $gt: stayInfo.checkInDate },
+              },
+            },
+          },
+        ],
+      }).lean();
+
+      if (stayPetConflict) {
+        return next(
+          new AppError(
+            "Thú cưng này đã có lịch trùng trong khoảng lưu trú đã chọn. Vui lòng chọn thời gian khác.",
+            409,
+            "PET_STAY_CONFLICT",
+          ),
+        );
+      }
     }
 
     const serviceSubtotal = Number(cart.serviceSubtotal || 0);
@@ -2286,6 +2342,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         [
           {
             customer: req.user.id,
+            boardingPet: stayInfo ? petId : undefined,
             items: bookingItems,
             bookingDate: apptDate,
             bookingTime: formatBookingTime(apptDate),

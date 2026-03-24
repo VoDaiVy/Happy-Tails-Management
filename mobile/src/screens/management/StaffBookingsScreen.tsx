@@ -188,12 +188,23 @@ function StatusPill({ label, bg, text }: { label: string; bg: string; text: stri
   );
 }
 
-export function StaffBookingsScreen() {
+interface StaffBookingsScreenProps {
+  mode?: "staff" | "admin-readonly";
+  headingTitle?: string;
+  headingSubtitle?: string;
+}
+
+export function StaffBookingsScreen({
+  mode = "staff",
+  headingTitle,
+  headingSubtitle,
+}: StaffBookingsScreenProps = {}) {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dateFilterAnchorRef = useRef<View>(null);
   const { height: viewportHeight, width: viewportWidth } = useWindowDimensions();
   const { user } = useAuth();
+  const isReadOnly = mode === "admin-readonly";
   const canAccess = isStaffOrAdminRole(user?.role);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -391,7 +402,9 @@ export function StaffBookingsScreen() {
   const selectedPayment = selectedBooking ? getPaymentMeta(selectedBooking) : null;
   const selectedCustomer = selectedBooking ? extractCustomer(selectedBooking) : null;
   const selectedServices = selectedBooking?.items || [];
-  const canAcceptSelected = selectedBooking ? normalizeStatus(selectedBooking.status) === "pending" : false;
+  const canAcceptSelected = selectedBooking
+    ? !isReadOnly && user?.role === "staff" && normalizeStatus(selectedBooking.status) === "pending"
+    : false;
 
   if (!canAccess) {
     return (
@@ -411,8 +424,10 @@ export function StaffBookingsScreen() {
         ListHeaderComponent={
           <View style={styles.headerBlock}>
             <View>
-              <Text style={styles.title}>Process Bookings</Text>
-              <Text style={styles.subtitle}>Receive and process service booking orders</Text>
+              <Text style={styles.title}>{headingTitle || (isReadOnly ? "Booking Management" : "Process Bookings")}</Text>
+              <Text style={styles.subtitle}>
+                {headingSubtitle || (isReadOnly ? "View and monitor all bookings" : "Receive and process service booking orders")}
+              </Text>
             </View>
 
             <View style={styles.searchPanel}>
@@ -449,10 +464,12 @@ export function StaffBookingsScreen() {
                   ) : null}
                 </View>
 
-                <Pressable style={styles.createOrderBtn} onPress={navigateToOfflineOrder}>
-                  <Feather name="plus" size={16} color="#FFFFFF" />
-                  <Text style={styles.createOrderText}>Create Offline Order</Text>
-                </Pressable>
+                {!isReadOnly ? (
+                  <Pressable style={styles.createOrderBtn} onPress={navigateToOfflineOrder}>
+                    <Feather name="plus" size={16} color="#FFFFFF" />
+                    <Text style={styles.createOrderText}>Create Offline Order</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
 
@@ -507,7 +524,7 @@ export function StaffBookingsScreen() {
           const statusBadge = getStatusBadge(item.status);
           const serviceTags = extractServiceTags(item.items);
           const paymentMeta = getPaymentMeta(item);
-          const canAccept = normalizeStatus(item.status) === "pending";
+          const canAccept = !isReadOnly && user?.role === "staff" && normalizeStatus(item.status) === "pending";
 
           return (
             <View style={styles.card}>
@@ -711,25 +728,27 @@ export function StaffBookingsScreen() {
               </View>
             </ScrollView>
 
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalActionBtn, (!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id) && styles.modalActionBtnDisabled]}
-                disabled={!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id}
-                onPress={() => {
-                  if (!selectedBooking) return;
-                  onAcceptOrder(selectedBooking._id);
-                }}
-              >
-                {selectedBooking && processingId === selectedBooking._id ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Feather name="user-plus" size={16} color="#FFFFFF" />
-                    <Text style={styles.modalActionText}>{canAcceptSelected ? "Accept This Order" : "Order Already Processed"}</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
+            {!isReadOnly ? (
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalActionBtn, (!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id) && styles.modalActionBtnDisabled]}
+                  disabled={!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id}
+                  onPress={() => {
+                    if (!selectedBooking) return;
+                    onAcceptOrder(selectedBooking._id);
+                  }}
+                >
+                  {selectedBooking && processingId === selectedBooking._id ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Feather name="user-plus" size={16} color="#FFFFFF" />
+                      <Text style={styles.modalActionText}>{canAcceptSelected ? "Accept This Order" : "Order Already Processed"}</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </View>
       </Modal>

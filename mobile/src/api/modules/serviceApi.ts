@@ -40,13 +40,39 @@ export async function createService(payload: {
   price: number;
   duration: number;
   description?: string;
-  category?: string;
+  category: string;
   petTypes?: string[];
+  features?: string[];
+  group?: "wet" | "dry";
+  maxCapacity?: number;
   isActive?: boolean;
   image?: string;
+  images?: string[];
 }) {
   const response = await axiosClient.post("/services", payload);
   return extractPayload<{ service?: ServiceItem }>(response.data);
+}
+
+export async function uploadServiceImage(payload: {
+  uri: string;
+  type?: string;
+  fileName?: string;
+}) {
+  const formData = new FormData();
+  formData.append("image", {
+    uri: payload.uri,
+    type: payload.type || "image/jpeg",
+    name: payload.fileName || `service-${Date.now()}.jpg`,
+  } as unknown as Blob);
+
+  const response = await axiosClient.post<{ data?: { url?: string } }>("/uploads/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  const payloadData = extractPayload<{ url?: string }>(response.data);
+  return payloadData.url || "";
 }
 
 export async function updateService(serviceId: string, payload: Partial<{

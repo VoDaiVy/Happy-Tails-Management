@@ -178,7 +178,9 @@ cartSchema.methods.toSummary = function() {
  * @returns {Promise<Cart>} Cart document
  */
 cartSchema.statics.findByUser = function(userId) {
-  return this.findOne({ userId }).populate('items.serviceId', 'name isActive price imageUrl');
+  return this.findOne({ userId })
+    .populate('items.serviceId', 'name isActive price imageUrl')
+    .populate('items.roomId', 'name roomNumber type petTypes capacity isActive');
 };
 
 const Cart = mongoose.model('Cart', cartSchema);
