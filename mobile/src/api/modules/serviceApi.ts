@@ -91,8 +91,11 @@ export async function updateService(serviceId: string, payload: Partial<{
   description: string;
   category: string;
   petTypes: string[];
+  features: string[];
+  group: "wet" | "dry";
   isActive: boolean;
   image: string;
+  images: string[];
 }>) {
   const response = await axiosClient.put(`/services/${serviceId}`, payload);
   return extractPayload<{ service?: ServiceItem }>(response.data);

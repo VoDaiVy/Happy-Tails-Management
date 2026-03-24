@@ -31,7 +31,15 @@ export function AccountStackNavigator() {
       <Stack.Screen name="BookingCamera" component={BookingCameraScreen} />
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="WalletTransactionDetail" component={WalletTransactionDetailScreen} />
-      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{
+          presentation: "transparentModal",
+          animation: "fade",
+          contentStyle: { backgroundColor: "transparent" },
+        }}
+      />
       <Stack.Screen name="NotificationCenter" component={NotificationCenterScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
     </Stack.Navigator>
