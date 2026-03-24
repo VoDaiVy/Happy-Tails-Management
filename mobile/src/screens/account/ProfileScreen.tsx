@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -9,6 +10,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -154,9 +156,15 @@ export function ProfileScreen({ navigation }: Props) {
   const dobAnchorRef = useRef<View>(null);
   const { height: viewportHeight, width: viewportWidth } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [completion, setCompletion] = useState(0);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [accountInfo, setAccountInfo] = useState<{ email: string; role: string; name: string }>({
+    email: "",
+    role: "",
+    name: "",
+  });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -234,18 +242,32 @@ export function ProfileScreen({ navigation }: Props) {
     return { width, left, top };
   }, [dobAnchorFrame, viewportHeight, viewportWidth]);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (options?: { silent?: boolean }) => {
+    if (options?.silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
       const [profileData, completionData] = await Promise.all([getMyProfile(), getProfileCompletion()]);
+      const rawName = String(profileData.user?.name || "").trim();
+      const nameParts = rawName.split(/\s+/).filter(Boolean);
+      const fallbackFirstName = nameParts[0] || "";
+      const fallbackLastName = nameParts.slice(1).join(" ");
 
       setCompletion(completionData.completionPercentage || profileData.completionPercentage || 0);
       setAvatar(profileData.profile?.avatar || null);
+      setAccountInfo({
+        email: String(profileData.user?.email || ""),
+        role: String(profileData.user?.role || ""),
+        name: rawName,
+      });
       setForm({
-        firstName: profileData.profile?.firstName || "",
-        lastName: profileData.profile?.lastName || "",
+        firstName: profileData.profile?.firstName || fallbackFirstName,
+        lastName: profileData.profile?.lastName || fallbackLastName,
         tel: profileData.profile?.tel || "",
         dob: profileData.profile?.dob ? String(profileData.profile.dob).slice(0, 10) : "",
         gender: (profileData.profile?.gender as GenderValue) || "male",
@@ -257,12 +279,19 @@ export function ProfileScreen({ navigation }: Props) {
       setError(e instanceof Error ? e.message : "Cannot load profile");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData({ silent: true });
+    }, [loadData]),
+  );
 
   const onChange = (key: keyof ProfileFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -395,10 +424,19 @@ export function ProfileScreen({ navigation }: Props) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData({ silent: true })} tintColor="#D0712B" />}
       >
         <View style={styles.headerRow}>          
           <Text style={styles.headerTitle}>Profile</Text>
           <Text style={styles.headerBrand}>HappyTails</Text>
+        </View>
+
+        <View style={styles.accountCard}>
+          <View style={styles.accountTopRow}>
+            <Text style={styles.accountName} numberOfLines={1}>{accountInfo.name || `${form.firstName} ${form.lastName}`.trim() || "User"}</Text>
+            {accountInfo.role ? <Text style={styles.accountRole}>{accountInfo.role.toUpperCase()}</Text> : null}
+          </View>
+          <Text style={styles.accountEmail} numberOfLines={1}>{accountInfo.email || "No email"}</Text>
         </View>
 
         <View style={styles.completionCard}>
@@ -518,6 +556,18 @@ export function ProfileScreen({ navigation }: Props) {
               placeholderTextColor="#D09A67"
               value={form.street}
               onChangeText={(v) => onChange("street", v)}
+            />
+          </View>
+
+          <Text style={styles.label}>City</Text>
+          <View style={styles.inputWithIconWrap}>
+            <Feather name="map" size={16} color="#D39A64" style={styles.leftIcon} />
+            <TextInput
+              style={[styles.input, styles.inputWithLeftIcon]}
+              placeholder="Ho Chi Minh City"
+              placeholderTextColor="#D09A67"
+              value={form.city}
+              onChangeText={(v) => onChange("city", v)}
             />
           </View>
         </View>
@@ -771,6 +821,30 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: "#A24514", fontSize: 34, fontWeight: "800", marginLeft: 20 },
   headerBrand: { color: "#A24514", fontSize: 30, fontWeight: "900", marginRight: 20 },
+
+  accountCard: {
+    marginTop: 2,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#EEDFCC",
+    backgroundColor: "#FFF8F1",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  accountTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  accountName: { flex: 1, color: "#864D26", fontSize: 15, fontWeight: "800" },
+  accountRole: {
+    borderRadius: 999,
+    backgroundColor: "#F2E0D1",
+    color: "#9C5A30",
+    fontSize: 10,
+    fontWeight: "800",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: "hidden",
+  },
+  accountEmail: { color: "#A2734E", fontSize: 12.5, fontWeight: "600" },
 
   completionCard: {
     marginTop: 4,

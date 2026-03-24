@@ -1,4 +1,4 @@
-import { createService, getServices, uploadServiceImage } from "./serviceApi";
+import { createService, deleteService, getServices, updateService, uploadServiceImage } from "./serviceApi";
 
 interface ServiceListResponse {
   success: boolean;
@@ -52,6 +52,35 @@ export async function createAdminService(payload: {
   return {
     success: true,
     data: response,
+  };
+}
+
+export async function updateAdminService(
+  serviceId: string,
+  payload: Partial<{
+    name: string;
+    description: string;
+    price: number;
+    duration: number;
+    category: string;
+    petTypes: string[];
+    features: string[];
+    group: "wet" | "dry";
+    isActive: boolean;
+    images: string[];
+  }>,
+) {
+  const response = await updateService(serviceId, payload);
+  return {
+    success: true,
+    data: response,
+  };
+}
+
+export async function deleteAdminService(serviceId: string) {
+  await deleteService(serviceId);
+  return {
+    success: true,
   };
 }
 
