@@ -78,55 +78,55 @@ export function extractApiDetails(payload: unknown): unknown {
 }
 
 const ERROR_CODE_MAP: Record<string, string> = {
-  FORBIDDEN: "Ban khong co quyen thuc hien thao tac nay.",
-  VALIDATION_ERROR: "Du lieu khong hop le. Vui long kiem tra lai.",
-  MISSING_REQUIRED_FIELDS: "Thieu truong bat buoc.",
-  INVALID_ID: "ID khong hop le.",
-  INVALID_ROLE: "Role khong hop le.",
-  INVALID_TRANSACTION_ID: "Ma giao dich khong hop le.",
-  INVALID_AMOUNT: "So tien khong hop le.",
-  INVALID_STATUS: "Trang thai khong hop le.",
-  INVALID_DATE: "Ngay thang khong hop le.",
-  INVALID_GROUP: "Nhom khong hop le.",
-  INVALID_CAPACITY: "Suc chua khong hop le.",
-  INVALID_ROOM_COUNT: "So phong khong hop le.",
-  INVALID_SLOTS: "So slot khong hop le.",
-  INVALID_STAGE: "Giai doan xu ly khong hop le.",
-  INVALID_STAGE_TRANSITION: "Khong the chuyen lui giai doan xu ly.",
-  INVALID_PET_TYPE: "Loai thu cung khong hop le.",
-  INVALID_GENDER: "Gioi tinh thu cung khong hop le.",
-  INVALID_OTP: "Ma OTP khong hop le hoac da het han.",
-  INVALID_CREDENTIALS: "Email hoac mat khau khong dung.",
-  ACCOUNT_LOCKED: "Tai khoan tam thoi bi khoa. Vui long thu lai sau.",
-  ACCOUNT_DISABLED: "Tai khoan da bi vo hieu hoa.",
-  USER_NOT_FOUND: "Khong tim thay nguoi dung.",
-  PET_NOT_FOUND: "Khong tim thay thu cung.",
-  SERVICE_NOT_FOUND: "Khong tim thay dich vu.",
-  ROOM_NOT_FOUND: "Khong tim thay phong.",
-  RECORD_NOT_FOUND: "Khong tim thay medical record.",
-  BOOKING_NOT_FOUND: "Khong tim thay booking.",
-  BOOKING_REQUIRED: "Can chon booking de tiep tuc.",
-  SERVICE_NOT_IN_BOOKING: "Dich vu khong nam trong booking da chon.",
-  FEEDBACK_NOT_FOUND: "Khong tim thay feedback.",
-  FEEDBACK_EXISTS: "Feedback nay da ton tai.",
-  CAMERA_NOT_FOUND: "Khong tim thay camera.",
-  TRANSACTION_NOT_FOUND: "Khong tim thay giao dich.",
-  ALREADY_PROCESSED: "Giao dich da duoc xu ly truoc do.",
-  PROFILE_INCOMPLETE: "Can hoan thien profile truoc khi thuc hien thao tac nay.",
-  PROFILE_NOT_FOUND: "Khong tim thay profile.",
-  CONFIG_NOT_FOUND: "Khong tim thay cau hinh.",
-  CONFIG_EXISTS: "Cau hinh da ton tai.",
-  CODE_EXISTS: "Ma da ton tai trong he thong.",
-  TOKEN_EXPIRED: "Phien dang nhap da het han. Vui long dang nhap lai.",
-  TOKEN_INVALID: "Token khong hop le. Vui long dang nhap lai.",
-  ROUTE_NOT_FOUND: "Endpoint khong ton tai.",
-  NETWORK_ERROR: "Khong the ket noi may chu. Vui long kiem tra mang.",
-  CANNOT_CHANGE_OWN_ROLE: "Khong the thay doi role cua chinh ban.",
-  CANNOT_DELETE_SELF: "Khong the xoa chinh tai khoan cua ban.",
-  CANNOT_BAN_SELF: "Khong the khoa chinh tai khoan cua ban.",
-  CANNOT_BAN_ADMIN: "Khong the khoa tai khoan admin.",
-  CANNOT_DELETE_ADMIN: "Khong the xoa tai khoan admin.",
-  MISSING_FIELDS: "Thieu truong bat buoc.",
+  FORBIDDEN: "You do not have permission to perform this action.",
+  VALIDATION_ERROR: "Invalid data. Please review and try again.",
+  MISSING_REQUIRED_FIELDS: "Required fields are missing.",
+  INVALID_ID: "Invalid ID.",
+  INVALID_ROLE: "Invalid role.",
+  INVALID_TRANSACTION_ID: "Invalid transaction ID.",
+  INVALID_AMOUNT: "Invalid amount.",
+  INVALID_STATUS: "Invalid status.",
+  INVALID_DATE: "Invalid date.",
+  INVALID_GROUP: "Invalid group.",
+  INVALID_CAPACITY: "Invalid capacity.",
+  INVALID_ROOM_COUNT: "Invalid room count.",
+  INVALID_SLOTS: "Invalid slot count.",
+  INVALID_STAGE: "Invalid workflow stage.",
+  INVALID_STAGE_TRANSITION: "Cannot move workflow stage backward.",
+  INVALID_PET_TYPE: "Invalid pet type.",
+  INVALID_GENDER: "Invalid pet gender.",
+  INVALID_OTP: "Invalid or expired OTP code.",
+  INVALID_CREDENTIALS: "Incorrect email or password.",
+  ACCOUNT_LOCKED: "Account is temporarily locked. Please try again later.",
+  ACCOUNT_DISABLED: "This account has been disabled.",
+  USER_NOT_FOUND: "User not found.",
+  PET_NOT_FOUND: "Pet not found.",
+  SERVICE_NOT_FOUND: "Service not found.",
+  ROOM_NOT_FOUND: "Room not found.",
+  RECORD_NOT_FOUND: "Medical record not found.",
+  BOOKING_NOT_FOUND: "Booking not found.",
+  BOOKING_REQUIRED: "Please choose a booking to continue.",
+  SERVICE_NOT_IN_BOOKING: "The service is not included in the selected booking.",
+  FEEDBACK_NOT_FOUND: "Feedback not found.",
+  FEEDBACK_EXISTS: "This feedback already exists.",
+  CAMERA_NOT_FOUND: "Camera not found.",
+  TRANSACTION_NOT_FOUND: "Transaction not found.",
+  ALREADY_PROCESSED: "Transaction has already been processed.",
+  PROFILE_INCOMPLETE: "Please complete your profile before performing this action.",
+  PROFILE_NOT_FOUND: "Profile not found.",
+  CONFIG_NOT_FOUND: "Configuration not found.",
+  CONFIG_EXISTS: "Configuration already exists.",
+  CODE_EXISTS: "This code already exists in the system.",
+  TOKEN_EXPIRED: "Your session has expired. Please sign in again.",
+  TOKEN_INVALID: "Invalid token. Please sign in again.",
+  ROUTE_NOT_FOUND: "Endpoint does not exist.",
+  NETWORK_ERROR: "Cannot connect to the server. Please check your network.",
+  CANNOT_CHANGE_OWN_ROLE: "You cannot change your own role.",
+  CANNOT_DELETE_SELF: "You cannot delete your own account.",
+  CANNOT_BAN_SELF: "You cannot ban your own account.",
+  CANNOT_BAN_ADMIN: "You cannot ban an admin account.",
+  CANNOT_DELETE_ADMIN: "You cannot delete an admin account.",
+  MISSING_FIELDS: "Required fields are missing.",
 };
 
 export function mapBackendErrorMessage(params: {
@@ -145,11 +145,11 @@ export function mapBackendErrorMessage(params: {
     return fallback;
   }
 
-  if (statusCode === 401) return "Ban can dang nhap de tiep tuc.";
-  if (statusCode === 403) return "Ban khong co quyen truy cap.";
-  if (statusCode === 404) return "Khong tim thay tai nguyen.";
-  if (statusCode === 409) return "Du lieu bi xung dot. Vui long thu lai.";
-  if (statusCode === 500) return "He thong dang ban. Vui long thu lai sau.";
+  if (statusCode === 401) return "You need to sign in to continue.";
+  if (statusCode === 403) return "You do not have access permission.";
+  if (statusCode === 404) return "Resource not found.";
+  if (statusCode === 409) return "Data conflict detected. Please try again.";
+  if (statusCode === 500) return "The system is busy. Please try again later.";
 
-  return "Yeu cau that bai";
+  return "Request failed.";
 }

@@ -37,6 +37,14 @@ const NOTIFICATION_TEMPLATES = {
     metadata: { orderCode, totalPrice }
   }),
 
+  CART_ITEM_ADDED: (serviceName, quantity) => ({
+    type: 'order',
+    title: 'Added To Cart',
+    body: `${serviceName} x${quantity} has been added to your cart.`,
+    actionUrl: '/cart',
+    metadata: { serviceName, quantity }
+  }),
+
   ORDER_CONFIRMED: (orderCode) => ({
     type: 'order',
     title: 'Order Confirmed',

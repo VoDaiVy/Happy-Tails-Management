@@ -1,5 +1,6 @@
 import { axiosClient, setAccessToken } from "../axiosClient";
 import type { AuthUser, LoginResponseData } from "../../types/auth";
+import { resolveImageUrl } from "../../utils/image";
 
 interface LoginPayload {
   email: string;
@@ -71,9 +72,19 @@ interface GoogleLoginResponse {
   };
 }
 
+function normalizeAuthUser(user: AuthUser): AuthUser {
+  return {
+    ...user,
+    avatar: resolveImageUrl(user.avatar),
+  };
+}
+
 export async function login(payload: LoginPayload): Promise<LoginResponseData> {
   const response = await axiosClient.post<LoginApiResponse>("/auth/login", payload);
-  const authData = response.data.data;
+  const authData = {
+    ...response.data.data,
+    user: normalizeAuthUser(response.data.data.user),
+  };
   setAccessToken(authData.tokens.accessToken);
   return authData;
 }
@@ -85,7 +96,7 @@ export async function register(payload: RegisterPayload) {
 
 export async function getMe(): Promise<AuthUser> {
   const response = await axiosClient.get<MeApiResponse>("/auth/me");
-  return response.data.data.user;
+  return normalizeAuthUser(response.data.data.user);
 }
 
 export async function logout() {
@@ -141,7 +152,7 @@ export async function loginWithGoogle(idToken: string, device?: { platform?: "we
   setAccessToken(authData.accessToken);
 
   return {
-    user: authData.user,
+    user: normalizeAuthUser(authData.user),
     tokens: {
       accessToken: authData.accessToken,
       refreshToken: authData.refreshToken,

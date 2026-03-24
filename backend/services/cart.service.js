@@ -210,6 +210,14 @@ const addToCart = async (userId, payload) => {
   // Step 4: Recalculate & save
   cart.recalculate();
   await cart.save();
+
+  // Notify customer that item was added to cart (fire-and-forget)
+  setImmediate(() => {
+    notificationService.send(
+      userId,
+      NOTIFICATION_TEMPLATES.CART_ITEM_ADDED(service.name, quantity)
+    ).catch(err => console.error('[Notif] cart_item_added:', err.message));
+  });
   
   return cart;
 };
@@ -341,14 +349,14 @@ const checkout = async (userId, user, { note = '', scheduledAt = null }) => {
   }
   
   // Step 4: Execute wallet checkout with ACID transaction
-  return checkoutWithWallet(userId, cart, { note, scheduledAt });
+  return checkoutWithWallet(userId, { note, scheduledAt });
 };
 
 /**
  * Wallet checkout - ACID transaction with instant payment
  * Vietnamese error messages for insufficient balance
  */
-const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
+const checkoutWithWallet = async (userId, { note, scheduledAt }) => {
   const session = await mongoose.startSession();
   
   let order;
@@ -357,6 +365,29 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
   
   try {
     await session.withTransaction(async () => {
+      // Always read the latest cart state inside transaction to avoid stale-version saves
+      const txCart = await Cart.findOne({ userId })
+        .populate('items.serviceId', 'name isActive price')
+        .session(session);
+
+      if (!txCart || txCart.items.length === 0) {
+        throw createError.badRequest('Giỏ hàng trống');
+      }
+
+      // Keep pricing consistent with latest service prices in this transaction
+      let txPricesUpdated = false;
+      for (const item of txCart.items) {
+        if ((item.type || 'service') === 'service' && item.serviceId && item.price !== item.serviceId.price) {
+          item.price = item.serviceId.price;
+          item.unitPrice = item.serviceId.price;
+          item.subtotal = item.price * item.quantity;
+          txPricesUpdated = true;
+        }
+      }
+      if (txPricesUpdated) {
+        txCart.recalculate();
+      }
+
       // Get wallet and check balance
       wallet = await Wallet.findOne({ userId }).session(session);
       
@@ -364,13 +395,13 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
         throw createError.badRequest('Ví không tồn tại. Vui lòng nạp tiền trước.', 'WALLET_NOT_FOUND');
       }
       
-      if (wallet.balance < cart.totalPrice) {
-        const shortfall = cart.totalPrice - wallet.balance;
+      if (wallet.balance < txCart.totalPrice) {
+        const shortfall = txCart.totalPrice - wallet.balance;
         throw createError.badRequest(
           `Số dư ví không đủ. Cần thêm ${shortfall.toLocaleString('vi-VN')}đ để thanh toán.`,
           'INSUFFICIENT_BALANCE',
           {
-            required: cart.totalPrice,
+            required: txCart.totalPrice,
             available: wallet.balance,
             shortfall: shortfall
           }
@@ -379,12 +410,12 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
       
       // Deduct from wallet
       const balanceBefore = wallet.balance;
-      wallet.spend(cart.totalPrice);
+      wallet.spend(txCart.totalPrice);
       await wallet.save({ session });
       
       // Create order
       const orderCode = Order.generateOrderCode();
-      const orderItems = cart.items
+      const orderItems = txCart.items
         .filter((item) => (item.type || 'service') === 'service')
         .map(item => ({
           serviceId: item.serviceId?._id || item.serviceId,
@@ -401,8 +432,8 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
         orderCode,
         userId,
         items: orderItems,
-        totalPrice: cart.totalPrice,
-        totalItems: cart.totalItems,
+        totalPrice: txCart.totalPrice,
+        totalItems: txCart.totalItems,
         status: 'pending',
         paymentStatus: 'paid',
         paymentMethod: 'wallet',
@@ -418,17 +449,30 @@ const checkoutWithWallet = async (userId, cart, { note, scheduledAt }) => {
         type: 'payment',
         method: 'system',
         status: 'completed',
-        amount: cart.totalPrice,
+        amount: txCart.totalPrice,
         balanceBefore,
         balanceAfter: wallet.balance,
         referenceId: order.orderCode,
         note: `Thanh toán đơn hàng ${order.orderCode}`
       }], { session });
       
-      // Clear cart
-      cart.items = [];
-      cart.recalculate();
-      await cart.save({ session });
+      // Clear cart atomically (avoid cart.save() version conflicts when cart changed concurrently)
+      await Cart.updateOne(
+        { _id: txCart._id, userId },
+        {
+          $set: {
+            items: [],
+            totalPrice: 0,
+            totalItems: 0,
+            serviceSubtotal: 0,
+            staySubtotal: 0,
+            serviceDurationTotal: 0,
+            stayDurationTotal: 0,
+            grandTotal: 0,
+          }
+        },
+        { session }
+      );
     });
     
     await session.endSession();

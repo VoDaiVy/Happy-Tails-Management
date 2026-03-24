@@ -67,7 +67,7 @@ export function FeedbackScreen({ route }: Props) {
       setFeedbacks(myFeedbackList);
       setEligibleBookings(eligibleList);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc du lieu feedback");
+      setError(e instanceof Error ? e.message : "Unable to load feedback data");
     } finally {
       setLoading(false);
     }
@@ -81,14 +81,6 @@ export function FeedbackScreen({ route }: Props) {
     loadData();
   }, [canAccess, loadData]);
 
-  if (!canAccess) {
-    return (
-      <View style={styles.centerBox}>
-        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
-      </View>
-    );
-  }
-
   const selectedBooking = useMemo(
     () => eligibleBookings.find((booking) => booking._id === selectedBookingId),
     [eligibleBookings, selectedBookingId],
@@ -99,9 +91,17 @@ export function FeedbackScreen({ route }: Props) {
     return selectedBooking.items.filter((item) => item.service?._id && !item.hasReviewed);
   }, [selectedBooking]);
 
+  if (!canAccess) {
+    return (
+      <View style={styles.centerBox}>
+        <Text style={styles.errorText}>This feature is only available for customer accounts.</Text>
+      </View>
+    );
+  }
+
   const submitFeedback = async () => {
     if (!selectedBookingId) {
-      setError("Vui long chon booking");
+      setError("Please select a booking");
       return;
     }
 
@@ -115,12 +115,12 @@ export function FeedbackScreen({ route }: Props) {
         rating,
         comment: comment.trim() || undefined,
       });
-      setMessage("Gui feedback thanh cong");
+      setMessage("Feedback submitted successfully.");
       setComment("");
       setSelectedServiceId("");
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gui feedback that bai");
+      setError(e instanceof Error ? e.message : "Failed to submit feedback.");
     } finally {
       setSaving(false);
     }
@@ -132,10 +132,10 @@ export function FeedbackScreen({ route }: Props) {
     setMessage("");
     try {
       await deleteFeedback(id);
-      setMessage("Da xoa feedback");
+      setMessage("Feedback deleted.");
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Xoa feedback that bai");
+      setError(e instanceof Error ? e.message : "Failed to delete feedback.");
     } finally {
       setSaving(false);
     }
@@ -158,11 +158,11 @@ export function FeedbackScreen({ route }: Props) {
         rating: editRating,
         comment: editComment.trim() || undefined,
       });
-      setMessage("Da cap nhat feedback");
+      setMessage("Feedback updated.");
       setEditingId("");
       await loadData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cap nhat feedback that bai");
+      setError(e instanceof Error ? e.message : "Failed to update feedback.");
     } finally {
       setSaving(false);
     }
@@ -185,11 +185,11 @@ export function FeedbackScreen({ route }: Props) {
       ListHeaderComponent={
         <View style={styles.headerWrap}>
           <Text style={styles.title}>Feedback Module</Text>
-          <Text style={styles.subtitle}>Danh gia dich vu tu booking da hoan thanh</Text>
+          <Text style={styles.subtitle}>Review services from completed bookings</Text>
 
-          <Text style={styles.sectionTitle}>1) Chon Booking</Text>
+          <Text style={styles.sectionTitle}>1) Choose Booking</Text>
           <View style={styles.optionWrap}>
-            {eligibleBookings.length === 0 ? <Text style={styles.emptyText}>Khong co booking hoan thanh nao</Text> : null}
+            {eligibleBookings.length === 0 ? <Text style={styles.emptyText}>No completed bookings found</Text> : null}
             {eligibleBookings.map((booking, bookingIndex) => {
               const active = selectedBookingId === booking._id;
               return (
@@ -209,7 +209,7 @@ export function FeedbackScreen({ route }: Props) {
             })}
           </View>
 
-          <Text style={styles.sectionTitle}>2) Chon Service (optional)</Text>
+          <Text style={styles.sectionTitle}>2) Choose Service (optional)</Text>
           <View style={styles.optionWrap}>
             <Pressable
               style={[styles.optionButton, !selectedServiceId && styles.optionActive]}
@@ -253,7 +253,7 @@ export function FeedbackScreen({ route }: Props) {
             onChangeText={setComment}
             multiline
             numberOfLines={4}
-            placeholder="Nhap nhan xet cua ban"
+            placeholder="Enter your feedback"
             placeholderTextColor="#94A3B8"
           />
 
@@ -265,7 +265,7 @@ export function FeedbackScreen({ route }: Props) {
           </Pressable>
 
           <Text style={styles.sectionTitle}>My Feedback</Text>
-          {feedbacks.length === 0 ? <Text style={styles.emptyText}>Ban chua gui feedback nao</Text> : null}
+          {feedbacks.length === 0 ? <Text style={styles.emptyText}>You have not submitted any feedback yet.</Text> : null}
         </View>
       }
       ListEmptyComponent={null}
@@ -291,13 +291,13 @@ export function FeedbackScreen({ route }: Props) {
                 onChangeText={setEditComment}
                 multiline
                 numberOfLines={3}
-                placeholder="Cap nhat nhan xet"
+                placeholder="Update feedback"
               />
             </>
           ) : (
             <>
               <Text style={styles.feedbackMeta}>Rating: {item.rating}/5</Text>
-              <Text style={styles.feedbackComment}>{item.comment || "(Khong co comment)"}</Text>
+              <Text style={styles.feedbackComment}>{item.comment || "(No comment)"}</Text>
             </>
           )}
           <View style={styles.feedbackFooter}>

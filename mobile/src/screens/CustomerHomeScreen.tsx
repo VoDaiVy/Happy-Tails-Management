@@ -33,7 +33,7 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
       const response = await getServices({ page: 1, limit: 5, isActive: "true" });
       setServices(response.data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc services");
+      setError(e instanceof Error ? e.message : "Unable to load services");
     } finally {
       setLoadingServices(false);
     }
@@ -46,7 +46,7 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
       const result = await getMyBookings();
       setBookings(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc bookings");
+      setError(e instanceof Error ? e.message : "Unable to load bookings");
     } finally {
       setLoadingBookings(false);
     }
@@ -59,7 +59,7 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
 
   return (
     <View style={styles.container}>
-      <Text style={styles.welcome}>Xin chao, {user.name}</Text>
+      <Text style={styles.welcome}>Hello, {user.name}</Text>
       <Text style={styles.role}>Role: {user.role}</Text>
 
       <View style={styles.buttonRow}>
@@ -67,7 +67,7 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
           {loadingServices ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Lay Services</Text>
+            <Text style={styles.buttonText}>Load Services</Text>
           )}
         </Pressable>
 
@@ -75,13 +75,13 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
           {loadingBookings ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Lay My Bookings</Text>
+            <Text style={styles.buttonText}>Load My Bookings</Text>
           )}
         </Pressable>
       </View>
 
       <Pressable onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Dang xuat</Text>
+        <Text style={styles.logoutText}>Sign Out</Text>
       </Pressable>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -94,10 +94,10 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardMeta}>Gia: {item.price} | Thoi luong: {item.duration} phut</Text>
+            <Text style={styles.cardMeta}>Price: {item.price} | Duration: {item.duration} mins</Text>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>Chua co du lieu service</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No service data available.</Text>}
       />
 
       <Text style={styles.sectionTitle}>My Bookings ({bookings.length})</Text>
@@ -108,10 +108,10 @@ export function CustomerHomeScreen({ user, onLoggedOut }: CustomerHomeScreenProp
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{item.bookingNumber || item._id}</Text>
-            <Text style={styles.cardMeta}>Status: {item.status} | Tong tien: {item.totalAmount}</Text>
+            <Text style={styles.cardMeta}>Status: {item.status} | Total: {item.totalAmount}</Text>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.emptyText}>Chua co booking</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No bookings yet.</Text>}
       />
     </View>
   );

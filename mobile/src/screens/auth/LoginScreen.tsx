@@ -22,8 +22,8 @@ import type { AuthStackParamList } from "../../navigation/types";
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginSchema = Yup.object({
-  email: Yup.string().email("Email khong hop le").required("Email la bat buoc"),
-  password: Yup.string().required("Mat khau la bat buoc"),
+  email: Yup.string().email("Invalid email format").required("Email is required"),
+  password: Yup.string().required("Password is required"),
 });
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
@@ -44,14 +44,14 @@ export function LoginScreen({ navigation }: Props) {
     const runGoogleAuth = async () => {
       if (googleResponse?.type !== "success") {
         if (googleResponse?.type === "error") {
-          setApiMessage("Google login that bai. Vui long thu lai.");
+          setApiMessage("Google login failed. Please try again.");
         }
         return;
       }
 
       const idToken = googleResponse.params?.id_token;
       if (!idToken) {
-        setApiMessage("Khong lay duoc Google ID token.");
+        setApiMessage("Unable to retrieve Google ID token.");
         return;
       }
 
@@ -60,7 +60,7 @@ export function LoginScreen({ navigation }: Props) {
       try {
         await loginWithGoogle(idToken);
       } catch (error) {
-        setApiMessage(error instanceof Error ? error.message : "Dang nhap Google that bai");
+        setApiMessage(error instanceof Error ? error.message : "Google sign-in failed");
       } finally {
         setGoogleSubmitting(false);
       }
@@ -71,7 +71,7 @@ export function LoginScreen({ navigation }: Props) {
 
   const onGooglePress = async () => {
     if (!env.googleWebClientId) {
-      setApiMessage("Thieu EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID trong file .env");
+      setApiMessage("Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env file.");
       return;
     }
 
@@ -103,7 +103,7 @@ export function LoginScreen({ navigation }: Props) {
           </View>
 
           <Text accessibilityRole="header" style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Log in to care for your furry friends</Text>
+          <Text style={styles.subtitle}>Sign in to care for your furry friends</Text>
 
           <Formik
             initialValues={{ email: "", password: "" }}
@@ -116,7 +116,7 @@ export function LoginScreen({ navigation }: Props) {
                   password: values.password,
                 });
               } catch (error) {
-                setApiMessage(error instanceof Error ? error.message : "Dang nhap that bai");
+                setApiMessage(error instanceof Error ? error.message : "Sign in failed");
               } finally {
                 setSubmitting(false);
               }
@@ -133,7 +133,7 @@ export function LoginScreen({ navigation }: Props) {
                   keyboardType="email-address"
                   placeholder="Enter your email or phone"
                   placeholderTextColor="#94A3B8"
-                  accessibilityLabel="Nhap email"
+                  accessibilityLabel="Enter email"
                 />
                 {touched.email && errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
 
@@ -146,7 +146,7 @@ export function LoginScreen({ navigation }: Props) {
                     secureTextEntry={!showPassword}
                     placeholder="Enter your password"
                     placeholderTextColor="#94A3B8"
-                    accessibilityLabel="Nhap mat khau"
+                    accessibilityLabel="Enter password"
                   />
                   <Pressable style={styles.eyeButton} onPress={() => setShowPassword((prev) => !prev)}>
                     <Text style={styles.eyeText}>◉</Text>
@@ -166,7 +166,7 @@ export function LoginScreen({ navigation }: Props) {
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Dang nhap"
+                  accessibilityLabel="Sign In"
                   onPress={() => handleSubmit()}
                   disabled={isSubmitting}
                   style={({ pressed }) => [
@@ -186,7 +186,7 @@ export function LoginScreen({ navigation }: Props) {
 
                 <View style={styles.socialRow}>
                   <Pressable style={styles.socialButton} onPress={onGooglePress} disabled={!googleRequest || googleSubmitting || isSubmitting}>
-                    <Text style={styles.socialButtonText}>{googleSubmitting ? "Dang xu ly..." : "G  Google"}</Text>
+                    <Text style={styles.socialButtonText}>{googleSubmitting ? "Processing..." : "G  Google"}</Text>
                   </Pressable>
                   <Pressable style={styles.socialButton}>
                     <Text style={styles.socialButtonText}>  Apple</Text>
@@ -195,7 +195,7 @@ export function LoginScreen({ navigation }: Props) {
 
                 <Pressable style={styles.signupWrap} onPress={() => navigation.navigate("Register")}>
                   <Text style={styles.signupText}>
-                    Don't have an account? <Text style={styles.signupLink}>Sign up</Text>
+                    Don&apos;t have an account? <Text style={styles.signupLink}>Sign up</Text>
                   </Text>
                 </Pressable>
               </View>

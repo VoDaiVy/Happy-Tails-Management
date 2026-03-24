@@ -1,6 +1,7 @@
 import { axiosClient } from "../axiosClient";
 import { extractPayload, extractPagination } from "../responseParser";
 import type { AvailableVoucher, AvailableVoucherListResponse } from "../../types/voucher";
+import { formatVnd } from "../../utils/currency";
 
 export async function getAvailableVouchers(query?: { search?: string; page?: number; limit?: number }) {
   const response = await axiosClient.get<AvailableVoucherListResponse>("/vouchers/available", {
@@ -13,11 +14,11 @@ export async function getAvailableVouchers(query?: { search?: string; page?: num
 
 export function formatVoucherPreview(voucher: AvailableVoucher) {
   if (voucher.discountType === "percentage") {
-    const max = voucher.maxDiscount ? `, toi da ${voucher.maxDiscount.toLocaleString()} VND` : "";
-    return `Giam ${voucher.discountValue}%${max}`;
+    const max = voucher.maxDiscount ? `, up to ${formatVnd(voucher.maxDiscount)}` : "";
+    return `Save ${voucher.discountValue}%${max}`;
   }
 
-  return `Giam ${voucher.discountValue.toLocaleString()} VND`;
+  return `Save ${formatVnd(voucher.discountValue)}`;
 }
 
 export interface AdminVoucherListQuery {

@@ -8,13 +8,13 @@ import { useAuth } from "../../context/AuthContext";
 const PasswordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,128}$/;
 
 const ChangePasswordSchema = Yup.object({
-  currentPassword: Yup.string().required("Mat khau hien tai la bat buoc"),
+  currentPassword: Yup.string().required("Current password is required"),
   newPassword: Yup.string()
-    .matches(PasswordRule, "Mat khau 8-128 ky tu, gom hoa/thuong/so/ky tu dac biet")
-    .required("Mat khau moi la bat buoc"),
+    .matches(PasswordRule, "Password must be 8-128 characters, including uppercase, lowercase, number, and special character")
+    .required("New password is required"),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref("newPassword")], "Mat khau nhap lai khong khop")
-    .required("Xac nhan mat khau la bat buoc"),
+    .oneOf([Yup.ref("newPassword")], "Passwords do not match")
+    .required("Password confirmation is required"),
 });
 
 export function ChangePasswordScreen() {
@@ -25,7 +25,7 @@ export function ChangePasswordScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Change Password</Text>
-      <Text style={styles.subtitle}>Cap nhat mat khau de bao mat tai khoan</Text>
+      <Text style={styles.subtitle}>Update your password to secure your account</Text>
 
       <Formik
         initialValues={{ currentPassword: "", newPassword: "", confirmPassword: "" }}
@@ -43,10 +43,10 @@ export function ChangePasswordScreen() {
                 refreshToken: response.data.tokens.refreshToken,
               });
             }
-            setMessage(response.message || "Doi mat khau thanh cong");
+            setMessage(response.message || "Password changed successfully");
             resetForm();
           } catch (e) {
-            setError(e instanceof Error ? e.message : "Doi mat khau that bai");
+            setError(e instanceof Error ? e.message : "Failed to change password");
           } finally {
             setSubmitting(false);
           }
@@ -60,7 +60,7 @@ export function ChangePasswordScreen() {
               value={values.currentPassword}
               onChangeText={handleChange("currentPassword")}
               secureTextEntry
-              placeholder="Nhap mat khau hien tai"
+              placeholder="Enter current password"
               placeholderTextColor="#94A3B8"
             />
             {touched.currentPassword && errors.currentPassword ? <Text style={styles.error}>{errors.currentPassword}</Text> : null}
@@ -71,7 +71,7 @@ export function ChangePasswordScreen() {
               value={values.newPassword}
               onChangeText={handleChange("newPassword")}
               secureTextEntry
-              placeholder="Nhap mat khau moi"
+              placeholder="Enter new password"
               placeholderTextColor="#94A3B8"
             />
             {touched.newPassword && errors.newPassword ? <Text style={styles.error}>{errors.newPassword}</Text> : null}
@@ -82,7 +82,7 @@ export function ChangePasswordScreen() {
               value={values.confirmPassword}
               onChangeText={handleChange("confirmPassword")}
               secureTextEntry
-              placeholder="Nhap lai mat khau moi"
+              placeholder="Re-enter new password"
               placeholderTextColor="#94A3B8"
             />
             {touched.confirmPassword && errors.confirmPassword ? <Text style={styles.error}>{errors.confirmPassword}</Text> : null}

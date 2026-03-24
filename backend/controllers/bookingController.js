@@ -1060,7 +1060,17 @@ exports.createGuestBooking = catchAsync(async (req, res, next) => {
  */
 exports.getMyBookings = catchAsync(async (req, res, next) => {
   const { status } = req.query;
-  const filter = { customer: req.user.id };
+  const requesterId = toObjectIdString(req.user?._id || req.user?.id);
+  if (!requesterId) {
+    return next(
+      new AppError(
+        "You do not have permission to view bookings",
+        403,
+        "FORBIDDEN",
+      ),
+    );
+  }
+  const filter = { customer: requesterId };
   if (status) {
     filter.status = status;
   }
@@ -1146,28 +1156,47 @@ exports.getAllBookings = catchAsync(async (req, res, next) => {
  */
 
 exports.getBookingById = catchAsync(async (req, res, next) => {
-  const booking = await Booking.findById(req.params.id)
+  const requesterRole = String(req.user?.role || "").toLowerCase();
+  const requesterId = toObjectIdString(req.user?._id || req.user?.id);
 
-    .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy boardingPet",
-    );
+  let booking = null;
+  const populatePaths =
+    "customer items.service items.pet assignedStaff room cancelledBy boardingPet";
+
+  if (requesterRole === "customer") {
+    if (!requesterId) {
+      return next(
+        new AppError(
+          "You do not have permission to view this booking",
+          403,
+          "FORBIDDEN",
+        ),
+      );
+    }
+
+    booking = await Booking.findOne({
+      _id: req.params.id,
+      customer: requesterId,
+    }).populate(populatePaths);
+
+    if (!booking) {
+      const existed = await Booking.exists({ _id: req.params.id });
+      if (existed) {
+        return next(
+          new AppError(
+            "You do not have permission to view this booking",
+            403,
+            "FORBIDDEN",
+          ),
+        );
+      }
+    }
+  } else {
+    booking = await Booking.findById(req.params.id).populate(populatePaths);
+  }
 
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
-  }
-
-  // Check permission: customer can only see their own bookings
-  if (
-    req.user.role === "customer" &&
-    booking.customer.toString() !== req.user.id
-  ) {
-    return next(
-      new AppError(
-        "You do not have permission to view this booking",
-        403,
-        "FORBIDDEN",
-      ),
-    );
   }
 
   res.status(200).json({
@@ -1478,31 +1507,34 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
 exports.cancelBooking = catchAsync(async (req, res, next) => {
   const { reason } = req.body;
   const session = await mongoose.startSession();
+  const requesterRole = String(req.user?.role || "").toLowerCase();
+  const requesterId = toObjectIdString(req.user?._id || req.user?.id);
 
   try {
     await session.startTransaction();
 
-    const booking = await Booking.findById(req.params.id).session(session);
+    const booking =
+      requesterRole === "customer"
+        ? await Booking.findOne({ _id: req.params.id, customer: requesterId }).session(session)
+        : await Booking.findById(req.params.id).session(session);
 
     if (!booking) {
+      if (requesterRole === "customer") {
+        const existed = await Booking.exists({ _id: req.params.id }).session(session);
+        if (existed) {
+          await session.abortTransaction();
+          return next(
+            new AppError(
+              "You do not have permission to cancel this booking",
+              403,
+              "FORBIDDEN",
+            ),
+          );
+        }
+      }
+
       await session.abortTransaction();
       return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
-    }
-
-    // Check permission
-    if (
-      req.user.role === "customer" &&
-      booking.customer.toString() !== req.user.id
-    ) {
-      await session.abortTransaction();
-
-      return next(
-        new AppError(
-          "You do not have permission to cancel this booking",
-          403,
-          "FORBIDDEN",
-        ),
-      );
     }
 
     // Check if already cancelled
@@ -2330,15 +2362,22 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
         );
       }
 
-      cart.items = [];
-      cart.totalPrice = 0;
-      cart.totalItems = 0;
-      cart.serviceSubtotal = 0;
-      cart.staySubtotal = 0;
-      cart.serviceDurationTotal = 0;
-      cart.stayDurationTotal = 0;
-      cart.grandTotal = 0;
-      await cart.save({ session });
+      await Cart.updateOne(
+        { _id: cart._id, userId: req.user.id },
+        {
+          $set: {
+            items: [],
+            totalPrice: 0,
+            totalItems: 0,
+            serviceSubtotal: 0,
+            staySubtotal: 0,
+            serviceDurationTotal: 0,
+            stayDurationTotal: 0,
+            grandTotal: 0,
+          },
+        },
+        { session },
+      );
 
       await session.commitTransaction();
 
@@ -2654,11 +2693,13 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
  */
 exports.payPendingBooking = catchAsync(async (req, res, next) => {
   const booking = await Booking.findById(req.params.id);
+  const requesterId = toObjectIdString(req.user?._id || req.user?.id);
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
 
-  if (String(booking.customer) !== String(req.user.id)) {
+  const bookingCustomerId = toObjectIdString(booking.customer);
+  if (!bookingCustomerId || !requesterId || bookingCustomerId !== requesterId) {
     return next(
       new AppError(
         "You do not have permission to pay this booking",
@@ -2687,7 +2728,7 @@ exports.payPendingBooking = catchAsync(async (req, res, next) => {
   }
 
   const totalAmount = Number(booking.totalAmount || 0);
-  const wallet = await Wallet.findOne({ userId: req.user.id });
+  const wallet = await Wallet.findOne({ userId: requesterId });
   const currentBalance = Number(wallet?.balance || 0);
 
   if (totalAmount > 0 && currentBalance < totalAmount) {

@@ -426,7 +426,7 @@ export function StaffAdminTabNavigator() {
       >
         <Tab.Screen name="ManagementTab" component={StaffManagementStackNavigator} options={{ title: "Management" }} />
         <Tab.Screen name="InfoTab" component={InfoStackNavigator} options={{ title: "News & Policy" }} />
-        <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Tai khoan" }} />
+        <Tab.Screen name="AccountTab" component={AccountStackNavigator} options={{ title: "Account" }} />
       </Tab.Navigator>
 
       <View style={styles.floatingTopBar} pointerEvents="box-none">

@@ -53,7 +53,42 @@ handleUncaughtException();
 
 // Initialize Express app
 const app = express();
-const port = process.env.PORT || 5000;
+const port = Number(process.env.PORT) || 5000;
+
+const listenOnAvailablePort = (server, startPort, maxRetries = 10) => {
+  return new Promise((resolve, reject) => {
+    let currentPort = Number(startPort) || 5000;
+    let retryCount = 0;
+
+    const attemptListen = () => {
+      const onError = (error) => {
+        server.off("listening", onListening);
+
+        if (error && error.code === "EADDRINUSE" && retryCount < maxRetries) {
+          const nextPort = currentPort + 1;
+          logger.warn(`Port ${currentPort} is already in use. Retrying on port ${nextPort}...`);
+          currentPort = nextPort;
+          retryCount += 1;
+          setTimeout(attemptListen, 100);
+          return;
+        }
+
+        reject(error);
+      };
+
+      const onListening = () => {
+        server.off("error", onError);
+        resolve(currentPort);
+      };
+
+      server.once("error", onError);
+      server.once("listening", onListening);
+      server.listen(currentPort);
+    };
+
+    attemptListen();
+  });
+};
 
 // ==================== SECURITY MIDDLEWARE ====================
 
@@ -230,12 +265,11 @@ const startServer = async () => {
     // Initialize Socket.IO AFTER creating httpServer
     initSocket(httpServer);
 
-    // Start listening
-    httpServer.listen(port, () => {
-      logger.info(`🚀 Server running on http://localhost:${port}`);
-      logger.info(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
-      logger.info(`🔌 Socket.IO ready`);
-    });
+    // Start listening (retry next port when address is already in use)
+    const activePort = await listenOnAvailablePort(httpServer, port);
+    logger.info(`🚀 Server running on http://localhost:${activePort}`);
+    logger.info(`📦 Environment: ${process.env.NODE_ENV || "development"}`);
+    logger.info(`🔌 Socket.IO ready`);
 
     // Handle unhandled promise rejections
     handleUnhandledRejection(httpServer);

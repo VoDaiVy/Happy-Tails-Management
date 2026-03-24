@@ -19,7 +19,7 @@ import type { AuthStackParamList } from "../../navigation/types";
 type Props = NativeStackScreenProps<AuthStackParamList, "ForgotPassword">;
 
 const ForgotPasswordSchema = Yup.object({
-  email: Yup.string().email("Email khong hop le").required("Email la bat buoc"),
+  email: Yup.string().email("Invalid email format").required("Email is required"),
 });
 
 export function ForgotPasswordScreen({ navigation, route }: Props) {
@@ -40,7 +40,7 @@ export function ForgotPasswordScreen({ navigation, route }: Props) {
           </Pressable>
 
           <Text style={styles.title}>Forgot Password</Text>
-          <Text style={styles.subtitle}>Nhap email de nhan reset token</Text>
+          <Text style={styles.subtitle}>Enter your email to receive a reset token.</Text>
 
           <Formik
             initialValues={{ email: route.params?.email || "" }}
@@ -52,13 +52,13 @@ export function ForgotPasswordScreen({ navigation, route }: Props) {
 
               try {
                 const result = await forgotPassword(values.email.trim());
-                setSuccessMessage(result.message || "Da gui yeu cau reset password");
+                setSuccessMessage(result.message || "Password reset request sent successfully.");
 
                 if (result.devOnly?.resetToken) {
                   setDevResetToken(result.devOnly.resetToken);
                 }
               } catch (error) {
-                setApiMessage(error instanceof Error ? error.message : "Gui yeu cau that bai");
+                setApiMessage(error instanceof Error ? error.message : "Failed to send reset request.");
               } finally {
                 setSubmitting(false);
               }

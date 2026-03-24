@@ -19,14 +19,14 @@ import type { AuthStackParamList } from "../../navigation/types";
 const PasswordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,128}$/;
 
 const RegisterSchema = Yup.object({
-  fullName: Yup.string().trim().min(2, "Ho ten toi thieu 2 ky tu").max(100, "Ho ten toi da 100 ky tu").required("Ho ten la bat buoc"),
-  email: Yup.string().email("Email khong hop le").required("Email la bat buoc"),
+  fullName: Yup.string().trim().min(2, "Full name must be at least 2 characters").max(100, "Full name must be at most 100 characters").required("Full name is required"),
+  email: Yup.string().email("Invalid email format").required("Email is required"),
   password: Yup.string()
-    .matches(PasswordRule, "Mat khau 8-128 ky tu, gom hoa/thuong/so/ky tu dac biet")
-    .required("Mat khau la bat buoc"),
+    .matches(PasswordRule, "Password must be 8-128 characters, including uppercase, lowercase, number, and special character")
+    .required("Password is required"),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref("password")], "Mat khau nhap lai khong khop")
-    .required("Xac nhan mat khau la bat buoc"),
+    .oneOf([Yup.ref("password")], "Passwords do not match")
+    .required("Password confirmation is required"),
 });
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Register">;
@@ -55,7 +55,7 @@ export function RegisterScreen({ navigation }: Props) {
                 }
               }}
               accessibilityRole="button"
-              accessibilityLabel="Quay lai"
+              accessibilityLabel="Go back"
             >
               <Text style={styles.closeText}>←</Text>
             </Pressable>
@@ -99,13 +99,13 @@ export function RegisterScreen({ navigation }: Props) {
                     password: values.password,
                   });
 
-                  setSuccessMessage(response.message || "Dang ky thanh cong");
+                  setSuccessMessage(response.message || "Registration successful");
                   navigation.navigate("VerifyOtp", {
                     email: values.email.trim(),
                     canAutoLogin: false,
                   });
                 } catch (error) {
-                  setApiMessage(error instanceof Error ? error.message : "Dang ky that bai");
+                  setApiMessage(error instanceof Error ? error.message : "Registration failed");
                 } finally {
                   setSubmitting(false);
                 }
@@ -122,7 +122,7 @@ export function RegisterScreen({ navigation }: Props) {
                         onChangeText={handleChange("fullName")}
                         placeholder="Enter your full name"
                         placeholderTextColor="#94A3B8"
-                        accessibilityLabel="Nhap ho ten"
+                        accessibilityLabel="Enter full name"
                       />
                       {touched.fullName && errors.fullName ? <Text style={styles.error}>{errors.fullName}</Text> : null}
                     </View>
@@ -137,7 +137,7 @@ export function RegisterScreen({ navigation }: Props) {
                         keyboardType="email-address"
                         placeholder="Enter your email"
                         placeholderTextColor="#94A3B8"
-                        accessibilityLabel="Nhap email dang ky"
+                        accessibilityLabel="Enter registration email"
                       />
                       {touched.email && errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
                     </View>
@@ -154,7 +154,7 @@ export function RegisterScreen({ navigation }: Props) {
                           secureTextEntry={!showPassword}
                           placeholder="Enter your password"
                           placeholderTextColor="#94A3B8"
-                          accessibilityLabel="Nhap mat khau"
+                          accessibilityLabel="Enter password"
                         />
                         <Pressable onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeButton}>
                           <Text style={styles.eyeText}>o</Text>
@@ -173,7 +173,7 @@ export function RegisterScreen({ navigation }: Props) {
                           secureTextEntry={!showConfirmPassword}
                           placeholder="Confirm your password"
                           placeholderTextColor="#94A3B8"
-                          accessibilityLabel="Nhap lai mat khau"
+                          accessibilityLabel="Re-enter password"
                         />
                         <Pressable onPress={() => setShowConfirmPassword((prev) => !prev)} style={styles.eyeButton}>
                           <Text style={styles.eyeText}>o</Text>
@@ -188,7 +188,7 @@ export function RegisterScreen({ navigation }: Props) {
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Dang ky"
+                    accessibilityLabel="Sign Up"
                     onPress={() => handleSubmit()}
                     disabled={isSubmitting}
                     style={({ pressed }) => [
@@ -202,7 +202,7 @@ export function RegisterScreen({ navigation }: Props) {
 
                   <Pressable onPress={() => navigation.navigate("Login")} style={styles.linkRow}>
                     <Text style={styles.linkText}>
-                      Already have an account? <Text style={styles.linkHighlight}>Log in</Text>
+                      Already have an account? <Text style={styles.linkHighlight}>Sign in</Text>
                     </Text>
                   </Pressable>
                 </View>

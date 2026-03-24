@@ -5,10 +5,21 @@ import type {
   UpdateProfilePayload,
   UserProfileDetail,
 } from "../../types/profile";
+import { resolveImageUrl } from "../../utils/image";
+
+function normalizeProfile(profile?: UserProfileDetail): UserProfileDetail {
+  return {
+    ...(profile || {}),
+    avatar: resolveImageUrl(profile?.avatar),
+  };
+}
 
 export async function getMyProfile() {
   const response = await axiosClient.get<MyProfileResponse>("/profile/me");
-  return response.data.data;
+  return {
+    ...response.data.data,
+    profile: normalizeProfile(response.data.data.profile),
+  };
 }
 
 export async function updateMyProfile(payload: UpdateProfilePayload) {
@@ -16,7 +27,13 @@ export async function updateMyProfile(payload: UpdateProfilePayload) {
     "/profile/me",
     payload,
   );
-  return response.data;
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      profile: normalizeProfile(response.data.data.profile),
+    },
+  };
 }
 
 export async function updateProfileAvatar(payload: {
@@ -41,7 +58,13 @@ export async function updateProfileAvatar(payload: {
     },
   });
 
-  return response.data;
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      avatar: resolveImageUrl(response.data.data.avatar),
+    },
+  };
 }
 
 export async function getProfileCompletion() {
