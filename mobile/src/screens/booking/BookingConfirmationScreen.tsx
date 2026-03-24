@@ -20,30 +20,47 @@ export function BookingConfirmationScreen({ route, navigation }: Props) {
       <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("BookingCheckout")}>
         <Text style={styles.primaryText}>Tao booking moi</Text>
       </Pressable>
+
+      <Pressable
+        style={styles.secondaryButton}
+        onPress={() => navigation.getParent()?.navigate("AccountTab", { screen: "MyBookings" })}
+      >
+        <Text style={styles.secondaryText}>Xem bookings cua toi</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", justifyContent: "center", padding: 16 },
-  title: { fontSize: 26, fontWeight: "700", color: "#065F46", textAlign: "center" },
-  message: { marginTop: 8, textAlign: "center", color: "#374151" },
+  container: { flex: 1, backgroundColor: "#F4F1EC", justifyContent: "center", padding: 16 },
+  title: { fontSize: 28, fontWeight: "800", color: "#2F3742", textAlign: "center" },
+  message: { marginTop: 8, textAlign: "center", color: "#6C7A90" },
   infoCard: {
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "#D1FAE5",
-    backgroundColor: "#ECFDF5",
-    borderRadius: 12,
+    borderColor: "#E7DED1",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 14,
     gap: 6,
   },
-  row: { color: "#064E3B", fontWeight: "600" },
+  row: { color: "#4D5E78", fontWeight: "700" },
   primaryButton: {
     marginTop: 24,
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
+    backgroundColor: "#D87D4A",
+    borderRadius: 14,
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
-  primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  primaryText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#E3E5E9",
+    backgroundColor: "#F8F8F7",
+    borderRadius: 14,
+    alignItems: "center",
+    paddingVertical: 13,
+  },
+  secondaryText: { color: "#4D5E78", fontWeight: "700", fontSize: 15 },
 });

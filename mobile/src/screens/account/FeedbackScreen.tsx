@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,12 +14,21 @@ import {
   deleteFeedback,
   getEligibleBookingsForFeedback,
   getMyFeedback,
+  updateFeedback,
 } from "../../api/modules/feedbackApi";
+import { useAuth } from "../../context/AuthContext";
+import type { AccountStackParamList } from "../../navigation/types";
 import type { EligibleFeedbackBooking, FeedbackItem } from "../../types/feedback";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 const RATING_OPTIONS = [1, 2, 3, 4, 5];
 
-export function FeedbackScreen() {
+type Props = NativeStackScreenProps<AccountStackParamList, "Feedback">;
+
+export function FeedbackScreen({ route }: Props) {
+  const { user } = useAuth();
+  const preselectedBookingId = route.params?.bookingId || "";
+  const preselectedServiceId = route.params?.serviceId || "";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
@@ -27,8 +37,24 @@ export function FeedbackScreen() {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const canAccess = canUseCustomerFeatures(user?.role);
+
+  useEffect(() => {
+    if (preselectedBookingId) {
+      setSelectedBookingId(preselectedBookingId);
+    }
+  }, [preselectedBookingId]);
+
+  useEffect(() => {
+    if (preselectedServiceId) {
+      setSelectedServiceId(preselectedServiceId);
+    }
+  }, [preselectedServiceId]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -48,8 +74,20 @@ export function FeedbackScreen() {
   }, []);
 
   useEffect(() => {
+    if (!canAccess) {
+      setLoading(false);
+      return;
+    }
     loadData();
-  }, [loadData]);
+  }, [canAccess, loadData]);
+
+  if (!canAccess) {
+    return (
+      <View style={styles.centerBox}>
+        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+      </View>
+    );
+  }
 
   const selectedBooking = useMemo(
     () => eligibleBookings.find((booking) => booking._id === selectedBookingId),
@@ -71,13 +109,13 @@ export function FeedbackScreen() {
     setError("");
     setMessage("");
     try {
-      const result = await createFeedback({
+      await createFeedback({
         booking: selectedBookingId,
         service: selectedServiceId || undefined,
         rating,
         comment: comment.trim() || undefined,
       });
-      setMessage(result.message || "Gui feedback thanh cong");
+      setMessage("Gui feedback thanh cong");
       setComment("");
       setSelectedServiceId("");
       await loadData();
@@ -98,6 +136,33 @@ export function FeedbackScreen() {
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Xoa feedback that bai");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const beginEdit = (item: FeedbackItem) => {
+    setEditingId(item._id);
+    setEditRating(item.rating || 5);
+    setEditComment(item.comment || "");
+  };
+
+  const submitEdit = async () => {
+    if (!editingId) return;
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await updateFeedback(editingId, {
+        rating: editRating,
+        comment: editComment.trim() || undefined,
+      });
+      setMessage("Da cap nhat feedback");
+      setEditingId("");
+      await loadData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cap nhat feedback that bai");
     } finally {
       setSaving(false);
     }
@@ -206,13 +271,56 @@ export function FeedbackScreen() {
       ListEmptyComponent={null}
       renderItem={({ item }) => (
         <View style={styles.feedbackCard}>
-          <Text style={styles.feedbackMeta}>Rating: {item.rating}/5</Text>
-          <Text style={styles.feedbackComment}>{item.comment || "(Khong co comment)"}</Text>
+          {editingId === item._id ? (
+            <>
+              <Text style={styles.feedbackMeta}>Edit Rating</Text>
+              <View style={styles.ratingRow}>
+                {RATING_OPTIONS.map((value) => (
+                  <Pressable
+                    key={`edit-${item._id}-${value}`}
+                    style={[styles.ratingButton, editRating === value && styles.ratingActive]}
+                    onPress={() => setEditRating(value)}
+                  >
+                    <Text style={[styles.ratingText, editRating === value && styles.ratingTextActive]}>{value}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.commentInput}
+                value={editComment}
+                onChangeText={setEditComment}
+                multiline
+                numberOfLines={3}
+                placeholder="Cap nhat nhan xet"
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.feedbackMeta}>Rating: {item.rating}/5</Text>
+              <Text style={styles.feedbackComment}>{item.comment || "(Khong co comment)"}</Text>
+            </>
+          )}
           <View style={styles.feedbackFooter}>
             <Text style={styles.feedbackDate}>{new Date(item.createdAt).toLocaleString()}</Text>
-            <Pressable style={styles.deleteButton} onPress={() => removeFeedback(item._id)} disabled={saving}>
-              <Text style={styles.deleteText}>Delete</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {editingId === item._id ? (
+                <>
+                  <Pressable style={styles.editButton} onPress={submitEdit} disabled={saving}>
+                    <Text style={styles.editText}>Save</Text>
+                  </Pressable>
+                  <Pressable style={styles.cancelButton} onPress={() => setEditingId("")} disabled={saving}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <Pressable style={styles.editButton} onPress={() => beginEdit(item)} disabled={saving}>
+                  <Text style={styles.editText}>Edit</Text>
+                </Pressable>
+              )}
+              <Pressable style={styles.deleteButton} onPress={() => removeFeedback(item._id)} disabled={saving}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
@@ -221,45 +329,45 @@ export function FeedbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  content: { padding: 16, gap: 10, paddingBottom: 24 },
+  container: { flex: 1, backgroundColor: "#F4F1EC" },
+  content: { padding: 16, gap: 12, paddingBottom: 24 },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center" },
-  headerWrap: { gap: 10 },
-  title: { fontSize: 22, fontWeight: "800", color: "#0F172A" },
-  subtitle: { color: "#64748B" },
-  sectionTitle: { marginTop: 4, fontWeight: "700", color: "#1E293B" },
+  headerWrap: { gap: 12 },
+  title: { fontSize: 24, fontWeight: "900", color: "#2F3742" },
+  subtitle: { color: "#8395B2" },
+  sectionTitle: { marginTop: 4, fontWeight: "800", color: "#4D5E78" },
   optionWrap: { gap: 8 },
   optionButton: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
+    borderColor: "#E3E5E9",
+    borderRadius: 12,
     backgroundColor: "#fff",
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  optionActive: { borderColor: "#2563EB", backgroundColor: "#EFF6FF" },
-  optionText: { color: "#334155" },
-  optionTextActive: { color: "#1D4ED8", fontWeight: "700" },
+  optionActive: { borderColor: "#D87D4A", backgroundColor: "#FFF4EF" },
+  optionText: { color: "#4D5E78" },
+  optionTextActive: { color: "#C96F42", fontWeight: "700" },
   ratingRow: { flexDirection: "row", gap: 8 },
   ratingButton: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#E3E5E9",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#fff",
   },
-  ratingActive: { borderColor: "#F59E0B", backgroundColor: "#FFFBEB" },
-  ratingText: { color: "#334155", fontWeight: "700" },
-  ratingTextActive: { color: "#B45309" },
+  ratingActive: { borderColor: "#D87D4A", backgroundColor: "#FFF4EF" },
+  ratingText: { color: "#4D5E78", fontWeight: "700" },
+  ratingTextActive: { color: "#C96F42" },
   commentInput: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
+    borderColor: "#E3E5E9",
+    borderRadius: 12,
     backgroundColor: "#fff",
-    color: "#0F172A",
+    color: "#2F3742",
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 90,
@@ -267,24 +375,24 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: 2,
-    borderRadius: 10,
-    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    backgroundColor: "#D87D4A",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
-  submitText: { color: "#fff", fontWeight: "700" },
+  submitText: { color: "#fff", fontWeight: "800" },
   feedbackCard: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderColor: "#E7DED1",
+    borderRadius: 16,
     backgroundColor: "#fff",
-    padding: 12,
-    gap: 6,
+    padding: 14,
+    gap: 8,
   },
-  feedbackMeta: { fontWeight: "700", color: "#1E293B" },
-  feedbackComment: { color: "#334155" },
+  feedbackMeta: { fontWeight: "800", color: "#2F3742" },
+  feedbackComment: { color: "#4D5E78" },
   feedbackFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  feedbackDate: { color: "#94A3B8", fontSize: 12 },
+  feedbackDate: { color: "#98A2B3", fontSize: 12 },
   deleteButton: {
     borderWidth: 1,
     borderColor: "#FECACA",
@@ -294,8 +402,26 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   deleteText: { color: "#B91C1C", fontWeight: "600" },
+  editButton: {
+    borderWidth: 1,
+    borderColor: "#F2C9BC",
+    borderRadius: 8,
+    backgroundColor: "#FFF4EF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  editText: { color: "#C96F42", fontWeight: "700" },
+  cancelButton: {
+    borderWidth: 1,
+    borderColor: "#E3E5E9",
+    borderRadius: 8,
+    backgroundColor: "#F8F8F7",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  cancelText: { color: "#4D5E78", fontWeight: "700" },
   errorText: { color: "#DC2626" },
   successText: { color: "#059669" },
-  emptyText: { color: "#64748B" },
+  emptyText: { color: "#8395B2" },
   disabled: { opacity: 0.65 },
 });

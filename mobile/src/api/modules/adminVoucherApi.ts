@@ -1,10 +1,37 @@
 import { axiosClient } from "../axiosClient";
-import type { CreateVoucherPayload, Voucher } from "../../types/voucher";
+
+export interface AdminVoucher {
+  _id: string;
+  code: string;
+  description?: string;
+  discountType: "percentage" | "fixed" | string;
+  discountValue: number;
+  minSpend?: number;
+  maxDiscount?: number | null;
+  validFrom?: string;
+  validUntil?: string;
+  usageLimit?: number | null;
+  usedCount?: number;
+  isActive?: boolean;
+}
+
+export interface CreateVoucherPayload {
+  code: string;
+  description?: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  minSpend?: number;
+  maxDiscount?: number;
+  validFrom?: string;
+  validUntil?: string;
+  usageLimit?: number;
+  isActive?: boolean;
+}
 
 interface VoucherListResponse {
   status: "success" | "error";
   data: {
-    vouchers: Voucher[];
+    vouchers: AdminVoucher[];
     pagination?: {
       total: number;
       page: number;
@@ -18,7 +45,7 @@ interface VoucherResponse {
   status: "success" | "error";
   message?: string;
   data: {
-    voucher: Voucher;
+    voucher: AdminVoucher;
   };
 }
 

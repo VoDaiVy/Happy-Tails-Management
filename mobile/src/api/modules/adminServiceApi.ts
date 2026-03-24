@@ -1,10 +1,9 @@
-import { axiosClient } from "../axiosClient";
-import type { ServiceItem } from "../../types/service";
+import { createService, getServices, uploadServiceImage } from "./serviceApi";
 
 interface ServiceListResponse {
   success: boolean;
   message?: string;
-  data: ServiceItem[];
+  data: any[];
   pagination?: {
     total: number;
     page: number;
@@ -15,40 +14,55 @@ interface ServiceListResponse {
   };
 }
 
-interface ServiceResponse {
-  success: boolean;
-  message?: string;
-  data: ServiceItem;
+export async function getAdminServices(params?: {
+  search?: string;
+  category?: string;
+  isActive?: "true" | "false" | "all";
+  page?: number;
+  limit?: number;
+}): Promise<ServiceListResponse> {
+  const response = await getServices({
+    search: params?.search,
+    category: params?.category,
+    isActive: params?.isActive,
+    page: params?.page,
+    limit: params?.limit,
+  });
+
+  return {
+    success: true,
+    data: response.data,
+    pagination: response.pagination,
+  };
 }
 
-export interface ServiceUpsertPayload {
+export async function createAdminService(payload: {
   name: string;
-  category: string;
+  description?: string;
   price: number;
   duration: number;
-  description?: string;
+  category: string;
+  features?: string[];
   petTypes?: string[];
   group?: "wet" | "dry";
-  maxCapacity?: number;
   isActive?: boolean;
+  images?: string[];
+}) {
+  const response = await createService(payload);
+  return {
+    success: true,
+    data: response,
+  };
 }
 
-export async function getAdminServices(params?: { search?: string; isActive?: "true" | "false" | "all"; page?: number; limit?: number }) {
-  const response = await axiosClient.get<ServiceListResponse>("/services", { params });
-  return response.data;
-}
-
-export async function createAdminService(payload: ServiceUpsertPayload) {
-  const response = await axiosClient.post<ServiceResponse>("/services", payload);
-  return response.data;
-}
-
-export async function updateAdminService(serviceId: string, payload: Partial<ServiceUpsertPayload>) {
-  const response = await axiosClient.put<ServiceResponse>(`/services/${serviceId}`, payload);
-  return response.data;
-}
-
-export async function deleteAdminService(serviceId: string) {
-  const response = await axiosClient.delete<{ success: boolean; message?: string }>(`/services/${serviceId}`);
-  return response.data;
+export async function uploadAdminServiceImage(payload: {
+  uri: string;
+  type?: string;
+  fileName?: string;
+}) {
+  const url = await uploadServiceImage(payload);
+  return {
+    success: true,
+    data: { url },
+  };
 }

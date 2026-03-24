@@ -87,9 +87,12 @@ export function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={30}
     >
-     
       <ScrollView contentContainerStyle={styles.centerWrap} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
+          <Pressable style={styles.backButton} onPress={() => navigation.navigate("Landing")}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+
           <Text style={[styles.paw, styles.pawTopLeft]}>🐾</Text>
           <Text style={[styles.paw, styles.pawRightMid]}>🐾</Text>
           <Text style={[styles.paw, styles.pawBottomMid]}>🐾</Text>
@@ -159,6 +162,7 @@ export function LoginScreen({ navigation }: Props) {
                 </Pressable>
 
                 {apiMessage ? <Text style={styles.errorCenter}>{apiMessage}</Text> : null}
+                {__DEV__ ? <Text style={styles.debugApiText}>API: {env.apiBaseUrl}</Text> : null}
 
                 <Pressable
                   accessibilityRole="button"
@@ -257,6 +261,22 @@ const styles = StyleSheet.create({
     left: 26,
     color: "#E8D2B5",
   },
+  backButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D9DFE8",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  backText: {
+    color: "#475569",
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
   closeRow: {
     alignItems: "flex-end",
   },
@@ -268,7 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#DEE3EA",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
@@ -326,7 +346,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 13,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
     fontSize: 16,
     color: "#0F172A",
   },
@@ -336,7 +356,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CED6E0",
     borderRadius: 16,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
   },
   passwordInput: {
     flex: 1,
@@ -405,7 +425,7 @@ const styles = StyleSheet.create({
     borderColor: "#CCD4DE",
     borderRadius: 13,
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
   },
   socialButtonText: {
     fontSize: 14,
@@ -428,4 +448,5 @@ const styles = StyleSheet.create({
   },
   error: { marginTop: 2, color: "#DC2626", fontSize: 13 },
   errorCenter: { marginTop: 2, color: "#DC2626", fontSize: 13, textAlign: "center" },
+  debugApiText: { marginTop: 2, color: "#64748B", fontSize: 11, textAlign: "center" },
 });

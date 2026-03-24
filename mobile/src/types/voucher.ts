@@ -1,27 +1,26 @@
-export interface Voucher {
+export interface AvailableVoucher {
   _id: string;
   code: string;
   description: string;
-  discountType: "percentage" | "fixed";
+  discountType: "percentage" | "fixed" | string;
   discountValue: number;
   minSpend?: number;
   maxDiscount?: number | null;
+  validUntil: string;
   usageLimit?: number | null;
   usedCount?: number;
-  validFrom: string;
-  validUntil: string;
-  isActive: boolean;
-  isAIGenerated?: boolean;
-  createdAt?: string;
 }
 
-export interface CreateVoucherPayload {
-  code: string;
-  description: string;
-  discountType: "percentage" | "fixed";
-  discountValue: number;
-  minSpend?: number;
-  maxDiscount?: number | null;
-  usageLimit?: number | null;
-  validUntil: string;
+export interface AvailableVoucherListResponse {
+  status: "success" | "error";
+  results: number;
+  data: {
+    vouchers: AvailableVoucher[];
+    pagination?: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    };
+  };
 }

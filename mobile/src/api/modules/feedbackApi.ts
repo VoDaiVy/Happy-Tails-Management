@@ -1,4 +1,5 @@
 import { axiosClient } from "../axiosClient";
+import { extractPayload } from "../responseParser";
 import type { EligibleFeedbackBooking, FeedbackItem } from "../../types/feedback";
 
 interface FeedbackListResponse {
@@ -25,12 +26,14 @@ interface FeedbackActionResponse {
 
 export async function getMyFeedback(): Promise<FeedbackItem[]> {
   const response = await axiosClient.get<FeedbackListResponse>("/feedback/my");
-  return response.data.data.feedback;
+  const payload = extractPayload<{ feedback?: FeedbackItem[] }>(response.data);
+  return payload.feedback || [];
 }
 
 export async function getEligibleBookingsForFeedback(): Promise<EligibleFeedbackBooking[]> {
   const response = await axiosClient.get<EligibleFeedbackResponse>("/feedback/eligible-bookings");
-  return response.data.data.bookings;
+  const payload = extractPayload<{ bookings?: EligibleFeedbackBooking[] }>(response.data);
+  return payload.bookings || [];
 }
 
 export async function createFeedback(payload: {
@@ -40,7 +43,7 @@ export async function createFeedback(payload: {
   comment?: string;
 }) {
   const response = await axiosClient.post<FeedbackActionResponse>("/feedback", payload);
-  return response.data;
+  return extractPayload<{ feedback?: FeedbackItem }>(response.data);
 }
 
 export async function updateFeedback(
@@ -51,10 +54,26 @@ export async function updateFeedback(
   }
 ) {
   const response = await axiosClient.put<FeedbackActionResponse>(`/feedback/${id}`, payload);
-  return response.data;
+  return extractPayload<{ feedback?: FeedbackItem }>(response.data);
 }
 
 export async function deleteFeedback(id: string) {
   const response = await axiosClient.delete<FeedbackActionResponse>(`/feedback/${id}`);
-  return response.data;
+  return extractPayload<null>(response.data);
+}
+
+export async function getMyReceivedFeedback(): Promise<FeedbackItem[]> {
+  const response = await axiosClient.get("/feedback/staff/received");
+  const payload = extractPayload<{ feedback?: FeedbackItem[] }>(response.data);
+  return payload.feedback || [];
+}
+
+export async function respondToFeedback(id: string, message: string) {
+  const response = await axiosClient.put(`/feedback/${id}/respond`, { message });
+  return extractPayload<{ feedback?: FeedbackItem }>(response.data);
+}
+
+export async function toggleFeedbackPublishStatus(id: string) {
+  const response = await axiosClient.put(`/feedback/${id}/publish`);
+  return extractPayload<{ feedback?: FeedbackItem }>(response.data);
 }

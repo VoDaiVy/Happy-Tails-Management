@@ -1,37 +1,19 @@
-import { axiosClient } from "../axiosClient";
-import type { Room, RoomUpsertPayload } from "../../types/room";
-
-interface RoomListResponse {
-  status: "success" | "error";
-  data: {
-    rooms: Room[];
-  };
-}
-
-interface RoomResponse {
-  status: "success" | "error";
-  message?: string;
-  data: {
-    room: Room;
-  };
-}
+import { getRooms } from "./roomApi";
+import type { Room } from "../../types/room";
 
 export async function getAdminRooms(params?: { isActive?: "true" | "false" | "all"; type?: string; serviceType?: "service" | "boarding" }) {
-  const response = await axiosClient.get<RoomListResponse>("/rooms", { params });
-  return response.data.data.rooms;
-}
+  const rows = await getRooms(params as Record<string, unknown>);
 
-export async function createAdminRoom(payload: RoomUpsertPayload) {
-  const response = await axiosClient.post<RoomResponse>("/rooms", payload);
-  return response.data;
-}
-
-export async function updateAdminRoom(roomId: string, payload: Partial<RoomUpsertPayload> & { isActive?: boolean; isAvailable?: boolean }) {
-  const response = await axiosClient.put<RoomResponse>(`/rooms/${roomId}`, payload);
-  return response.data;
-}
-
-export async function deleteAdminRoom(roomId: string) {
-  const response = await axiosClient.delete<{ status: "success" | "error"; message?: string }>(`/rooms/${roomId}`);
-  return response.data;
+  return rows.map((item) => ({
+    _id: item._id,
+    roomNumber: item.roomNumber || "",
+    name: item.name || item.roomNumber || "Room",
+    type: (item.serviceType === "boarding" ? "deluxe" : "standard") as Room["type"],
+    serviceType: (item.serviceType === "boarding" ? "boarding" : "service") as Room["serviceType"],
+    capacity: Number(item.capacity || 0),
+    pricePerNight: 0,
+    isAvailable: true,
+    isActive: item.isActive !== false,
+    group: item.group as Room["group"],
+  }));
 }

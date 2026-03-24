@@ -1,4 +1,5 @@
 import { axiosClient } from "../axiosClient";
+import { extractPayload, extractPagination } from "../responseParser";
 import type { ServiceItem, ServiceListQuery } from "../../types/service";
 
 interface ListServicesResponse {
@@ -23,10 +24,72 @@ interface GetServiceDetailResponse {
 
 export async function getServices(query: ServiceListQuery = {}) {
   const response = await axiosClient.get<ListServicesResponse>("/services", { params: query });
-  return response.data;
+  return {
+    data: extractPayload<ServiceItem[]>(response.data),
+    pagination: extractPagination<ListServicesResponse["pagination"]>(response.data) || undefined,
+  };
 }
 
 export async function getServiceById(serviceId: string) {
   const response = await axiosClient.get<GetServiceDetailResponse>(`/services/${serviceId}`);
-  return response.data.data;
+  return extractPayload<ServiceItem>(response.data);
+}
+
+export async function createService(payload: {
+  name: string;
+  price: number;
+  duration: number;
+  description?: string;
+  category: string;
+  petTypes?: string[];
+  features?: string[];
+  group?: "wet" | "dry";
+  maxCapacity?: number;
+  isActive?: boolean;
+  image?: string;
+  images?: string[];
+}) {
+  const response = await axiosClient.post("/services", payload);
+  return extractPayload<{ service?: ServiceItem }>(response.data);
+}
+
+export async function uploadServiceImage(payload: {
+  uri: string;
+  type?: string;
+  fileName?: string;
+}) {
+  const formData = new FormData();
+  formData.append("image", {
+    uri: payload.uri,
+    type: payload.type || "image/jpeg",
+    name: payload.fileName || `service-${Date.now()}.jpg`,
+  } as unknown as Blob);
+
+  const response = await axiosClient.post<{ data?: { url?: string } }>("/uploads/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  const payloadData = extractPayload<{ url?: string }>(response.data);
+  return payloadData.url || "";
+}
+
+export async function updateService(serviceId: string, payload: Partial<{
+  name: string;
+  price: number;
+  duration: number;
+  description: string;
+  category: string;
+  petTypes: string[];
+  isActive: boolean;
+  image: string;
+}>) {
+  const response = await axiosClient.put(`/services/${serviceId}`, payload);
+  return extractPayload<{ service?: ServiceItem }>(response.data);
+}
+
+export async function deleteService(serviceId: string) {
+  const response = await axiosClient.delete(`/services/${serviceId}`);
+  return extractPayload<null>(response.data);
 }

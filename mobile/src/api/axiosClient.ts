@@ -1,6 +1,6 @@
 import axios from "axios";
 import { env } from "../config/env";
-import { ApiError, extractApiMessage } from "../utils/apiError";
+import { ApiError, extractApiCode, extractApiDetails, extractApiMessage, mapBackendErrorMessage } from "../utils/apiError";
 
 let accessToken: string | null = null;
 let refreshTokenValue: string | null = null;
@@ -34,6 +34,22 @@ export const axiosClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+const PUBLIC_AUTH_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/google",
+  "/auth/refresh-token",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/verify-email",
+  "/auth/resend-verification",
+];
+
+function isPublicAuthRequest(url?: string) {
+  if (!url) return false;
+  return PUBLIC_AUTH_PATHS.some((path) => url.includes(path));
+}
 
 axiosClient.interceptors.request.use((config) => {
   if (accessToken) {
@@ -78,15 +94,16 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (!error?.response) {
-      return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true));
+      return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true, "NETWORK_ERROR"));
     }
 
     const statusCode = error.response.status as number;
     const originalRequest = error.config as { _retry?: boolean; url?: string; headers?: Record<string, string> };
     const requestUrl = originalRequest?.url || "";
     const isRefreshRequest = requestUrl.includes("/auth/refresh-token");
+    const isPublicAuth = isPublicAuthRequest(requestUrl);
 
-    if (statusCode === 401 && !originalRequest?._retry && !isRefreshRequest) {
+    if (statusCode === 401 && !originalRequest?._retry && !isRefreshRequest && !isPublicAuth) {
       originalRequest._retry = true;
 
       if (!refreshPromise) {
@@ -107,12 +124,19 @@ axiosClient.interceptors.response.use(
       setAccessToken(null);
       setRefreshToken(null);
       onAuthInvalid?.();
-      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401));
+      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401, false, "TOKEN_EXPIRED"));
     }
 
+    const backendCode = extractApiCode(error.response.data);
+    const backendDetails = extractApiDetails(error.response.data);
     const backendMessage = extractApiMessage(error.response.data);
     const fallbackMessage = typeof error.message === "string" ? error.message : "Yeu cau that bai";
+    const finalMessage = mapBackendErrorMessage({
+      code: backendCode,
+      statusCode,
+      fallback: backendMessage || fallbackMessage,
+    });
 
-    return Promise.reject(new ApiError(backendMessage || fallbackMessage, statusCode));
+    return Promise.reject(new ApiError(finalMessage, statusCode, false, backendCode || undefined, backendDetails));
   }
 );

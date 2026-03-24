@@ -1,24 +1,17 @@
 import { useMemo } from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth } from "../../context/AuthContext";
 import type { AdminStackParamList } from "../../navigation/types";
-import type { UserRole } from "../../types/auth";
 
-type RoleScope = "admin" | "staff";
+type Scope = "admin" | "staff" | "customer";
 
-interface ManagementModule {
+interface RoleModule {
   key: string;
   title: string;
-  scope: RoleScope;
-  webPath: string;
+  scope: Scope;
+  route: string;
   description: string;
   badge: string;
   screen?: keyof AdminStackParamList;
@@ -26,21 +19,21 @@ interface ManagementModule {
 
 type Props = NativeStackScreenProps<AdminStackParamList, "AdminHome">;
 
-const WEB_MANAGEMENT_MODULES: ManagementModule[] = [
+const ROLE_MODULES: RoleModule[] = [
   {
     key: "admin-overview",
     title: "Admin Dashboard",
     scope: "admin",
-    webPath: "/admin",
-    description: "Tong quan nguoi dung, don hang, doanh thu va hieu suat service.",
+    route: "/admin",
+    description: "KPI tong quan he thong, doanh thu va van hanh.",
     badge: "Overview",
   },
   {
     key: "booking-board",
     title: "Booking Board",
-    scope: "staff",
-    webPath: "/admin/bookings, /staff/bookings",
-    description: "Theo doi va cap nhat lich dat dich vu theo trang thai.",
+    scope: "admin",
+    route: "/admin/bookings",
+    description: "Theo doi booking va trang thai xu ly theo ngay.",
     badge: "Booking",
     screen: "AdminBookingBoard",
   },
@@ -48,286 +41,304 @@ const WEB_MANAGEMENT_MODULES: ManagementModule[] = [
     key: "user-management",
     title: "User Management",
     scope: "admin",
-    webPath: "/admin/users",
-    description: "Quan ly tai khoan, vai tro va trang thai nguoi dung.",
-    badge: "User",
+    route: "/admin/users",
+    description: "Quan ly role, trang thai va tai khoan nguoi dung.",
+    badge: "Users",
     screen: "AdminUserManagement",
   },
   {
     key: "room-management",
     title: "Room Management",
     scope: "admin",
-    webPath: "/admin/rooms",
-    description: "Quan ly phong luu tru, suc chua va tinh trang su dung.",
-    badge: "Room",
+    route: "/admin/rooms",
+    description: "Cau hinh suc chua, loai phong va kha dung.",
+    badge: "Rooms",
     screen: "AdminRoomManagement",
   },
   {
     key: "service-management",
     title: "Service Management",
     scope: "admin",
-    webPath: "/admin/services",
-    description: "Quan ly danh muc service, gia, thoi gian va hinh anh.",
-    badge: "Service",
+    route: "/admin/services",
+    description: "Quan ly service, thoi luong va bang gia.",
+    badge: "Services",
     screen: "AdminServiceManagement",
   },
   {
     key: "medical-record-management",
     title: "Medical Records",
     scope: "admin",
-    webPath: "/admin/medical-records",
-    description: "Quan ly ho so y te cua thu cung va tien su dieu tri.",
+    route: "/admin/medical-records",
+    description: "Lich su dieu tri, theo doi suc khoe va canh bao.",
     badge: "Medical",
+    screen: "AdminMedicalRecords",
   },
   {
     key: "transaction-management",
     title: "Transaction Management",
     scope: "admin",
-    webPath: "/admin/transactions",
-    description: "Kiem soat giao dich, thanh toan va doi soat doanh thu.",
+    route: "/admin/transactions",
+    description: "Thanh toan, doi soat va thong ke giao dich.",
     badge: "Finance",
+    screen: "AdminTransactions",
   },
   {
     key: "voucher-management",
     title: "Voucher Management",
     scope: "admin",
-    webPath: "/admin/vouchers",
-    description: "Tao va quan ly voucher khuyen mai, han su dung va dieu kien.",
+    route: "/admin/vouchers",
+    description: "Tao ma giam gia va theo doi hieu suat voucher.",
     badge: "Voucher",
     screen: "AdminVoucherManagement",
   },
   {
-    key: "staff-dashboard",
-    title: "Staff Dashboard",
+    key: "staff-bookings",
+    title: "Staff Booking Workspace",
     scope: "staff",
-    webPath: "/staff",
-    description: "Tong quan van hanh cho nhan vien, theo doi tac vu trong ngay.",
-    badge: "Staff",
-  },
-  {
-    key: "staff-feedback",
-    title: "Feedback Management",
-    scope: "staff",
-    webPath: "/staff/feedback",
-    description: "Xu ly va phan hoi danh gia tu khach hang.",
-    badge: "Feedback",
+    route: "/staff/bookings",
+    description: "Tac vu booking theo ca truc nhan vien.",
+    badge: "Ops",
   },
   {
     key: "staff-news",
-    title: "News Management",
+    title: "Staff News Workspace",
     scope: "staff",
-    webPath: "/staff/news",
-    description: "Quan ly bai viet tin tuc va cap nhat noi dung truyen thong.",
+    route: "/staff/news",
+    description: "Dang tin va cap nhat noi dung truyen thong.",
     badge: "News",
   },
+  {
+    key: "customer-service",
+    title: "Customer Service Journey",
+    scope: "customer",
+    route: "/services",
+    description: "Luong dat dich vu va trai nghiem customer.",
+    badge: "Customer",
+  },
+  {
+    key: "customer-account",
+    title: "Customer Account & Wallet",
+    scope: "customer",
+    route: "/account",
+    description: "Ho so, vi tien va thong bao cua customer.",
+    badge: "Account",
+  },
 ];
-
-function canAccessModule(moduleScope: RoleScope, role: UserRole): boolean {
-  if (role === "admin") {
-    return true;
-  }
-
-  return moduleScope === "staff" && role === "staff";
-}
 
 export function AdminControlCenterScreen({ navigation }: Props) {
   const { user } = useAuth();
 
-  const visibleModules = useMemo<ManagementModule[]>(() => {
-    if (!user) return [];
+  const groupedModules = useMemo(() => {
+    const canViewAdmin = user?.role === "admin";
+    const canViewStaff = user?.role === "admin" || user?.role === "staff";
 
-    return WEB_MANAGEMENT_MODULES.filter((module) => canAccessModule(module.scope, user.role));
-  }, [user]);
+    return {
+      admin: canViewAdmin ? ROLE_MODULES.filter((item) => item.scope === "admin") : [],
+      staff: canViewStaff ? ROLE_MODULES.filter((item) => item.scope === "staff") : [],
+      customer: canViewAdmin ? ROLE_MODULES.filter((item) => item.scope === "customer") : [],
+    };
+  }, [user?.role]);
 
-  if (!user) {
+  if (!user || user.role !== "admin") {
     return (
       <View style={styles.emptyWrap}>
-        <Text style={styles.emptyTitle}>Khong tim thay phien dang nhap</Text>
+        <Text style={styles.emptyTitle}>Khu vuc nay danh cho admin</Text>
+        <Text style={styles.emptyDescription}>Staff va customer khong the truy cap module quan tri.</Text>
       </View>
     );
   }
 
-  if (user.role === "customer") {
-    return (
-      <View style={styles.emptyWrap}>
-        <Text style={styles.emptyTitle}>Ban khong co quyen truy cap khu quan tri</Text>
-        <Text style={styles.emptyDescription}>
-          Khu vuc nay chi danh cho vai tro staff hoac admin.
-        </Text>
-      </View>
-    );
-  }
+  const openModule = (module: RoleModule) => {
+    if (module.screen) {
+      navigation.navigate(module.screen);
+      return;
+    }
+
+    Alert.alert(module.title, `Web route: ${module.route}\n\nModule nay dang duoc dong bo UI theo mobile.`);
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>Admin Control Center</Text>
-        <Text style={styles.heroDescription}>
-          Tong hop day du cac module quan ly dang su dung tren web, toi uu de theo doi nhanh tren mobile.
-        </Text>
-        <View style={styles.heroPillRow}>
-          <View style={styles.heroPill}>
-            <Text style={styles.heroPillValue}>{visibleModules.length}</Text>
-            <Text style={styles.heroPillLabel}>Module</Text>
+        <Text style={styles.heroTitle}>Role Control Center</Text>
+        <Text style={styles.heroSubtitle}>UI da duoc chia theo role admin, staff, customer de map dung voi frontend.</Text>
+
+        <View style={styles.heroMetaRow}>
+          <View style={styles.heroMetaChip}>
+            <Text style={styles.heroMetaValue}>{user.role.toUpperCase()}</Text>
+            <Text style={styles.heroMetaLabel}>Current Role</Text>
           </View>
-          <View style={styles.heroPill}>
-            <Text style={styles.heroPillValue}>{user.role.toUpperCase()}</Text>
-            <Text style={styles.heroPillLabel}>Role</Text>
+          <View style={styles.heroMetaChip}>
+            <Text style={styles.heroMetaValue}>{groupedModules.admin.length + groupedModules.staff.length + groupedModules.customer.length}</Text>
+            <Text style={styles.heroMetaLabel}>Modules</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Quan ly he thong</Text>
-
-      <View style={styles.gridWrap}>
-        {visibleModules.map((item: ManagementModule) => (
-          <Pressable
-            key={item.key}
-            style={styles.moduleCard}
-            onPress={() => {
-              if (item.screen) {
-                navigation.navigate(item.screen);
-                return;
-              }
-
-              Alert.alert(
-                item.title,
-                `Module web: ${item.webPath}\n\nModule nay se duoc mo rong tiep theo.`,
-              );
-            }}
-          >
-            <View style={styles.moduleHeader}>
-              <Text style={styles.moduleBadge}>{item.badge}</Text>
-              <Text style={styles.moduleScope}>{item.scope.toUpperCase()}</Text>
-            </View>
-            <Text style={styles.moduleTitle}>{item.title}</Text>
-            <Text style={styles.moduleDescription}>{item.description}</Text>
-            <Text style={styles.modulePath}>Web route: {item.webPath}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <RoleSection title="Admin" icon="shield" data={groupedModules.admin} onOpen={openModule} />
+      <RoleSection title="Staff" icon="briefcase" data={groupedModules.staff} onOpen={openModule} />
+      <RoleSection title="Customer" icon="user" data={groupedModules.customer} onOpen={openModule} />
     </ScrollView>
+  );
+}
+
+function RoleSection({
+  title,
+  icon,
+  data,
+  onOpen,
+}: {
+  title: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  data: RoleModule[];
+  onOpen: (module: RoleModule) => void;
+}) {
+  if (!data.length) return null;
+
+  return (
+    <View style={styles.sectionWrap}>
+      <View style={styles.sectionTitleRow}>
+        <Feather name={icon} size={16} color="#B46232" />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+
+      {data.map((module) => (
+        <Pressable key={module.key} style={styles.moduleCard} onPress={() => onOpen(module)}>
+          <View style={styles.moduleHead}>
+            <Text style={styles.moduleBadge}>{module.badge}</Text>
+            <Text style={styles.moduleRoute}>{module.route}</Text>
+          </View>
+          <Text style={styles.moduleTitle}>{module.title}</Text>
+          <Text style={styles.moduleDescription}>{module.description}</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#F8FAFC",
-    padding: 16,
-    gap: 14,
+    flex: 1,
+    backgroundColor: "#FCF8F2",
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 24,
+    gap: 12,
   },
   heroCard: {
-    borderRadius: 16,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EFE2D4",
+    backgroundColor: "#FFFDF9",
+    padding: 14,
+    gap: 8,
   },
   heroTitle: {
-    fontSize: 24,
+    color: "#22364D",
+    fontSize: 23,
     fontWeight: "800",
-    color: "#0F172A",
   },
-  heroDescription: {
-    marginTop: 6,
-    color: "#475569",
-    fontSize: 14,
+  heroSubtitle: {
+    color: "#63788D",
+    fontSize: 13,
     lineHeight: 20,
   },
-  heroPillRow: {
-    marginTop: 14,
+  heroMetaRow: {
     flexDirection: "row",
     gap: 10,
+    marginTop: 2,
   },
-  heroPill: {
+  heroMetaChip: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#FED7AA",
-    backgroundColor: "#FFF7ED",
-    paddingVertical: 10,
+    borderColor: "#F2D9C3",
+    backgroundColor: "#FFF5EA",
+    paddingVertical: 9,
     alignItems: "center",
   },
-  heroPillValue: {
-    color: "#C2410C",
-    fontSize: 16,
+  heroMetaValue: {
+    color: "#A85A2F",
+    fontSize: 15,
     fontWeight: "800",
   },
-  heroPillLabel: {
+  heroMetaLabel: {
+    color: "#8A6A55",
+    fontSize: 11,
+    fontWeight: "700",
     marginTop: 2,
-    color: "#9A3412",
-    fontSize: 12,
-    fontWeight: "600",
+  },
+  sectionWrap: {
+    gap: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  gridWrap: {
-    gap: 10,
-    paddingBottom: 20,
+    color: "#2B3E53",
+    fontSize: 17,
+    fontWeight: "800",
   },
   moduleCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EFE2D4",
     backgroundColor: "#FFFFFF",
-    padding: 14,
-    gap: 8,
+    padding: 12,
+    gap: 6,
   },
-  moduleHeader: {
+  moduleHead: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   moduleBadge: {
-    backgroundColor: "#0F766E",
+    backgroundColor: "#DE7E42",
     color: "#FFFFFF",
+    borderRadius: 999,
+    overflow: "hidden",
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
     fontSize: 11,
     fontWeight: "700",
-    overflow: "hidden",
   },
-  moduleScope: {
-    color: "#64748B",
+  moduleRoute: {
+    color: "#B27852",
     fontSize: 11,
     fontWeight: "700",
   },
   moduleTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: "#2A3E54",
+    fontSize: 15,
+    fontWeight: "800",
   },
   moduleDescription: {
-    color: "#475569",
+    color: "#677A8E",
     fontSize: 13,
-    lineHeight: 18,
-  },
-  modulePath: {
-    marginTop: 2,
-    color: "#D97706",
-    fontSize: 12,
-    fontWeight: "600",
+    lineHeight: 19,
   },
   emptyWrap: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    backgroundColor: "#FCF8F2",
+    paddingHorizontal: 22,
   },
   emptyTitle: {
-    color: "#0F172A",
+    color: "#24364C",
+    fontWeight: "800",
     fontSize: 18,
-    fontWeight: "700",
     textAlign: "center",
   },
   emptyDescription: {
     marginTop: 8,
-    color: "#64748B",
+    color: "#67788B",
     textAlign: "center",
+    lineHeight: 20,
   },
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,7 +9,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { getMyProfile, getProfileCompletion, updateMyProfile } from "../../api/modules/profileApi";
+import * as ImagePicker from "expo-image-picker";
+import { getMyProfile, getProfileCompletion, updateMyProfile, updateProfileAvatar } from "../../api/modules/profileApi";
 
 interface ProfileFormState {
   firstName: string;
@@ -36,8 +38,10 @@ export function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [completion, setCompletion] = useState(0);
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [form, setForm] = useState<ProfileFormState>(initialForm);
 
   const loadData = useCallback(async () => {
@@ -51,6 +55,7 @@ export function ProfileScreen() {
       ]);
 
       setCompletion(completionData.completionPercentage || profileData.completionPercentage || 0);
+      setAvatar(profileData.profile?.avatar || null);
       setForm({
         firstName: profileData.profile?.firstName || "",
         lastName: profileData.profile?.lastName || "",
@@ -74,6 +79,48 @@ export function ProfileScreen() {
 
   const onChange = (key: keyof ProfileFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const onPickAndUploadAvatar = async () => {
+    setError("");
+    setMessage("");
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError("Ban can cap quyen thu vien anh de cap nhat avatar");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    setUploadingAvatar(true);
+    try {
+      const response = await updateProfileAvatar({
+        uri: asset.uri,
+        type: asset.mimeType || "image/jpeg",
+        fileName: asset.fileName || `avatar-${Date.now()}.jpg`,
+      });
+
+      setAvatar(response.data.avatar);
+      setMessage(response.message || "Cap nhat avatar thanh cong");
+      const completionData = await getProfileCompletion();
+      setCompletion(completionData.completionPercentage || completion);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload avatar that bai");
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const onSave = async () => {
@@ -124,6 +171,19 @@ export function ProfileScreen() {
         <Text style={styles.completionValue}>{completion}%</Text>
       </View>
 
+      <View style={styles.avatarCard}>
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarFallbackText}>No Avatar</Text>
+          </View>
+        )}
+        <Pressable style={[styles.avatarButton, uploadingAvatar && styles.disabledButton]} onPress={onPickAndUploadAvatar} disabled={uploadingAvatar}>
+          {uploadingAvatar ? <ActivityIndicator color="#fff" /> : <Text style={styles.avatarButtonText}>Chon va upload avatar</Text>}
+        </Pressable>
+      </View>
+
       <View style={styles.formCard}>
         <Text style={styles.label}>First Name</Text>
         <TextInput style={styles.input} value={form.firstName} onChangeText={(v) => onChange("firstName", v)} />
@@ -161,7 +221,7 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: "#F4F1EC" },
   content: { padding: 16, gap: 12 },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center" },
   completionCard: {
@@ -176,6 +236,39 @@ const styles = StyleSheet.create({
   },
   completionTitle: { fontSize: 15, color: "#334155", fontWeight: "600" },
   completionValue: { fontSize: 24, color: "#0F172A", fontWeight: "800" },
+  avatarCard: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    alignItems: "center",
+    gap: 12,
+  },
+  avatarImage: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  avatarFallback: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarFallbackText: { color: "#475569", fontWeight: "700" },
+  avatarButton: {
+    backgroundColor: "#0D9488",
+    borderRadius: 10,
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  avatarButtonText: { color: "#fff", fontWeight: "700" },
   formCard: {
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -188,14 +281,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CBD5E1",
     borderRadius: 10,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F4F1EC",
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   multiline: { textAlignVertical: "top", minHeight: 80 },
   saveButton: {
     marginTop: 14,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#D87D4A",
     borderRadius: 10,
     alignItems: "center",
     paddingVertical: 12,
