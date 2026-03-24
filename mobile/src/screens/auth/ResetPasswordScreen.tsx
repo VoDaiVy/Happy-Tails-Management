@@ -23,11 +23,11 @@ const PasswordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]
 const ResetSchema = Yup.object({
   resetToken: Yup.string().trim().required("Reset token la bat buoc"),
   password: Yup.string()
-    .matches(PasswordRule, "Mat khau 8-128 ky tu, gom hoa/thuong/so/ky tu dac biet")
-    .required("Mat khau la bat buoc"),
+    .matches(PasswordRule, "Password must be 8-128 characters, including uppercase, lowercase, number, and special character")
+    .required("Password is required"),
   confirmPassword: Yup.string()
-    .oneOf([Yup.ref("password")], "Mat khau nhap lai khong khop")
-    .required("Xac nhan mat khau la bat buoc"),
+    .oneOf([Yup.ref("password")], "Passwords do not match")
+    .required("Password confirmation is required"),
 });
 
 export function ResetPasswordScreen({ navigation, route }: Props) {
@@ -47,7 +47,7 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
           </Pressable>
 
           <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>Nhap token reset va mat khau moi</Text>
+          <Text style={styles.subtitle}>Enter reset token and new password</Text>
 
           <Formik
             initialValues={{
@@ -61,10 +61,10 @@ export function ResetPasswordScreen({ navigation, route }: Props) {
               setSuccessMessage("");
               try {
                 const result = await resetPassword(values.resetToken.trim(), values.password);
-                setSuccessMessage(result.message || "Dat lai mat khau thanh cong");
+                setSuccessMessage(result.message || "Password reset successful");
                 resetForm({ values: { resetToken: values.resetToken.trim(), password: "", confirmPassword: "" } });
               } catch (error) {
-                setApiMessage(error instanceof Error ? error.message : "Dat lai mat khau that bai");
+                setApiMessage(error instanceof Error ? error.message : "Password reset failed");
               } finally {
                 setSubmitting(false);
               }

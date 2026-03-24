@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, Modal, TouchableOpacity, Animated, Dimensions } from "react-native";
 import { useState, useRef } from "react";
+import { Feather } from "@expo/vector-icons";
 import type { AuthStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Landing">;
@@ -52,11 +53,6 @@ export function LandingScreen({ navigation }: Props) {
             </Pressable>
           </View>
           <View style={styles.menuList}>
-            <Pressable style={styles.menuItem} onPress={closeMenu}><Text style={styles.menuItemText}>About Us</Text></Pressable>
-            <Pressable style={styles.menuItem} onPress={closeMenu}><Text style={styles.menuItemText}>Services</Text></Pressable>
-            <Pressable style={styles.menuItem} onPress={closeMenu}><Text style={styles.menuItemText}>AI Health Scan</Text></Pressable>
-            <Pressable style={styles.menuItem} onPress={closeMenu}><Text style={styles.menuItemText}>Policies</Text></Pressable>
-            <Pressable style={styles.menuItem} onPress={closeMenu}><Text style={styles.menuItemText}>News</Text></Pressable>
           </View>
           <View style={styles.menuFooter}>
             <Pressable style={styles.menuSignInBtn} onPress={() => { closeMenu(); navigation.navigate("Login"); }}>
@@ -73,7 +69,7 @@ export function LandingScreen({ navigation }: Props) {
         <View style={styles.topLightBar}>
           <View style={styles.topLightBrandWrap}>
             <Image source={BRAND_ICON} style={styles.topLightIcon} resizeMode="cover" />
-            <View>
+            <View style={styles.topLightTextWrap}>
               <Text style={styles.topLightCaption}>PET SPA</Text>
               <Text style={styles.topLightTitle}>
                 <Text style={styles.topLightTitleDark}>Happy</Text>
@@ -81,8 +77,8 @@ export function LandingScreen({ navigation }: Props) {
               </Text>
             </View>
           </View>
-          <Pressable onPress={openMenu} hitSlop={10} style={{padding:2}}>
-            <Text style={styles.topLightMenu}>☰</Text>
+          <Pressable onPress={openMenu} hitSlop={10} style={styles.topLightMenuBtn}>
+            <Feather name="menu" size={22} color="#314760" />
           </Pressable>
         </View>
 
@@ -167,69 +163,7 @@ export function LandingScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={styles.lowerPanel}>
-          
-
-          <View style={styles.lowerBrandRow}>
-            <View style={styles.lowerBrandLogoBox}>
-              <Image source={BRAND_ICON} style={styles.lowerBrandLogoImage} resizeMode="cover" />
-            </View>
-            <Text style={styles.lowerBrandTitle}>
-              <Text style={styles.lowerBrandTitlePrimary}>HAPPY</Text>
-              <Text style={styles.lowerBrandTitleAccent}>TAILS</Text>
-            </Text>
-          </View>
-
-          <Text style={styles.lowerIntroText}>
-            Your pet wellness sanctuary. Where luxury meets technology for the ultimate pet care experience.
-          </Text>
-
-          <View style={styles.socialRow}>
-            <View style={styles.socialChip}><Text style={styles.socialText}>F</Text></View>
-            <View style={styles.socialChip}><Text style={styles.socialText}>I</Text></View>
-            <View style={styles.socialChip}><Text style={styles.socialText}>T</Text></View>
-          </View>
-
-          <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>SERVICES</Text>
-            {SERVICE_ITEMS.map((item) => (
-              <Text key={item} style={styles.sectionLink}>{item}</Text>
-            ))}
-          </View>
-
-          <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>COMPANY</Text>
-            {COMPANY_ITEMS.map((item) => (
-              <Text key={item} style={styles.sectionLink}>{item}</Text>
-            ))}
-          </View>
-
-          <View style={styles.sectionWrap}>
-            <Text style={styles.sectionTitle}>GET IN TOUCH</Text>
-
-            <View style={styles.contactRow}>
-              <Text style={styles.contactIcon}>◉</Text>
-              <Text style={styles.contactText}>123 Pet Wellness Ave, Suite 100 Saigon, Vietnam</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Text style={styles.contactIcon}>◌</Text>
-              <Text style={styles.contactText}>+84 (28) 1234 5678</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Text style={styles.contactIcon}>✉</Text>
-              <Text style={styles.contactText}>hello@happytails.vn</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <Text style={styles.contactIcon}>◔</Text>
-              <Text style={styles.contactText}>Mon - Sat: 8AM - 8PM</Text>
-            </View>
-          </View>
-
-          <View pointerEvents="none" style={[styles.circle, styles.circleOne]} />
-          <View pointerEvents="none" style={[styles.circle, styles.circleTwo]} />
-          <View pointerEvents="none" style={[styles.circle, styles.circleThree]} />
-          <View pointerEvents="none" style={[styles.circle, styles.circleFour]} />
-        </View>
+        
       </ScrollView>
     </View>
   );
@@ -313,36 +247,46 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   topLightBar: {
-    marginTop: 20,
+    marginTop: 18,
     marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#E7DED1",
-    backgroundColor: "#F8F8F7",
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: "#EFE5D8",
+    backgroundColor: "#FFFDF9",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowColor: "#58452E",
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  topLightBrandWrap: { flexDirection: "row", alignItems: "center", gap: 10 },
-  topLightIcon: { width: 40, height: 40, borderRadius: 13 },
+  topLightBrandWrap: { flexDirection: "row", alignItems: "center", gap: 9 },
+  topLightIcon: { width: 38, height: 38, borderRadius: 12 },
+  topLightTextWrap: { justifyContent: "center" },
   topLightCaption: {
-    color: "#9AA3B2",
+    color: "#A46944",
     fontWeight: "700",
-    fontSize: 10,
-    letterSpacing: 1.5,
-    lineHeight: 12,
+    fontSize: 9,
+    letterSpacing: 1.1,
+    lineHeight: 11,
   },
-  topLightTitle: { fontSize: 18, lineHeight: 20, fontWeight: "900" },
-  topLightTitleDark: { color: "#1B2940" },
-  topLightTitleAccent: { color: "#F08A40" },
-  topLightMenu: { color: "#344054", fontSize: 24, lineHeight: 26, fontWeight: "700" },
+  topLightTitle: { fontSize: 31, lineHeight: 32, fontWeight: "900" },
+  topLightTitleDark: { color: "#22354C" },
+  topLightTitleAccent: { color: "#E37D35" },
+  topLightMenuBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F9EFE4",
+    borderWidth: 1,
+    borderColor: "#F2E2D3",
+  },
 
   heroWrap: { marginTop: 24, paddingHorizontal: 24, gap: 14 },
   kickerPill: {

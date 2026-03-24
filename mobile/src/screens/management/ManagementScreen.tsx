@@ -207,7 +207,7 @@ export function ManagementScreen() {
 
           <View style={styles.kpiSmallGrid}>
             <View style={styles.kpiSmallCard}>
-              <Text style={styles.kpiLabel}>Today's Bookings</Text>
+              <Text style={styles.kpiLabel}>Today&apos;s Bookings</Text>
               <Text style={styles.kpiSmallValue}>{todayBookings.length}</Text>
               <Feather name="sun" size={14} color="#D68A51" />
             </View>
@@ -287,7 +287,7 @@ export function ManagementScreen() {
           </View>
 
           <View style={styles.scheduleSection}>
-            <Text style={styles.sectionTitle}>Today's Schedule</Text>
+            <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
 
             <View style={styles.tableHead}>
               <Text style={[styles.headCell, styles.timeCol]}>Time</Text>

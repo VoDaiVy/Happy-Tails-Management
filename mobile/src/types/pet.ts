@@ -1,11 +1,17 @@
+export type PetType = "dog" | "cat" | "bird" | "fish" | "rabbit" | "hamster" | "other";
+export type PetGender = "male" | "female" | "unknown";
+
 export interface Pet {
   _id: string;
   petName: string;
-  petType?: string;
+  petType?: PetType;
   breed?: string;
-  gender?: "male" | "female" | "unknown";
+  gender?: PetGender;
   weight?: number;
   dateOfBirth?: string;
+  avatar?: string | null;
+  color?: string;
+  notes?: string;
   temperament?: string[];
   specialNeeds?: string;
   allergies?: string[];

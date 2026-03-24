@@ -25,7 +25,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError("Vui long nhap email va mat khau");
+      setError("Please enter email and password");
       return;
     }
 
@@ -42,7 +42,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
         accessToken: result.tokens.accessToken,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Dang nhap that bai");
+      setError(e instanceof Error ? e.message : "Sign in failed");
     } finally {
       setSubmitting(false);
     }
@@ -67,7 +67,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
         </View>
 
         <Text style={styles.title}>Welcome Back!</Text>
-        <Text style={styles.subtitle}>Log in to care for your furry friends</Text>
+        <Text style={styles.subtitle}>Sign in to care for your furry friends</Text>
 
         <View style={styles.formSection}>
           <Text style={styles.label}>Email or Phone</Text>
@@ -135,7 +135,7 @@ export function LoginScreen({ onLoggedIn }: LoginScreenProps) {
           </View>
 
           <Text style={styles.footerText}>
-            Don't have an account? <Text style={styles.footerLink}>Sign up</Text>
+            Don&apos;t have an account? <Text style={styles.footerLink}>Sign up</Text>
           </Text>
         </View>
       </View>

@@ -4,12 +4,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { getWalletTransactionById } from "../../api/modules/walletApi";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { WalletTransaction } from "../../types/wallet";
+import { formatVnd } from "../../utils/currency";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "WalletTransactionDetail">;
-
-function renderAmount(value?: number) {
-  return `${Number(value || 0).toLocaleString()} VND`;
-}
 
 export function WalletTransactionDetailScreen({ route, navigation }: Props) {
   const { transactionId } = route.params;
@@ -24,7 +21,7 @@ export function WalletTransactionDetailScreen({ route, navigation }: Props) {
       const detail = await getWalletTransactionById(transactionId);
       setTransaction(detail);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc chi tiet giao dich");
+      setError(e instanceof Error ? e.message : "Unable to load transaction details");
     } finally {
       setLoading(false);
     }
@@ -45,9 +42,9 @@ export function WalletTransactionDetailScreen({ route, navigation }: Props) {
   if (!transaction) {
     return (
       <View style={styles.centerBox}>
-        <Text style={styles.errorText}>{error || "Khong co du lieu giao dich"}</Text>
+        <Text style={styles.errorText}>{error || "No transaction data available"}</Text>
         <Pressable style={styles.retryButton} onPress={loadDetail}>
-          <Text style={styles.retryText}>Thu lai</Text>
+          <Text style={styles.retryText}>Try Again</Text>
         </Pressable>
       </View>
     );
@@ -56,7 +53,7 @@ export function WalletTransactionDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.screen}>
       <Pressable style={[styles.backButton, styles.backButtonFloating]} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>Quay lai</Text>
+        <Text style={styles.backButtonText}>Go Back</Text>
       </Pressable>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -65,12 +62,12 @@ export function WalletTransactionDetailScreen({ route, navigation }: Props) {
         <Text style={styles.row}>Code: {transaction.transactionCode}</Text>
         <Text style={styles.row}>Type: {transaction.type}</Text>
         <Text style={styles.row}>Status: {transaction.status}</Text>
-        <Text style={styles.row}>Amount: {renderAmount(transaction.amount)}</Text>
+        <Text style={styles.row}>Amount: {formatVnd(transaction.amount)}</Text>
         {transaction.method ? <Text style={styles.row}>Method: {transaction.method}</Text> : null}
         {transaction.referenceId ? <Text style={styles.row}>Reference: {transaction.referenceId}</Text> : null}
         {transaction.payosOrderCode ? <Text style={styles.row}>PayOS Order: {transaction.payosOrderCode}</Text> : null}
-        {transaction.balanceBefore !== undefined ? <Text style={styles.row}>Balance Before: {renderAmount(transaction.balanceBefore)}</Text> : null}
-        {transaction.balanceAfter !== undefined ? <Text style={styles.row}>Balance After: {renderAmount(transaction.balanceAfter)}</Text> : null}
+        {transaction.balanceBefore !== undefined ? <Text style={styles.row}>Balance Before: {formatVnd(transaction.balanceBefore)}</Text> : null}
+        {transaction.balanceAfter !== undefined ? <Text style={styles.row}>Balance After: {formatVnd(transaction.balanceAfter)}</Text> : null}
         <Text style={styles.row}>Created: {new Date(transaction.createdAt).toLocaleString()}</Text>
         {transaction.processedAt ? <Text style={styles.row}>Processed: {new Date(transaction.processedAt).toLocaleString()}</Text> : null}
         {transaction.note ? <Text style={styles.row}>Note: {transaction.note}</Text> : null}

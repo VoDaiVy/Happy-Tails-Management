@@ -1,15 +1,25 @@
 import { axiosClient } from "../axiosClient";
 import { extractPayload } from "../responseParser";
+import { resolveImageUrl } from "../../utils/image";
 import type {
   Pet,
+  PetGender,
   PetListResponse,
   PetMedicalRecord,
   PetStatistics,
   PetStatisticsResponse,
+  PetType,
   PetVaccinationRecord,
   VaccinationReminderItem,
   VaccinationReminderResponse,
 } from "../../types/pet";
+
+function normalizePet(pet: Pet): Pet {
+  return {
+    ...pet,
+    avatar: resolveImageUrl(pet.avatar),
+  };
+}
 
 export async function getMyPets(active: "true" | "false" = "true") {
   const response = await axiosClient.get<PetListResponse>("/pets", {
@@ -17,33 +27,39 @@ export async function getMyPets(active: "true" | "false" = "true") {
   });
 
   const payload = extractPayload<{ pets?: Pet[] }>(response.data);
-  return payload.pets || [];
+  return (payload.pets || []).map(normalizePet);
 }
 
 export async function createPet(payload: {
   petName: string;
   breed: string;
-  gender: "male" | "female" | "unknown";
+  gender: PetGender;
   weight: number;
-  petType?: string;
+  petType?: PetType;
   dateOfBirth?: string;
+  color?: string;
+  avatar?: string;
+  notes?: string;
 }) {
   const response = await axiosClient.post<{ status: "success" | "error"; message: string; data: { pet: Pet } }>("/pets", payload);
   const data = extractPayload<{ pet?: Pet }>(response.data);
-  return data.pet as Pet;
+  return normalizePet(data.pet as Pet);
 }
 
 export async function updatePet(petId: string, payload: Partial<{
   petName: string;
   breed: string;
-  gender: "male" | "female" | "unknown";
+  gender: PetGender;
   weight: number;
-  petType?: string;
+  petType?: PetType;
   dateOfBirth?: string;
+  color?: string;
+  avatar?: string;
+  notes?: string;
 }>) {
   const response = await axiosClient.put<{ status: "success" | "error"; message: string; data: { pet: Pet } }>(`/pets/${petId}`, payload);
   const data = extractPayload<{ pet?: Pet }>(response.data);
-  return data.pet as Pet;
+  return normalizePet(data.pet as Pet);
 }
 
 export async function deletePet(petId: string) {
@@ -114,14 +130,14 @@ export async function addPetVaccinationRecord(
 export async function quickCreatePetForWalkIn(payload: {
   userID: string;
   petName: string;
-  petType: "dog" | "cat" | "bird" | "fish" | "rabbit" | "hamster" | "other";
+  petType: PetType;
   breed: string;
-  gender: "male" | "female" | "unknown";
+  gender: PetGender;
   weight: number;
   dateOfBirth?: string;
   color?: string;
 }) {
   const response = await axiosClient.post("/pets/staff/quick-create", payload);
   const data = extractPayload<{ pet?: Pet }>(response.data);
-  return data.pet as Pet;
+  return normalizePet(data.pet as Pet);
 }

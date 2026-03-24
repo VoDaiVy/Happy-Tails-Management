@@ -1,5 +1,6 @@
 import { axiosClient } from "../axiosClient";
 import type { NewsItem } from "../../types/news";
+import { resolveImageUrl } from "../../utils/image";
 
 interface NewsListResponse {
   status: "success" | "error";
@@ -23,14 +24,21 @@ interface UploadImageResponse {
   data: { url: string; publicId: string };
 }
 
+function normalizeNewsItem(item: NewsItem): NewsItem {
+  return {
+    ...item,
+    coverImage: resolveImageUrl(item.coverImage),
+  };
+}
+
 export async function getNews(params?: { search?: string; category?: string; tag?: string; isPublished?: boolean }) {
   const response = await axiosClient.get<NewsListResponse>("/news", { params });
-  return response.data.data.news;
+  return response.data.data.news.map(normalizeNewsItem);
 }
 
 export async function getNewsBySlug(slug: string) {
   const response = await axiosClient.get<NewsDetailResponse>(`/news/${slug}`);
-  return response.data.data.news;
+  return normalizeNewsItem(response.data.data.news);
 }
 
 export async function createNews(payload: {
@@ -72,7 +80,7 @@ export async function uploadNewsImage(payload: {
     },
   });
 
-  return response.data.data.url;
+  return resolveImageUrl(response.data.data.url);
 }
 
 export async function deleteNews(newsId: string) {

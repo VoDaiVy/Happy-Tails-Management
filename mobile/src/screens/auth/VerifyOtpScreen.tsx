@@ -17,7 +17,7 @@ import { resendVerification, verifyEmail } from "../../api/modules/authApi";
 import type { AuthStackParamList } from "../../navigation/types";
 
 const VerifySchema = Yup.object({
-  otp: Yup.string().matches(/^\d{6}$/, "OTP gom dung 6 chu so").required("OTP la bat buoc"),
+  otp: Yup.string().matches(/^\d{6}$/, "OTP must contain exactly 6 digits").required("OTP is required"),
 });
 
 type Props = NativeStackScreenProps<AuthStackParamList, "VerifyOtp">;
@@ -49,7 +49,7 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
                 }
               }}
               accessibilityRole="button"
-              accessibilityLabel="Quay lai"
+              accessibilityLabel="Go back"
             >
               <Text style={styles.closeText}>x</Text>
             </Pressable>
@@ -81,7 +81,7 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
             </View>
 
             <Text style={styles.formTitle}>Verify Your Email</Text>
-            <Text style={styles.formSubtitle}>We've sent a verification code to</Text>
+            <Text style={styles.formSubtitle}>We&apos;ve sent a verification code to</Text>
             <Text style={styles.formEmail}>{email}</Text>
 
             <Formik
@@ -92,10 +92,10 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
                 setSuccessMessage("");
                 try {
                   const response = await verifyEmail(email, values.otp);
-                  setSuccessMessage(response.message || "Xac thuc thanh cong");
+                  setSuccessMessage(response.message || "Verification successful.");
                   navigation.replace("Login");
                 } catch (error) {
-                  setApiMessage(error instanceof Error ? error.message : "Xac thuc that bai");
+                  setApiMessage(error instanceof Error ? error.message : "Verification failed.");
                 } finally {
                   setSubmitting(false);
                 }
@@ -112,13 +112,13 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
                     maxLength={6}
                     placeholder="Enter 6-digit code"
                     placeholderTextColor="#94A3B8"
-                    accessibilityLabel="Nhap ma OTP 6 chu so"
+                    accessibilityLabel="Enter 6-digit OTP code"
                   />
                   {touched.otp && errors.otp ? <Text style={styles.error}>{errors.otp}</Text> : null}
 
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Gui lai OTP"
+                    accessibilityLabel="Resend OTP"
                     disabled={isResending}
                     style={styles.resendButton}
                     onPress={async () => {
@@ -127,9 +127,9 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
                       setIsResending(true);
                       try {
                         const response = await resendVerification(email);
-                        setSuccessMessage(response.message || "Da gui lai OTP");
+                        setSuccessMessage(response.message || "OTP has been resent");
                       } catch (error) {
-                        setApiMessage(error instanceof Error ? error.message : "Khong gui lai OTP duoc");
+                        setApiMessage(error instanceof Error ? error.message : "Unable to resend OTP");
                       } finally {
                         setIsResending(false);
                       }
@@ -146,14 +146,14 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
                       style={styles.backActionButton}
                       onPress={() => navigation.goBack()}
                       accessibilityRole="button"
-                      accessibilityLabel="Quay lai"
+                      accessibilityLabel="Go back"
                     >
                       <Text style={styles.backActionText}>Back</Text>
                     </Pressable>
 
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Xac thuc OTP"
+                      accessibilityLabel="Verify OTP"
                       onPress={() => handleSubmit()}
                       disabled={isSubmitting}
                       style={({ pressed }) => [
@@ -168,7 +168,7 @@ export function VerifyOtpScreen({ route, navigation }: Props) {
 
                   <Pressable onPress={() => navigation.replace("Login")} style={styles.linkRow}>
                     <Text style={styles.linkText}>
-                      Already have an account? <Text style={styles.linkHighlight}>Log in</Text>
+                      Already have an account? <Text style={styles.linkHighlight}>Sign in</Text>
                     </Text>
                   </Pressable>
                 </View>

@@ -9,8 +9,10 @@ const { AppError, AUTH_ERROR_CODES } = require('../utils/AppError');
 const { catchAsync } = require('../utils/catchAsync');
 
 const normalizeRole = (role) => {
-  if (!role || role === 'user') return 'customer';
-  return role;
+  const value = String(role || '').trim().toLowerCase();
+  if (!value || value === 'user' || value === 'client' || value === 'member') return 'customer';
+  if (value === 'customer' || value === 'staff' || value === 'admin') return value;
+  return value;
 };
 
 /**

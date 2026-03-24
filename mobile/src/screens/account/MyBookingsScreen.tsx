@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -7,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { cancelBooking, getMyBookings } from "../../api/modules/bookingApi";
@@ -14,46 +16,44 @@ import { getEligibleBookingsForFeedback } from "../../api/modules/feedbackApi";
 import { useAuth } from "../../context/AuthContext";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { Booking, BookingItem } from "../../types/booking";
+import { formatVnd } from "../../utils/currency";
 import { canUseCustomerFeatures } from "../../utils/role";
 
-const STATUS_FILTERS = ["all", "pending", "confirmed", "in-progress", "completed", "cancelled"] as const;
-
+const STATUS_FILTERS = ["all", "pending", "in-progress", "confirmed", "completed", "cancelled"] as const;
 type BookingStatusFilter = (typeof STATUS_FILTERS)[number];
 
 type Props = NativeStackScreenProps<AccountStackParamList, "MyBookings">;
 
 const STATUS_META: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-  pending: { label: "Pending", bg: "#FEF3C7", text: "#B45309", dot: "#F59E0B" },
-  confirmed: { label: "Confirmed", bg: "#DCEBFF", text: "#1D4ED8", dot: "#3B82F6" },
-  "in-progress": { label: "In Progress", bg: "#FFE8D6", text: "#C2410C", dot: "#EA580C" },
-  completed: { label: "Completed", bg: "#DCFCE7", text: "#15803D", dot: "#22C55E" },
-  cancelled: { label: "Cancelled", bg: "#FEE2E2", text: "#B91C1C", dot: "#EF4444" },
+  pending: { label: "Pending", bg: "#FDF1D7", text: "#A8651E", dot: "#D79B45" },
+  confirmed: { label: "Confirmed", bg: "#E6EEF4", text: "#506A84", dot: "#6E889F" },
+  "in-progress": { label: "In Progress", bg: "#FFE7D9", text: "#BC5B25", dot: "#E17A3B" },
+  completed: { label: "Completed", bg: "#EAF4E5", text: "#5F7F56", dot: "#80A06F" },
+  cancelled: { label: "Cancelled", bg: "#FCE8E8", text: "#B05050", dot: "#D36A6A" },
 };
 
 function getStatusMeta(status?: string) {
   const key = String(status || "pending").toLowerCase();
-  return STATUS_META[key] || { label: "Pending", bg: "#FEF3C7", text: "#B45309", dot: "#F59E0B" };
+  return STATUS_META[key] || STATUS_META.pending;
 }
 
 function formatDate(input?: string) {
   if (!input) return "N/A";
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return "N/A";
-  return d.toLocaleDateString();
+  return d.toLocaleDateString("en-GB");
 }
 
 function formatTime(input?: string) {
   if (!input) return "--:--";
+
   const maybeDate = new Date(input);
   if (!Number.isNaN(maybeDate.getTime())) {
-    return maybeDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return maybeDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   }
-  if (input.includes("T")) return "--:--";
-  return input;
-}
 
-function formatMoney(value?: number) {
-  return `${Number(value || 0).toLocaleString()} VND`;
+  const direct = input.match(/\b\d{2}:\d{2}\b/);
+  return direct?.[0] || "--:--";
 }
 
 function getServiceName(item: BookingItem) {
@@ -84,6 +84,14 @@ function getFeedbackDeadline(bookingDate?: string) {
   return deadline;
 }
 
+function getSearchBlob(booking: Booking) {
+  const bookingCode = String(booking.bookingNumber || booking._id || "");
+  const petName = getPetName(booking.items?.[0]);
+  const services = getServiceSummary(booking.items || []);
+  const status = String(booking.status || "");
+  return `${bookingCode} ${petName} ${services} ${status}`.toLowerCase();
+}
+
 export function MyBookingsScreen({ navigation }: Props) {
   const { user } = useAuth();
   const canAccess = canUseCustomerFeatures(user?.role);
@@ -96,6 +104,8 @@ export function MyBookingsScreen({ navigation }: Props) {
   const [activeStatus, setActiveStatus] = useState<BookingStatusFilter>("all");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const canCancelBooking = (status?: string) => status === "pending" || status === "confirmed";
   const canTrackBooking = (status?: string) => status === "confirmed" || status === "in-progress";
@@ -165,12 +175,19 @@ export function MyBookingsScreen({ navigation }: Props) {
     [activeStatus, loadData],
   );
 
+  const displayedBookings = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+    if (!keyword) return bookings;
+    return bookings.filter((booking) => getSearchBlob(booking).includes(keyword));
+  }, [bookings, searchQuery]);
+
   const emptyText = useMemo(() => {
+    if (searchQuery.trim()) return "No booking matches your search.";
     if (activeStatus === "completed") return "You have no completed bookings yet.";
     if (activeStatus === "pending") return "You currently have no pending bookings.";
     if (activeStatus === "all") return "No bookings found.";
     return `No ${activeStatus} bookings found.`;
-  }, [activeStatus]);
+  }, [activeStatus, searchQuery]);
 
   if (!canAccess) {
     return (
@@ -184,12 +201,42 @@ export function MyBookingsScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={styles.headerWrap}>
         <View style={styles.headerTopRow}>
-          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>‹</Text>
-          </Pressable>
+          
+
           <Text style={styles.title}>Booking History</Text>
+
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => {
+              setSearchVisible((current) => !current);
+              if (searchVisible) {
+                setSearchQuery("");
+              }
+            }}
+          >
+            <Feather name="search" size={19} color="#A14F22" />
+          </Pressable>
         </View>
-        <Text style={styles.subtitle}>View booking details and medical updates</Text>
+
+        {searchVisible ? (
+          <View style={styles.searchBox}>
+            <Feather name="search" size={16} color="#B98A67" />
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by pet, code, service..."
+              placeholderTextColor="#B59880"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery ? (
+              <Pressable onPress={() => setSearchQuery("")} style={styles.clearSearchButton}>
+                <Feather name="x" size={16} color="#A97C59" />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.filterRowWrap}>
@@ -235,8 +282,14 @@ export function MyBookingsScreen({ navigation }: Props) {
         <View style={styles.skeletonList}>
           {[1, 2, 3].map((item) => (
             <View key={`skeleton-${item}`} style={styles.skeletonCard}>
-              <View style={styles.skeletonLineLg} />
-              <View style={styles.skeletonLineSm} />
+              <View style={styles.skeletonRow}>
+                <View style={styles.skeletonAvatar} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  <View style={styles.skeletonLineLg} />
+                  <View style={styles.skeletonLineSm} />
+                </View>
+                <View style={styles.skeletonBadge} />
+              </View>
               <View style={styles.skeletonLineMd} />
               <View style={styles.skeletonActionsRow}>
                 <View style={styles.skeletonBtn} />
@@ -247,17 +300,19 @@ export function MyBookingsScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={bookings}
+          data={displayedBookings}
           keyExtractor={(item, index) => `${item._id}-${index}`}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D9763F" />}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>⌕</Text>
+              <Feather name="inbox" size={34} color="#C0A790" />
               <Text style={styles.emptyTitle}>{emptyText}</Text>
-              <Pressable style={styles.bookNowButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.bookNowButtonText}>Book a service now</Text>
-              </Pressable>
+              {!searchQuery.trim() ? (
+                <Pressable style={styles.bookNowButton} onPress={() => navigation.goBack()}>
+                  <Text style={styles.bookNowButtonText}>Book a service now</Text>
+                </Pressable>
+              ) : null}
             </View>
           }
           renderItem={({ item }) => {
@@ -266,19 +321,24 @@ export function MyBookingsScreen({ navigation }: Props) {
             const canCancel = canCancelBooking(item.status);
             const canTrack = canTrackBooking(item.status);
             const deadline = isFeedbackEligible ? getFeedbackDeadline(item.bookingDate) : null;
-            const firstItem = item.items[0];
-            const title = getPetName(firstItem);
+            const firstItem = item.items?.[0];
+            const petName = getPetName(firstItem);
+            const bookingCode = item.bookingNumber || item._id.slice(-12);
 
             return (
               <View style={styles.card}>
                 <View style={styles.cardTopRow}>
                   <View style={styles.cardTitleWrap}>
-                    <View style={styles.petIconBadge}>
-                      <Text style={styles.petIconText}>🐾</Text>
+                    <View style={styles.petAvatar}>
+                      <Text style={styles.petAvatarText}>{petName.slice(0, 1).toUpperCase()}</Text>
                     </View>
+
                     <View style={styles.cardTitleTextWrap}>
-                      <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
-                      <Text style={styles.bookingCode}>{item.bookingNumber || item._id.slice(-8)}</Text>
+                      <View style={styles.titleInlineRow}>
+                        <Text style={styles.cardTitle} numberOfLines={1}>{petName}</Text>
+                        <Text style={styles.pawText}>🐾</Text>
+                      </View>
+                      <Text style={styles.bookingCode}>{bookingCode}</Text>
                     </View>
                   </View>
 
@@ -289,48 +349,68 @@ export function MyBookingsScreen({ navigation }: Props) {
                 </View>
 
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoText}>📅 {formatDate(item.bookingDate)}</Text>
-                  <Text style={styles.infoText}>🕒 {formatTime(item.bookingTime || item.bookingDate)}</Text>
+                  <View style={styles.infoGroup}>
+                    <Feather name="calendar" size={14} color="#9B6A44" />
+                    <Text style={styles.infoText}>{formatDate(item.bookingDate)}</Text>
+                  </View>
+                  <View style={styles.infoGroup}>
+                    <Feather name="clock" size={14} color="#9B6A44" />
+                    <Text style={styles.infoText}>{formatTime(item.bookingTime || item.bookingDate)}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.serviceTag}>
-                  <Text style={styles.serviceTagText}>{getServiceSummary(item.items)}</Text>
-                </View>
+                <View style={styles.divider} />
 
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total</Text>
-                  <Text style={styles.totalValue}>{formatMoney(item.totalAmount)}</Text>
+                <View style={styles.servicePriceRow}>
+                  <View style={styles.serviceTag}>
+                    <Text style={styles.serviceTagText}>{getServiceSummary(item.items || [])}</Text>
+                  </View>
+
+                  <View style={styles.priceWrap}>
+                    <Text style={styles.totalLabel}>Total Price</Text>
+                    <Text style={styles.totalValue}>{formatVnd(item.totalAmount)}</Text>
+                  </View>
                 </View>
 
                 <View style={styles.actionRow}>
                   <Pressable
-                    style={styles.secondaryBtn}
+                    style={[styles.actionButton, styles.secondaryBtn]}
                     onPress={() => navigation.navigate("BookingDetail", { bookingId: item._id })}
                   >
-                    <Text style={styles.secondaryBtnText}>👁 View Detail</Text>
+                    <Feather name="eye" size={15} color="#8E552F" />
+                    <Text style={styles.secondaryBtnText}>View Detail</Text>
                   </Pressable>
 
                   {isFeedbackEligible ? (
                     <Pressable
-                      style={[styles.primaryBtn, styles.feedbackBtn]}
+                      style={[styles.actionButton, styles.primaryBtn]}
                       onPress={() => navigation.navigate("Feedback", { bookingId: item._id })}
                     >
-                      <Text style={[styles.primaryBtnText, styles.feedbackBtnText]}>📄 Leave Feedback</Text>
+                      <Feather name="star" size={15} color="#FFFFFF" />
+                      <Text style={styles.primaryBtnText}>Rate Service</Text>
                     </Pressable>
                   ) : canTrack ? (
                     <Pressable
-                      style={styles.primaryBtn}
+                      style={[styles.actionButton, styles.primaryBtn]}
                       onPress={() => navigation.navigate("BookingCamera", { bookingId: item._id })}
                     >
-                      <Text style={styles.primaryBtnText}>↗ Track Status</Text>
+                      <Feather name="navigation" size={15} color="#FFFFFF" />
+                      <Text style={styles.primaryBtnText}>Track Status</Text>
                     </Pressable>
                   ) : canCancel ? (
                     <Pressable
-                      style={[styles.primaryBtn, processingId === item._id && styles.disabled]}
+                      style={[styles.actionButton, styles.cancelBtn, processingId === item._id && styles.disabled]}
                       onPress={() => onCancel(item._id)}
                       disabled={processingId === item._id}
                     >
-                      {processingId === item._id ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Cancel Booking</Text>}
+                      {processingId === item._id ? (
+                        <ActivityIndicator color="#A6473E" size="small" />
+                      ) : (
+                        <>
+                          <Feather name="x-circle" size={15} color="#A6473E" />
+                          <Text style={styles.cancelBtnText}>Cancel Booking</Text>
+                        </>
+                      )}
                     </Pressable>
                   ) : null}
                 </View>
@@ -350,192 +430,239 @@ export function MyBookingsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4F7FA" },
+  container: { flex: 1, backgroundColor: "#FBF5EF" },
   centeredContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
 
   headerWrap: {
-    paddingTop: 14,
+    paddingTop: 12,
     paddingHorizontal: 18,
     paddingBottom: 10,
-    backgroundColor: "#EEF2F6",
+    backgroundColor: "#FBF5EF",
   },
   headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+  },
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F9ECDD",
+    borderWidth: 1,
+    borderColor: "#F0DDC9",
+  },
+  title: {
+    color: "#8B3E0B",
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: "900",
+  },
+  searchBox: {
+    marginTop: 10,
+    minHeight: 42,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F0DDCC",
+    backgroundColor: "#FFF9F3",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
-  backButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+  searchInput: {
+    flex: 1,
+    color: "#5D422D",
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  clearSearchButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  backButtonText: { color: "#4A5568", fontSize: 28, lineHeight: 28, fontWeight: "400" },
-  title: { color: "#223248", fontSize: 29, lineHeight: 34, fontWeight: "900" },
-  subtitle: { marginTop: 2, marginLeft: 34, color: "#6E7D90", fontSize: 13, lineHeight: 18 },
 
-  filterRowWrap: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2 },
-  filterList: { paddingRight: 10 },
+  filterRowWrap: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2 },
+  filterList: { paddingRight: 12, gap: 8 },
   filterChip: {
-    marginRight: 8,
-    minHeight: 30,
-    paddingHorizontal: 13,
-    paddingVertical: 6,
+    minHeight: 36,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#F7FAFC",
+    backgroundColor: "#F5E8DA",
     borderWidth: 1,
-    borderColor: "#DCE3EA",
+    borderColor: "#EDDCC8",
   },
-  filterChipActive: { backgroundColor: "#1F2E43", borderColor: "#1F2E43" },
-  filterChipText: { color: "#64748B", fontWeight: "600", fontSize: 12 },
-  filterChipTextActive: { color: "#FFFFFF" },
+  filterChipActive: {
+    backgroundColor: "#D8743E",
+    borderColor: "#D8743E",
+    shadowColor: "#D26F38",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  filterChipText: { color: "#7A553B", fontWeight: "600", fontSize: 13 },
+  filterChipTextActive: { color: "#FFFFFF", fontWeight: "800" },
 
   errorBanner: {
     marginHorizontal: 16,
     marginTop: 8,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
+    borderColor: "#F5CACA",
+    backgroundColor: "#FFF1F1",
     padding: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
   },
-  errorBannerText: { color: "#B42318", flex: 1, fontWeight: "600" },
+  errorBannerText: { color: "#B24A45", flex: 1, fontWeight: "600" },
   retryButton: {
     borderRadius: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#FCA5A5",
+    borderColor: "#EAB4B2",
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  retryButtonText: { color: "#B42318", fontWeight: "700" },
+  retryButtonText: { color: "#B0504A", fontWeight: "700" },
 
   successBanner: {
     marginTop: 8,
     marginHorizontal: 16,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#86EFAC",
-    backgroundColor: "#DCFCE7",
+    borderColor: "#D3E7C9",
+    backgroundColor: "#EEF8E8",
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  successBannerText: { color: "#166534", fontWeight: "700" },
+  successBannerText: { color: "#4E7B3B", fontWeight: "700" },
 
-  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28 },
+  listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30 },
   card: {
-    marginBottom: 12,
-    borderRadius: 14,
+    marginBottom: 14,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: "#DEE5EE",
-    backgroundColor: "#FFFFFF",
-    padding: 13,
-    shadowColor: "#223248",
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    borderColor: "#F0E3D6",
+    backgroundColor: "#FFFCF8",
+    padding: 14,
+    shadowColor: "#8B6446",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   cardTitleWrap: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  petIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#FFF2E8",
+  petAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#FAE8D7",
+    borderWidth: 1,
+    borderColor: "#F0D7C2",
     alignItems: "center",
     justifyContent: "center",
   },
-  petIconText: { fontSize: 16 },
+  petAvatarText: { color: "#975A33", fontWeight: "900", fontSize: 20 },
   cardTitleTextWrap: { flex: 1 },
-  cardTitle: { color: "#1B2A40", fontSize: 15, fontWeight: "800" },
-  bookingCode: { marginTop: 2, color: "#8B98AB", fontSize: 11, fontWeight: "600" },
+  titleInlineRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  cardTitle: { color: "#2A1C16", fontSize: 33, lineHeight: 38, fontWeight: "800", flexShrink: 1 },
+  pawText: { fontSize: 14 },
+  bookingCode: { marginTop: 3, color: "#A18672", fontSize: 19, lineHeight: 23, fontWeight: "500" },
 
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 2,
   },
-  statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusBadgeText: { fontSize: 11, fontWeight: "700" },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusBadgeText: { fontSize: 14, lineHeight: 18, fontWeight: "700" },
 
   infoRow: {
     marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
+    gap: 18,
+  },
+  infoGroup: { flexDirection: "row", alignItems: "center", gap: 7 },
+  infoText: { color: "#795D46", fontSize: 16, lineHeight: 20, fontWeight: "500" },
+
+  divider: { height: 1, backgroundColor: "#F1E5D9", marginTop: 12 },
+
+  servicePriceRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     gap: 10,
   },
-  infoText: { color: "#5F7088", fontSize: 12, fontWeight: "500" },
-
   serviceTag: {
-    marginTop: 10,
     alignSelf: "flex-start",
     borderRadius: 999,
-    backgroundColor: "#EFF3F7",
-    paddingHorizontal: 10,
+    backgroundColor: "#F9ECDD",
+    borderWidth: 1,
+    borderColor: "#F0DDCB",
+    paddingHorizontal: 11,
     paddingVertical: 6,
+    maxWidth: "62%",
   },
-  serviceTagText: { color: "#5C6C84", fontSize: 12, fontWeight: "500" },
+  serviceTagText: { color: "#7A5A41", fontSize: 13, fontWeight: "600" },
 
-  totalRow: {
-    marginTop: 12,
+  priceWrap: { alignItems: "flex-end" },
+  totalLabel: { color: "#A5866E", fontSize: 13, fontWeight: "500" },
+  totalValue: { color: "#9C4F1D", fontSize: 41, lineHeight: 46, fontWeight: "900" },
+
+  actionRow: { marginTop: 12, flexDirection: "row", gap: 10 },
+  actionButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
   },
-  totalLabel: { color: "#90A0B3", fontSize: 12, fontWeight: "600" },
-  totalValue: { color: "#F57C20", fontSize: 19, fontWeight: "800" },
-
-  actionRow: { marginTop: 12, flexDirection: "row", gap: 8 },
   secondaryBtn: {
-    flex: 1,
-    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#D7DFE8",
-    backgroundColor: "#F8FAFC",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 9,
+    borderColor: "#EBD4BF",
+    backgroundColor: "#F7E4D0",
   },
-  secondaryBtnText: { color: "#41556E", fontSize: 13, fontWeight: "600" },
+  secondaryBtnText: { color: "#8E552F", fontSize: 16, lineHeight: 20, fontWeight: "700" },
   primaryBtn: {
-    flex: 1,
-    borderRadius: 10,
-    backgroundColor: "#2A7FFF",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 9,
+    backgroundColor: "#D8743E",
   },
-  primaryBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
-  feedbackBtn: {
+  primaryBtnText: { color: "#FFFFFF", fontSize: 16, lineHeight: 20, fontWeight: "800" },
+  cancelBtn: {
     borderWidth: 1,
-    borderColor: "#BFD5F8",
-    backgroundColor: "#EFF5FF",
+    borderColor: "#E8C5C2",
+    backgroundColor: "#FBEAEA",
   },
-  feedbackBtnText: { color: "#2B66D9" },
+  cancelBtnText: { color: "#A6473E", fontSize: 16, lineHeight: 20, fontWeight: "700" },
 
-  feedbackHint: { marginTop: 10, color: "#8FA0B2", fontSize: 11, lineHeight: 16 },
+  feedbackHint: { marginTop: 9, color: "#9A7F6B", fontSize: 12, lineHeight: 17 },
 
   emptyWrap: {
-    marginTop: 44,
+    marginTop: 50,
     alignItems: "center",
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
   },
-  emptyIcon: { fontSize: 34, color: "#A8B5C5" },
-  emptyTitle: { marginTop: 8, color: "#6C7C91", fontSize: 14, textAlign: "center" },
+  emptyTitle: { marginTop: 10, color: "#8D6F58", fontSize: 14, textAlign: "center" },
   bookNowButton: {
     marginTop: 14,
     borderRadius: 12,
-    backgroundColor: "#1F2E43",
+    backgroundColor: "#D7743E",
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -543,18 +670,21 @@ const styles = StyleSheet.create({
 
   skeletonList: { paddingHorizontal: 16, paddingTop: 10, gap: 12 },
   skeletonCard: {
-    borderRadius: 18,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#EEE4D8",
-    backgroundColor: "#FFFCF8",
+    borderColor: "#EFE2D5",
+    backgroundColor: "#FFFCF9",
     padding: 14,
-    gap: 8,
+    gap: 10,
   },
-  skeletonLineLg: { height: 16, width: "56%", borderRadius: 8, backgroundColor: "#ECE6DE" },
-  skeletonLineSm: { height: 12, width: "38%", borderRadius: 8, backgroundColor: "#F0EBE4" },
-  skeletonLineMd: { height: 12, width: "72%", borderRadius: 8, backgroundColor: "#F0EBE4" },
-  skeletonActionsRow: { flexDirection: "row", gap: 8, marginTop: 4 },
-  skeletonBtn: { flex: 1, height: 38, borderRadius: 12, backgroundColor: "#EFE9E2" },
+  skeletonRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  skeletonAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: "#F0E6DB" },
+  skeletonBadge: { width: 84, height: 26, borderRadius: 13, backgroundColor: "#F0E6DB" },
+  skeletonLineLg: { height: 16, width: "64%", borderRadius: 8, backgroundColor: "#EFE7DD" },
+  skeletonLineSm: { height: 12, width: "38%", borderRadius: 8, backgroundColor: "#F3ECE3" },
+  skeletonLineMd: { height: 12, width: "72%", borderRadius: 8, backgroundColor: "#F3ECE3" },
+  skeletonActionsRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  skeletonBtn: { flex: 1, height: 44, borderRadius: 22, backgroundColor: "#EFE7DD" },
 
   disabled: { opacity: 0.65 },
 });

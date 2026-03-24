@@ -41,6 +41,7 @@ export interface UpdateProfilePayload {
   tel: string;
   dob: string;
   gender: "male" | "female" | "other" | string;
+  avatar?: string | null;
   bio?: string;
   address?: ProfileAddress;
 }

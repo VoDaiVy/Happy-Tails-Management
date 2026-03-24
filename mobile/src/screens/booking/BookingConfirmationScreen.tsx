@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { BookingStackParamList } from "../../navigation/types";
+import { formatVnd } from "../../utils/currency";
 
 type Props = NativeStackScreenProps<BookingStackParamList, "BookingConfirmation">;
 
@@ -9,23 +10,23 @@ export function BookingConfirmationScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.title}>Dat lich thanh cong</Text>
+      <Text accessibilityRole="header" style={styles.title}>Booking successful</Text>
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
       <View style={styles.infoCard}>
         <Text style={styles.row}>Booking ID: {bookingId}</Text>
-        {typeof totalAmount === "number" ? <Text style={styles.row}>Tong thanh toan: {totalAmount.toLocaleString()} VND</Text> : null}
+        {typeof totalAmount === "number" ? <Text style={styles.row}>Total amount: {formatVnd(totalAmount)}</Text> : null}
       </View>
 
       <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("BookingCheckout")}>
-        <Text style={styles.primaryText}>Tao booking moi</Text>
+        <Text style={styles.primaryText}>Create New Booking</Text>
       </Pressable>
 
       <Pressable
         style={styles.secondaryButton}
         onPress={() => navigation.getParent()?.navigate("AccountTab", { screen: "MyBookings" })}
       >
-        <Text style={styles.secondaryText}>Xem bookings cua toi</Text>
+        <Text style={styles.secondaryText}>View My Bookings</Text>
       </Pressable>
     </View>
   );

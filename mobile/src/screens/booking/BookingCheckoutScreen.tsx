@@ -24,15 +24,16 @@ import { useAuth } from "../../context/AuthContext";
 import type { BookingStackParamList } from "../../navigation/types";
 import type { Pet } from "../../types/pet";
 import type { AvailableVoucher } from "../../types/voucher";
+import { formatVnd } from "../../utils/currency";
 import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<BookingStackParamList, "BookingCheckout">;
 
 const BookingSchema = Yup.object({
   appointmentDate: Yup.date()
-    .min(new Date(Date.now() - 60 * 1000), "Khong duoc chon thoi gian trong qua khu")
-    .required("Ngay gio hen la bat buoc"),
-  petId: Yup.string().required("Vui long chon pet"),
+    .min(new Date(Date.now() - 60 * 1000), "Past time is not allowed")
+    .required("Appointment date and time is required"),
+  petId: Yup.string().required("Please select a pet"),
   voucherCode: Yup.string().max(100),
 });
 
@@ -72,7 +73,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
         const petList = await getMyPets("true");
         setPets(petList.filter((pet) => pet.isActive !== false));
       } catch (error) {
-        setPetsError(error instanceof Error ? error.message : "Khong tai duoc danh sach pet");
+        setPetsError(error instanceof Error ? error.message : "Unable to load pet list");
       } finally {
         setPetsLoading(false);
       }
@@ -99,14 +100,6 @@ export function BookingCheckoutScreen({ navigation }: Props) {
     loadVouchers();
   }, [canAccess]);
 
-  if (!canAccess) {
-    return (
-      <View style={[styles.wrapper, { justifyContent: "center", alignItems: "center", padding: 20 }]}>
-        <Text style={styles.error}>Tinh nang dat lich chi danh cho tai khoan customer.</Text>
-      </View>
-    );
-  }
-
   const initialDate = useMemo(() => {
     const now = new Date();
     now.setMinutes(now.getMinutes() + (15 - (now.getMinutes() % 15 || 15)));
@@ -114,6 +107,14 @@ export function BookingCheckoutScreen({ navigation }: Props) {
     now.setMilliseconds(0);
     return now;
   }, []);
+
+  if (!canAccess) {
+    return (
+      <View style={[styles.wrapper, { justifyContent: "center", alignItems: "center", padding: 20 }]}>
+        <Text style={styles.error}>Booking is only available for customer accounts.</Text>
+      </View>
+    );
+  }
 
   const openAndroidDateTime = (currentValue: Date, onSelected: (date: Date) => void) => {
     DateTimePickerAndroid.open({
@@ -151,7 +152,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.wrapper} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.container, width > 700 && styles.containerWide]} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={styles.title}>Booking Checkout</Text>
-        <Text style={styles.subtitle}>Dat lich voi quy tac backend hien tai (/api/bookings/checkout)</Text>
+        <Text style={styles.subtitle}>Book with current backend rules (/api/bookings/checkout)</Text>
 
         <Formik
           initialValues={{ appointmentDate: initialDate, petId: "", voucherCode: "", notes: "" }}
@@ -161,7 +162,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
             try {
               const normalizedDate = alignToNext15Minutes(values.appointmentDate);
               if (normalizedDate.getTime() < Date.now() - 60 * 1000) {
-                setStatus("Ngay gio hen khong hop le");
+                setStatus("Invalid appointment date or time");
                 setSubmitting(false);
                 return;
               }
@@ -179,7 +180,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                 totalAmount: response.data.totalAmount,
               });
             } catch (error) {
-              setStatus(error instanceof Error ? error.message : "Dat lich that bai");
+              setStatus(error instanceof Error ? error.message : "Booking failed");
             } finally {
               setSubmitting(false);
             }
@@ -187,7 +188,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
         >
           {({ values, errors, touched, setFieldValue, handleSubmit, isSubmitting, status }) => (
             <View style={styles.formCard}>
-              <Text style={styles.label}>Ngay gio hen</Text>
+              <Text style={styles.label}>Appointment date and time</Text>
               <Pressable
                 style={styles.pickerButton}
                 onPress={() => {
@@ -213,7 +214,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                     }}
                   />
                   <Pressable style={styles.iosDoneButton} onPress={() => setShowIosDateTimePicker(false)}>
-                    <Text style={styles.iosDoneButtonText}>Xong</Text>
+                    <Text style={styles.iosDoneButtonText}>Done</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -221,17 +222,17 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                 <Text style={styles.error}>{String(errors.appointmentDate)}</Text>
               ) : null}
 
-              <Text style={styles.label}>Chon pet</Text>
+              <Text style={styles.label}>Choose Pet</Text>
               {petsLoading ? (
                 <ActivityIndicator />
               ) : petsError ? (
                 <Text style={styles.error}>{petsError}</Text>
               ) : pets.length === 0 ? (
-                <Text style={styles.emptyText}>Ban chua co pet active</Text>
+                <Text style={styles.emptyText}>You do not have any active pets.</Text>
               ) : (
                 <Pressable style={styles.petSelectorButton} onPress={() => setPetPickerVisible(true)}>
                   <Text style={styles.petSelectorButtonText}>
-                    {pets.find((pet) => pet._id === values.petId)?.petName || "Chon pet"}
+                    {pets.find((pet) => pet._id === values.petId)?.petName || "Choose pet"}
                   </Text>
                 </Pressable>
               )}
@@ -241,7 +242,15 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                 visible={petPickerVisible}
                 pets={pets}
                 selectedPetId={values.petId}
-                title="Chon pet cho booking"
+                title="Choose a pet for booking"
+                onAddNewPet={() => {
+                  setPetPickerVisible(false);
+                  navigation.getParent()?.navigate("AccountTab", { screen: "MyPets" });
+                }}
+                onManagePets={() => {
+                  setPetPickerVisible(false);
+                  navigation.getParent()?.navigate("AccountTab", { screen: "MyPets" });
+                }}
                 onClose={() => setPetPickerVisible(false)}
                 onSelect={(petId) => {
                   setFieldValue("petId", petId);
@@ -254,13 +263,13 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                 style={styles.input}
                 value={values.voucherCode}
                 onChangeText={(value) => setFieldValue("voucherCode", value)}
-                placeholder="Nhap voucher code"
+                placeholder="Enter voucher code"
                 autoCapitalize="characters"
                 onBlur={() => setShowVoucherHint(true)}
               />
               <Pressable style={styles.petSelectorButton} onPress={() => setVoucherPickerVisible((prev) => !prev)}>
                 <Text style={styles.petSelectorButtonText}>
-                  {values.voucherCode ? `Voucher: ${values.voucherCode}` : "Chon voucher tu danh sach"}
+                  {values.voucherCode ? `Voucher: ${values.voucherCode}` : "Choose a voucher from the list"}
                 </Text>
               </Pressable>
 
@@ -269,7 +278,7 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                   {voucherLoading ? (
                     <ActivityIndicator />
                   ) : vouchers.length === 0 ? (
-                    <Text style={styles.emptyText}>Khong co voucher kha dung</Text>
+                    <Text style={styles.emptyText}>No available vouchers</Text>
                   ) : (
                     <FlatList
                       data={vouchers}
@@ -285,8 +294,8 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                         >
                           <Text style={styles.voucherCode}>{item.code}</Text>
                           <Text style={styles.voucherMeta}>{formatVoucherPreview(item)}</Text>
-                          <Text style={styles.voucherMeta}>Min spend: {(item.minSpend || 0).toLocaleString()} VND</Text>
-                          <Text style={styles.voucherMeta}>HSD: {new Date(item.validUntil).toLocaleDateString()}</Text>
+                          <Text style={styles.voucherMeta}>Min spend: {formatVnd(item.minSpend || 0)}</Text>
+                          <Text style={styles.voucherMeta}>Expires: {new Date(item.validUntil).toLocaleDateString()}</Text>
                         </Pressable>
                       )}
                     />
@@ -294,15 +303,15 @@ export function BookingCheckoutScreen({ navigation }: Props) {
                 </View>
               ) : null}
               {showVoucherHint ? (
-                <Text style={styles.hint}>Voucher se duoc backend kiem tra khi ban submit booking.</Text>
+                <Text style={styles.hint}>The voucher will be validated by the backend when you submit the booking.</Text>
               ) : null}
 
-              <Text style={styles.label}>Ghi chu (optional)</Text>
+              <Text style={styles.label}>Notes (optional)</Text>
               <TextInput
                 style={[styles.input, styles.multilineInput]}
                 value={values.notes}
                 onChangeText={(value) => setFieldValue("notes", value)}
-                placeholder="Nhap ghi chu cho booking"
+                placeholder="Enter booking notes"
                 multiline
                 numberOfLines={3}
               />
@@ -311,12 +320,12 @@ export function BookingCheckoutScreen({ navigation }: Props) {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Xac nhan dat lich"
+                accessibilityLabel="Confirm booking"
                 disabled={isSubmitting || petsLoading || pets.length === 0}
                 onPress={() => handleSubmit()}
                 style={[styles.submitButton, (isSubmitting || petsLoading || pets.length === 0) && styles.submitButtonDisabled]}
               >
-                {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Xac nhan dat lich</Text>}
+                {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Confirm booking</Text>}
               </Pressable>
             </View>
           )}

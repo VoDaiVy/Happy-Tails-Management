@@ -1,6 +1,7 @@
 import { axiosClient } from "../axiosClient";
 import { extractPayload, extractPagination } from "../responseParser";
 import type { ServiceItem, ServiceListQuery } from "../../types/service";
+import { resolveImageList } from "../../utils/image";
 
 interface ListServicesResponse {
   success: boolean;
@@ -22,17 +23,25 @@ interface GetServiceDetailResponse {
   data: ServiceItem;
 }
 
+function normalizeService(service: ServiceItem): ServiceItem {
+  return {
+    ...service,
+    images: resolveImageList(service.images),
+  };
+}
+
 export async function getServices(query: ServiceListQuery = {}) {
   const response = await axiosClient.get<ListServicesResponse>("/services", { params: query });
+  const services = extractPayload<ServiceItem[]>(response.data).map(normalizeService);
   return {
-    data: extractPayload<ServiceItem[]>(response.data),
+    data: services,
     pagination: extractPagination<ListServicesResponse["pagination"]>(response.data) || undefined,
   };
 }
 
 export async function getServiceById(serviceId: string) {
   const response = await axiosClient.get<GetServiceDetailResponse>(`/services/${serviceId}`);
-  return extractPayload<ServiceItem>(response.data);
+  return normalizeService(extractPayload<ServiceItem>(response.data));
 }
 
 export async function createService(payload: {

@@ -22,6 +22,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { PayOSDepositStatus, WalletInfo, WalletTransaction } from "../../types/wallet";
+import { formatCompactVnd, formatVnd } from "../../utils/currency";
 import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "Wallet">;
@@ -34,24 +35,6 @@ const FILTERS: Array<{ key: WalletFilterKey; label: string }> = [
   { key: "payment", label: "Payments" },
   { key: "refund", label: "Refunds" },
 ];
-
-function formatMoneyVnd(value: number) {
-  return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
-}
-
-function formatCompactMoneyVnd(value: number) {
-  const abs = Math.abs(Number(value || 0));
-  if (abs >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(1)}B đ`;
-  }
-  if (abs >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M đ`;
-  }
-  if (abs >= 1_000) {
-    return `${(value / 1_000).toFixed(0)}K đ`;
-  }
-  return formatMoneyVnd(value);
-}
 
 function normalizeType(type?: string) {
   const raw = String(type || "").toLowerCase();
@@ -127,7 +110,7 @@ export function WalletScreen({ navigation, route }: Props) {
       setWallet(walletData);
       setTransactions(transactionData.data || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc vi");
+      setError(e instanceof Error ? e.message : "Unable to load wallet");
     } finally {
       if (withLoading) setLoading(false);
     }
@@ -164,7 +147,7 @@ export function WalletScreen({ navigation, route }: Props) {
         await loadWalletData(false);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong dong bo duoc trang thai nap tien");
+      setError(e instanceof Error ? e.message : "Unable to sync top-up status");
     } finally {
       pollingLockRef.current = false;
       setPollingStatus(false);
@@ -222,7 +205,7 @@ export function WalletScreen({ navigation, route }: Props) {
   if (!canAccess) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+        <Text style={styles.errorText}>This feature is only available for customer accounts.</Text>
       </View>
     );
   }
@@ -230,7 +213,7 @@ export function WalletScreen({ navigation, route }: Props) {
   const onCreateDeposit = async () => {
     const parsed = Number(amount);
     if (!Number.isFinite(parsed) || parsed < 10000 || parsed > 100000000) {
-      setError("So tien nap khong hop le");
+      setError("Invalid top-up amount");
       return;
     }
 
@@ -257,7 +240,7 @@ export function WalletScreen({ navigation, route }: Props) {
           note: note.trim() || undefined,
         });
       }
-      setMessage("Da tao link nap tien. Dang mo trang thanh toan...");
+      setMessage("Top-up link created. Opening payment page...");
       setPendingOrderCode(deposit.orderCode);
       setShowTopUpForm(false);
       setPendingDepositStatus({
@@ -275,7 +258,7 @@ export function WalletScreen({ navigation, route }: Props) {
         await Linking.openURL(deposit.checkoutUrl);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tao duoc link nap tien");
+      setError(e instanceof Error ? e.message : "Unable to create top-up link");
     } finally {
       setDepositing(false);
     }
@@ -412,21 +395,21 @@ export function WalletScreen({ navigation, route }: Props) {
 
           <Text style={styles.balanceLabel}>AVAILABLE BALANCE</Text>
           <Text style={styles.heroBalance} numberOfLines={1} adjustsFontSizeToFit>
-            {wallet?.formattedBalance || formatMoneyVnd(0)}
+            {wallet?.formattedBalance || formatVnd(0)}
           </Text>
 
           <View style={styles.heroMetaRow}>
             <View style={styles.heroMetaPill}>
               <Text style={styles.heroMetaLabel}>In</Text>
-              <Text style={styles.heroMetaValue}>{formatCompactMoneyVnd(totals.deposits)}</Text>
+              <Text style={styles.heroMetaValue}>{formatCompactVnd(totals.deposits)}</Text>
             </View>
             <View style={styles.heroMetaPill}>
               <Text style={styles.heroMetaLabel}>Out</Text>
-              <Text style={styles.heroMetaValue}>{formatCompactMoneyVnd(totals.payments)}</Text>
+              <Text style={styles.heroMetaValue}>{formatCompactVnd(totals.payments)}</Text>
             </View>
             <View style={styles.heroMetaPill}>
               <Text style={styles.heroMetaLabel}>Refund</Text>
-              <Text style={styles.heroMetaValue}>{formatCompactMoneyVnd(totals.refunds)}</Text>
+              <Text style={styles.heroMetaValue}>{formatCompactVnd(totals.refunds)}</Text>
             </View>
           </View>
         </View>
@@ -435,7 +418,7 @@ export function WalletScreen({ navigation, route }: Props) {
           <View style={styles.statHeaderRow}>
             <Text style={styles.statTitle}>TOTAL IN</Text>
           </View>
-          <Text style={styles.statValueGreen}>{formatMoneyVnd(wallet?.totalDeposited || 0)}</Text>
+          <Text style={styles.statValueGreen}>{formatVnd(wallet?.totalDeposited || 0)}</Text>
           <Text style={styles.statMeta}>Lifetime deposits</Text>
         </View>
 
@@ -450,7 +433,7 @@ export function WalletScreen({ navigation, route }: Props) {
         <View style={styles.activityCard}>
           <View style={styles.activityHeader}>
             <Text style={styles.activityTitle}>Activity Overview</Text>
-            <Text style={styles.activityAmount}>{formatMoneyVnd(thisWeekDeposits)}</Text>
+            <Text style={styles.activityAmount}>{formatVnd(thisWeekDeposits)}</Text>
           </View>
           <Text style={styles.activitySubText}>Last 7 days · completed top-ups</Text>
 
@@ -506,7 +489,7 @@ export function WalletScreen({ navigation, route }: Props) {
           </View>
 
           {filteredTransactions.length === 0 ? (
-            <Text style={styles.emptyText}>Khong co giao dich phu hop</Text>
+            <Text style={styles.emptyText}>No matching transactions</Text>
           ) : (
             filteredTransactions.slice(0, 8).map((item) => {
               const tone = getStatusTone(item.status);
@@ -540,7 +523,7 @@ export function WalletScreen({ navigation, route }: Props) {
                   </View>
                   <Text style={[styles.txAmount, { color: amountColor }]}>
                     {normalizeType(item.type) === "payment" ? "-" : "+"}
-                    {formatMoneyVnd(item.amount)}
+                    {formatVnd(item.amount)}
                   </Text>
                 </Pressable>
               );
@@ -554,7 +537,7 @@ export function WalletScreen({ navigation, route }: Props) {
             <Text style={styles.statusMeta}>OrderCode: {pendingDepositStatus.orderCode}</Text>
             <Text style={styles.statusMeta}>Status: {pendingDepositStatus.status}</Text>
             {pendingDepositStatus.newBalance !== undefined && pendingDepositStatus.newBalance !== null ? (
-              <Text style={styles.statusMeta}>New balance: {formatMoneyVnd(pendingDepositStatus.newBalance)}</Text>
+              <Text style={styles.statusMeta}>New balance: {formatVnd(pendingDepositStatus.newBalance)}</Text>
             ) : null}
             <Pressable
               style={[styles.statusButton, (pollingStatus || !pendingOrderCode) && styles.disabled]}

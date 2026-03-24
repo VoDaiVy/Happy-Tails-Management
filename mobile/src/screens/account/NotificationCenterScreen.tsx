@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   broadcastNotification,
   deleteAllReadNotifications,
@@ -58,6 +60,8 @@ type StaffCustomer = {
   name: string;
   email: string;
 };
+
+type CustomerFilter = "All" | "Services" | "Social" | "Updates";
 
 type FormState = {
   title: string;
@@ -174,6 +178,8 @@ function getStatusTone(status: StaffStatus) {
 }
 
 export function NotificationCenterScreen() {
+  const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const isStaff = isStaffOrAdminRole(user?.role);
 
@@ -184,6 +190,7 @@ export function NotificationCenterScreen() {
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [customerFilter, setCustomerFilter] = useState<CustomerFilter>("All");
 
   const [staffRows, setStaffRows] = useState<StaffNotificationRow[]>([]);
   const [searchText, setSearchText] = useState("");
@@ -319,6 +326,20 @@ export function NotificationCenterScreen() {
       drafts: staffRows.filter((item) => item.status === "Draft").length,
     };
   }, [staffRows]);
+
+  const filteredCustomerNotifications = useMemo(() => {
+    if (customerFilter === "All") return notifications;
+
+    return notifications.filter((item) => {
+      if (customerFilter === "Services") {
+        return item.type === "order" || item.type === "payment";
+      }
+      if (customerFilter === "Social") {
+        return item.type === "account";
+      }
+      return item.type === "system" || item.type === "promotion";
+    });
+  }, [customerFilter, notifications]);
 
   const onMarkAsRead = async (item: AppNotification) => {
     if (item.isRead) return;
@@ -456,45 +477,86 @@ export function NotificationCenterScreen() {
 
   if (!isStaff) {
     return (
-      <View style={styles.container}>
-        <View style={styles.headerCard}>
-          <Text style={styles.title}>Notification Center</Text>
-          <Text style={styles.meta}>Unread: {unreadCount}</Text>
-        </View>
+      <View style={styles.emptyRoot}>
+        <ScrollView
+          contentContainerStyle={[styles.emptyContent, { paddingBottom: Math.max(insets.bottom + 110, 130) }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D77D46" />}
+        >
+          <View style={styles.customerActionRow}>
+            <Text style={styles.customerSectionTitle}>Notifications</Text>
+            <Pressable onPress={onMarkAllRead} disabled={actionLoading || unreadCount === 0}>
+              <Text style={[styles.emptyMarkAllText, unreadCount === 0 && styles.emptyMarkAllTextDisabled]}>Mark all as read</Text>
+            </Pressable>
+          </View>
 
-        <View style={styles.actionRow}>
-          <Pressable style={[styles.actionButton, actionLoading && styles.disabled]} onPress={onMarkAllRead} disabled={actionLoading}>
-            <Text style={styles.actionText}>Mark All Read</Text>
-          </Pressable>
-          <Pressable style={[styles.actionButton, actionLoading && styles.disabled]} onPress={onDeleteAllRead} disabled={actionLoading}>
-            <Text style={styles.actionText}>Delete Read</Text>
-          </Pressable>
-        </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emptyChipRow}>
+            {(["All", "Services", "Social", "Updates"] as CustomerFilter[]).map((label) => {
+              const active = customerFilter === label;
+              return (
+                <Pressable
+                  key={label}
+                  style={[styles.emptyChip, active && styles.emptyChipActive]}
+                  onPress={() => setCustomerFilter(label)}
+                >
+                  <Text style={[styles.emptyChipText, active && styles.emptyChipTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {filteredCustomerNotifications.length === 0 ? (
+            <View style={styles.emptyMainCenter}>
+              <View style={styles.emptyIllustrationWrap}>
+                <View style={styles.emptyIllustrationGlow} />
+                <View style={styles.emptyIllustrationCard}>
+                  <View style={styles.emptyDogFace}>
+                    <View style={styles.emptyDogEarLeft} />
+                    <View style={styles.emptyDogEarRight} />
+                    <Text style={styles.emptyDogEmoji}>🐶</Text>
+                  </View>
+                  <View style={styles.emptyBellBadge}>
+                    <Feather name="bell-off" size={16} color="#97A3B5" />
+                  </View>
+                </View>
+              </View>
+
+              <Text style={styles.emptyHeading}>All Caught Up!</Text>
+              <Text style={styles.emptySubtitle}>
+                We&apos;ll notify you here when your pet&apos;s AI Health diagnosis is ready, or when we have exclusive spa offers.
+              </Text>
+
+              <Pressable style={styles.emptyCtaButton} onPress={() => navigation.navigate("AccountTab", { screen: "AIHealthScan" })}>
+                <Feather name="camera" size={16} color="#FFFFFF" />
+                <Text style={styles.emptyCtaText}>Scan Pet Health</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.customerListWrap}>
+              {filteredCustomerNotifications.map((item) => (
+                <Pressable
+                  key={item._id}
+                  style={[styles.customerNoticeCard, !item.isRead && styles.customerNoticeCardUnread]}
+                  onPress={() => onMarkAsRead(item)}
+                >
+                  <View style={styles.customerNoticeHeader}>
+                    <Text style={styles.customerNoticeTitle} numberOfLines={1}>{item.title}</Text>
+                    {!item.isRead ? <View style={styles.customerNoticeDot} /> : null}
+                  </View>
+                  <Text style={styles.customerNoticeBody} numberOfLines={3}>{item.body}</Text>
+                  <View style={styles.customerNoticeFooter}>
+                    <Text style={styles.customerNoticeDate}>{formatDateTime(item.createdAt)}</Text>
+                    <Pressable onPress={() => onDeleteInbox(item._id)}>
+                      <Text style={styles.customerNoticeDelete}>Delete</Text>
+                    </Pressable>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <FlatList
-          data={notifications}
-          keyExtractor={(item) => item._id}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D77D46" />}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>Ban chua co thong bao nao</Text>}
-          renderItem={({ item }) => (
-            <Pressable style={[styles.itemCard, !item.isRead && styles.unreadItem]} onPress={() => onMarkAsRead(item)}>
-              <View style={styles.itemHeader}>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemType}>{item.type}</Text>
-              </View>
-              <Text style={styles.itemBody}>{item.body}</Text>
-              <View style={styles.itemFooter}>
-                <Text style={styles.itemDate}>{formatDateTime(item.createdAt)}</Text>
-                <Pressable style={styles.deleteButton} onPress={() => onDeleteInbox(item._id)}>
-                  <Text style={styles.deleteText}>Delete</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          )}
-        />
       </View>
     );
   }
@@ -828,6 +890,319 @@ export function NotificationCenterScreen() {
 }
 
 const styles = StyleSheet.create({
+  emptyRoot: {
+    flex: 1,
+    backgroundColor: "#F7F3EE",
+  },
+  customerActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  customerSectionTitle: {
+    color: "#2B3A50",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  emptyTopBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  emptyBackBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTopTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: "900",
+    color: "#1C2536",
+    marginRight: 18,
+  },
+  emptyMarkAllText: {
+    color: "#CDA58B",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  emptyMarkAllTextDisabled: {
+    opacity: 0.55,
+  },
+  emptyContent: {
+    paddingHorizontal: 20,
+  },
+  emptyChipRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingBottom: 8,
+  },
+  emptyChip: {
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#E8DED4",
+    backgroundColor: "#EAE4DE",
+  },
+  emptyChipActive: {
+    backgroundColor: "#E66819",
+    borderColor: "#D35E16",
+  },
+  emptyChipText: {
+    color: "#5D4B3E",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  emptyChipTextActive: {
+    color: "#FFFFFF",
+  },
+  emptyMainCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 620,
+    paddingTop: 40,
+  },
+  customerListWrap: {
+    gap: 12,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
+  customerNoticeCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#EADFD2",
+    backgroundColor: "#FFFEFC",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    shadowColor: "#5C4634",
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  customerNoticeCardUnread: {
+    borderColor: "#F1C6AA",
+    backgroundColor: "#FFF9F5",
+  },
+  customerNoticeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  customerNoticeTitle: {
+    flex: 1,
+    color: "#1F2B3D",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+  customerNoticeDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: "#E66819",
+  },
+  customerNoticeBody: {
+    marginTop: 6,
+    color: "#495A70",
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  customerNoticeFooter: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  customerNoticeDate: {
+    color: "#95A3B3",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  customerNoticeDelete: {
+    color: "#B14856",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  emptyIllustrationWrap: {
+    width: 220,
+    height: 190,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+  },
+  emptyIllustrationGlow: {
+    position: "absolute",
+    width: 190,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(231, 162, 118, 0.22)",
+  },
+  emptyIllustrationCard: {
+    width: 178,
+    height: 138,
+    borderRadius: 38,
+    backgroundColor: "#FFF9F1",
+    borderWidth: 1,
+    borderColor: "#F0E2D6",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#654025",
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  emptyDogFace: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "#FFE2C9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyDogEarLeft: {
+    position: "absolute",
+    top: 12,
+    left: 10,
+    width: 18,
+    height: 24,
+    borderRadius: 10,
+    backgroundColor: "#F6B07B",
+    transform: [{ rotate: "-22deg" }],
+  },
+  emptyDogEarRight: {
+    position: "absolute",
+    top: 12,
+    right: 10,
+    width: 18,
+    height: 24,
+    borderRadius: 10,
+    backgroundColor: "#F6B07B",
+    transform: [{ rotate: "22deg" }],
+  },
+  emptyDogEmoji: {
+    fontSize: 44,
+  },
+  emptyBellBadge: {
+    position: "absolute",
+    right: 16,
+    bottom: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#EEF0F3",
+    borderWidth: 1,
+    borderColor: "#DFE3E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyHeading: {
+    color: "#1E293B",
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    marginTop: 10,
+    color: "#8A97A9",
+    fontSize: 16,
+    lineHeight: 26,
+    textAlign: "center",
+    paddingHorizontal: 20,
+    maxWidth: 360,
+  },
+  emptyCtaButton: {
+    marginTop: 22,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    borderRadius: 999,
+    backgroundColor: "#E66819",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    shadowColor: "#E66819",
+    shadowOpacity: 0.33,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 6,
+  },
+  emptyCtaText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  emptyBottomNavWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 0,
+    zIndex: 30,
+  },
+  emptyBottomNav: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(225, 214, 203, 0.9)",
+    backgroundColor: "rgba(252, 249, 244, 0.88)",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#4D3827",
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  emptyNavItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+  emptyNavText: {
+    color: "#503D30",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  emptyActiveNavItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  emptyActiveNavCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#E66819",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#E66819",
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 7,
+  },
+  emptyActiveNavText: {
+    color: "#B94F0F",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
   container: {
     flex: 1,
     backgroundColor: "#FCF8F2",
