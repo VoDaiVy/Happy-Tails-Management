@@ -62,7 +62,11 @@ const roomSupportsPetType = (room, petType) => {
   return roomPetTypes.includes(normalizedPetType);
 };
 
-const parseAppointmentDate = ({ appointmentDate, bookingDate, bookingTime }) => {
+const parseAppointmentDate = ({
+  appointmentDate,
+  bookingDate,
+  bookingTime,
+}) => {
   if (appointmentDate) {
     return new Date(appointmentDate);
   }
@@ -218,7 +222,10 @@ const buildServiceSlotKey = (serviceId, slotStart) =>
 
 const getGroupRoomPool = (group, roomCount) => {
   const basePool = ROOM_CONFIG[group] || ROOM_CONFIG.dry;
-  const normalizedRoomCount = Math.max(1, Number(roomCount) || basePool.length || 1);
+  const normalizedRoomCount = Math.max(
+    1,
+    Number(roomCount) || basePool.length || 1,
+  );
   return basePool.slice(0, normalizedRoomCount);
 };
 
@@ -329,14 +336,26 @@ const getDefaultGroupConfig = (group) => ({
   slotsPerRoom: SLOTS_PER_ROOM,
 });
 
-const applyRuntimeToGroupConfig = (group, baseConfig, serviceRoomRuntime = null) => {
+const applyRuntimeToGroupConfig = (
+  group,
+  baseConfig,
+  serviceRoomRuntime = null,
+) => {
   const fallback = getDefaultGroupConfig(group);
-  const runtimeByGroup = serviceRoomRuntime?.[group] || { roomPool: [], assignmentPool: [] };
+  const runtimeByGroup = serviceRoomRuntime?.[group] || {
+    roomPool: [],
+    assignmentPool: [],
+  };
   const runtimeRoomCount = runtimeByGroup.roomPool.length;
   const runtimeCapacity = runtimeByGroup.assignmentPool.length;
 
-  const roomCount = runtimeRoomCount || Math.max(1, Number(baseConfig.roomCount) || fallback.roomCount);
-  const slotsPerRoom = Math.max(1, Number(baseConfig.slotsPerRoom) || fallback.slotsPerRoom);
+  const roomCount =
+    runtimeRoomCount ||
+    Math.max(1, Number(baseConfig.roomCount) || fallback.roomCount);
+  const slotsPerRoom = Math.max(
+    1,
+    Number(baseConfig.slotsPerRoom) || fallback.slotsPerRoom,
+  );
   const maxCapacity = runtimeCapacity > 0 ? runtimeCapacity : 0;
 
   return {
@@ -354,7 +373,11 @@ const getActiveGroupConfig = async (group, serviceRoomRuntime = null) => {
       .select("maxCapacity roomCount slotsPerRoom")
       .lean();
 
-    return applyRuntimeToGroupConfig(group, config || fallback, serviceRoomRuntime);
+    return applyRuntimeToGroupConfig(
+      group,
+      config || fallback,
+      serviceRoomRuntime,
+    );
   } catch (_) {
     return applyRuntimeToGroupConfig(group, fallback, serviceRoomRuntime);
   }
@@ -423,12 +446,19 @@ const validateServiceCapacityAndAssignRooms = async (scheduledItems) => {
   }
 };
 
-const getServiceDayDisabledSlots = async (service, date, serviceRoomRuntime = null) => {
+const getServiceDayDisabledSlots = async (
+  service,
+  date,
+  serviceRoomRuntime = null,
+) => {
   const dayStart = startOfDay(date);
   const now = new Date();
   const slots = [];
   const serviceGroup = inferServiceGroup(service);
-  const groupConfig = await getActiveGroupConfig(serviceGroup, serviceRoomRuntime);
+  const groupConfig = await getActiveGroupConfig(
+    serviceGroup,
+    serviceRoomRuntime,
+  );
 
   if (groupConfig.maxCapacity <= 0) {
     for (let h = OPEN_HOUR; h < CLOSE_HOUR; h += 1) {
@@ -522,14 +552,20 @@ const getPetDayConflictSlots = async ({ petId, date, serviceDurationMin }) => {
   return conflictSlots;
 };
 
-const validateCapacityAndAssignRooms = async (scheduledItems, serviceRoomRuntime = null) => {
+const validateCapacityAndAssignRooms = async (
+  scheduledItems,
+  serviceRoomRuntime = null,
+) => {
   const occupancyCache = new Map();
   const requestAdds = new Map();
   const groupConfigCache = new Map();
 
   const getGroupConfig = async (group) => {
     if (!groupConfigCache.has(group)) {
-      groupConfigCache.set(group, await getActiveGroupConfig(group, serviceRoomRuntime));
+      groupConfigCache.set(
+        group,
+        await getActiveGroupConfig(group, serviceRoomRuntime),
+      );
     }
     return groupConfigCache.get(group);
   };
@@ -549,7 +585,10 @@ const validateCapacityAndAssignRooms = async (scheduledItems, serviceRoomRuntime
     const slots = buildSlotStarts(item.startTime, item.endTime);
     const startSlot = slots[0];
     const groupConfig = await getGroupConfig(item.group);
-    const runtimeByGroup = serviceRoomRuntime?.[item.group] || { roomPool: [], assignmentPool: [] };
+    const runtimeByGroup = serviceRoomRuntime?.[item.group] || {
+      roomPool: [],
+      assignmentPool: [],
+    };
     const roomPool = runtimeByGroup.roomPool.length
       ? runtimeByGroup.roomPool
       : getGroupRoomPool(item.group, groupConfig.roomCount);
@@ -681,7 +720,9 @@ const getUniqueBookingPets = (booking) => {
     }
   }
 
-  const boardingPetId = toObjectIdString(booking?.boardingPet?._id || booking?.boardingPet);
+  const boardingPetId = toObjectIdString(
+    booking?.boardingPet?._id || booking?.boardingPet,
+  );
   if (boardingPetId) {
     const key = String(boardingPetId);
     if (!petMap.has(key)) {
@@ -827,7 +868,9 @@ const rollbackCompletedMedicalStage = async ({ bookingId, actorId }) => {
 
     if (completedPhotos.length > 0) {
       const completedSet = new Set(completedPhotos);
-      record.images = (record.images || []).filter((img) => !completedSet.has(img));
+      record.images = (record.images || []).filter(
+        (img) => !completedSet.has(img),
+      );
     }
 
     record.completedPhotos = [];
@@ -835,7 +878,10 @@ const rollbackCompletedMedicalStage = async ({ bookingId, actorId }) => {
       (entry) => entry?.stage !== "completed",
     );
 
-    if (Array.isArray(record.processingPhotos) && record.processingPhotos.length > 0) {
+    if (
+      Array.isArray(record.processingPhotos) &&
+      record.processingPhotos.length > 0
+    ) {
       record.workflowStage = "processing";
     } else {
       record.workflowStage = "received";
@@ -1170,11 +1216,6 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   const requesterRole = String(req.user?.role || "").toLowerCase();
   const requesterId = toObjectIdString(req.user?._id || req.user?.id);
 
-<<<<<<< HEAD
-    .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room",
-    );
-=======
   let booking = null;
   const populatePaths =
     "customer items.service items.pet assignedStaff room cancelledBy boardingPet";
@@ -1210,34 +1251,10 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   } else {
     booking = await Booking.findById(req.params.id).populate(populatePaths);
   }
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
 
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
-
-<<<<<<< HEAD
-  // Check permission: customer can only see their own bookings
-  const bookingCustomerId =
-    typeof booking.customer === "object" && booking.customer !== null
-      ? String(booking.customer._id || booking.customer.id || "")
-      : String(booking.customer || "");
-
-  if (
-    req.user.role === "customer" &&
-    bookingCustomerId !== String(req.user.id)
-  ) {
-    return next(
-      new AppError(
-        "You do not have permission to view this booking",
-        403,
-        "FORBIDDEN",
-      ),
-    );
-  }
-
-=======
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
   res.status(200).json({
     status: "success",
     data: { booking },
@@ -1491,7 +1508,9 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   // Notify customer about status + medical check-in/check-out milestones.
   const bookingActionUrl = "/bookings";
   const petLabel = buildPetLabel(booking);
-  const checkinNoteSnippet = medicalNotes ? ` Check-in notes: ${medicalNotes}` : "";
+  const checkinNoteSnippet = medicalNotes
+    ? ` Check-in notes: ${medicalNotes}`
+    : "";
 
   const notificationMessages = {
     confirmed: {
@@ -1507,12 +1526,14 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
     },
     completed: {
       title: "Booking Completed",
-      message: "Service completed. You can go to Booking to view full medical records and care history.",
+      message:
+        "Service completed. You can go to Booking to view full medical records and care history.",
       priority: "medium",
     },
     cancelled: {
       title: "Booking Cancelled",
-      message: "Your booking was cancelled by staff. You can go to Booking to view details and reschedule if needed.",
+      message:
+        "Your booking was cancelled by staff. You can go to Booking to view details and reschedule if needed.",
       priority: "high",
     },
   };
@@ -1530,7 +1551,12 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
           bookingId: booking._id,
           oldStatus,
           newStatus: status,
-          medicalStage: status === "in-progress" ? "received" : status === "completed" ? "completed" : null,
+          medicalStage:
+            status === "in-progress"
+              ? "received"
+              : status === "completed"
+                ? "completed"
+                : null,
         },
       },
     );
@@ -1554,12 +1580,17 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
 
     const booking =
       requesterRole === "customer"
-        ? await Booking.findOne({ _id: req.params.id, customer: requesterId }).session(session)
+        ? await Booking.findOne({
+            _id: req.params.id,
+            customer: requesterId,
+          }).session(session)
         : await Booking.findById(req.params.id).session(session);
 
     if (!booking) {
       if (requesterRole === "customer") {
-        const existed = await Booking.exists({ _id: req.params.id }).session(session);
+        const existed = await Booking.exists({ _id: req.params.id }).session(
+          session,
+        );
         if (existed) {
           await session.abortTransaction();
           return next(
@@ -1789,10 +1820,10 @@ const buildStayRange = ({
 const getRoomOverlapCount = async (roomId, checkIn, checkOut) => {
   const overlapCount = await Booking.countDocuments({
     status: { $in: ACTIVE_STATUSES },
-    $or: [{ room: roomId }, { 'stayInfo.room': roomId }],
-    'stayInfo.enabled': true,
-    'stayInfo.checkInDate': { $lt: checkOut },
-    'stayInfo.checkOutDate': { $gt: checkIn },
+    $or: [{ room: roomId }, { "stayInfo.room": roomId }],
+    "stayInfo.enabled": true,
+    "stayInfo.checkInDate": { $lt: checkOut },
+    "stayInfo.checkOutDate": { $gt: checkIn },
   });
 
   return overlapCount;
@@ -1816,7 +1847,11 @@ const getPetBookingIntervals = (booking, petId) => {
   if (isSameBoardingPet && booking?.stayInfo?.enabled) {
     const checkIn = new Date(booking.stayInfo.checkInDate);
     const checkOut = new Date(booking.stayInfo.checkOutDate);
-    if (!Number.isNaN(checkIn.getTime()) && !Number.isNaN(checkOut.getTime()) && checkOut > checkIn) {
+    if (
+      !Number.isNaN(checkIn.getTime()) &&
+      !Number.isNaN(checkOut.getTime()) &&
+      checkOut > checkIn
+    ) {
       intervals.push({ start: checkIn, end: checkOut });
     }
   }
@@ -1826,7 +1861,12 @@ const getPetBookingIntervals = (booking, petId) => {
     const start = item?.startTime ? new Date(item.startTime) : null;
     const end = item?.endTime ? new Date(item.endTime) : null;
     if (!start || !end) return;
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return;
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    )
+      return;
     intervals.push({ start, end });
   });
 
@@ -1869,9 +1909,16 @@ exports.getAvailableSlots = catchAsync(async (req, res, next) => {
   }
 
   const serviceRoomRuntime = await buildServiceRoomRuntime();
-  const serviceDisabledSlots = await getServiceDayDisabledSlots(service, day, serviceRoomRuntime);
+  const serviceDisabledSlots = await getServiceDayDisabledSlots(
+    service,
+    day,
+    serviceRoomRuntime,
+  );
   const serviceGroup = inferServiceGroup(service);
-  const groupConfig = await getActiveGroupConfig(serviceGroup, serviceRoomRuntime);
+  const groupConfig = await getActiveGroupConfig(
+    serviceGroup,
+    serviceRoomRuntime,
+  );
 
   let petConflictSlots = [];
   if (petId) {
@@ -1967,9 +2014,7 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
   }
 
   if (Number.isNaN(apptDate.getTime())) {
-    return next(
-      new AppError("Invalid appointment date", 400, "INVALID_DATE"),
-    );
+    return next(new AppError("Invalid appointment date", 400, "INVALID_DATE"));
   }
 
   if (isBeforeNow(apptDate)) {
@@ -2014,7 +2059,13 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
   );
 
   if (serviceCartItems.length === 0 && !stayCartItem) {
-    return next(new AppError("Giỏ hàng phải có ít nhất 1 dịch vụ", 400, "CART_NO_SERVICE_ITEM"));
+    return next(
+      new AppError(
+        "Giỏ hàng phải có ít nhất 1 dịch vụ",
+        400,
+        "CART_NO_SERVICE_ITEM",
+      ),
+    );
   }
 
   const rawItems = serviceCartItems.map((item) => ({
@@ -2042,7 +2093,9 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
   const serviceMap = buildServiceMap(services);
   const expandedItems = expandRequestedItems(rawItems, serviceMap);
   if (expandedItems.length === 0 && !stayCartItem) {
-    return next(new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"));
+    return next(
+      new AppError("No valid services to schedule", 400, "NO_VALID_ITEMS"),
+    );
   }
 
   const sortedItems = sortWetBeforeDry(expandedItems);
@@ -2112,7 +2165,10 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
       }
 
       let selectedRoom = requestedRoom;
-      const requestedRoomSupportsPet = roomSupportsPetType(requestedRoom, pet.petType);
+      const requestedRoomSupportsPet = roomSupportsPetType(
+        requestedRoom,
+        pet.petType,
+      );
       const requestedRemainingCapacity = await getRoomRemainingCapacity(
         requestedRoom,
         stayRange.checkIn,
@@ -2364,7 +2420,8 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
     // ── Wallet balance check (allow pending booking when insufficient) ───────
     const wallet = await Wallet.findOne({ userId: req.user.id });
     const currentBalance = Number(wallet?.balance || 0);
-    const hasSufficientBalance = totalAmount <= 0 || currentBalance >= totalAmount;
+    const hasSufficientBalance =
+      totalAmount <= 0 || currentBalance >= totalAmount;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -2488,7 +2545,10 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
           {
             priority: "high",
             actionUrl: "/bookings",
-            metadata: { bookingId: booking._id, source: "checkout-service-pending" },
+            metadata: {
+              bookingId: booking._id,
+              source: "checkout-service-pending",
+            },
           },
         );
       }
@@ -2525,7 +2585,9 @@ exports.checkoutBooking = catchAsync(async (req, res, next) => {
             totalAmount,
             isPaid,
             currentWalletBalance: currentBalance,
-            pendingTopUpAmount: isPaid ? 0 : Math.max(0, totalAmount - currentBalance),
+            pendingTopUpAmount: isPaid
+              ? 0
+              : Math.max(0, totalAmount - currentBalance),
           },
         },
       });
@@ -2572,7 +2634,9 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
 
   const pet = await UserPet.findOne({ _id: petId, userID: req.user.id });
   if (!pet) {
-    return next(new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"));
+    return next(
+      new AppError("Pet not found or not owned by you", 404, "PET_NOT_FOUND"),
+    );
   }
 
   const stayRange = buildStayRange({
@@ -2583,16 +2647,32 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
   });
 
   if (!stayRange) {
-    return next(new AppError("Ngày nhận/trả phòng không hợp lệ", 400, "INVALID_STAY_RANGE"));
+    return next(
+      new AppError(
+        "Ngày nhận/trả phòng không hợp lệ",
+        400,
+        "INVALID_STAY_RANGE",
+      ),
+    );
   }
 
-  if (startOfDay(stayRange.checkIn).getTime() < startOfDay(new Date()).getTime()) {
-    return next(new AppError("Không thể chọn ngày nhận phòng trong quá khứ", 400, "PAST_CHECKIN_DATE"));
+  if (
+    startOfDay(stayRange.checkIn).getTime() < startOfDay(new Date()).getTime()
+  ) {
+    return next(
+      new AppError(
+        "Không thể chọn ngày nhận phòng trong quá khứ",
+        400,
+        "PAST_CHECKIN_DATE",
+      ),
+    );
   }
 
   const room = await Room.findById(roomId);
   if (!room || !room.isActive) {
-    return next(new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"));
+    return next(
+      new AppError("Phòng lưu trú không tồn tại", 404, "ROOM_NOT_FOUND"),
+    );
   }
 
   const roomRemainingCapacity = await getRoomRemainingCapacity(
@@ -2642,7 +2722,8 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
 
   const wallet = await Wallet.findOne({ userId: req.user.id });
   const currentBalance = Number(wallet?.balance || 0);
-  const hasSufficientBalance = totalAmount <= 0 || currentBalance >= totalAmount;
+  const hasSufficientBalance =
+    totalAmount <= 0 || currentBalance >= totalAmount;
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -2701,7 +2782,9 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
           method: "system",
           booking: booking._id,
           description: `Payment for boarding booking ${booking.bookingNumber}`,
-          notes: isPaid ? undefined : "Pending payment: insufficient wallet balance at checkout",
+          notes: isPaid
+            ? undefined
+            : "Pending payment: insufficient wallet balance at checkout",
         },
       ],
       { session },
@@ -2736,7 +2819,10 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
         {
           priority: "high",
           actionUrl: "/bookings",
-          metadata: { bookingId: booking._id, source: "checkout-boarding-pending" },
+          metadata: {
+            bookingId: booking._id,
+            source: "checkout-boarding-pending",
+          },
         },
       );
     }
@@ -2754,7 +2840,9 @@ exports.checkoutBoarding = catchAsync(async (req, res, next) => {
           totalAmount,
           isPaid,
           currentWalletBalance: currentBalance,
-          pendingTopUpAmount: isPaid ? 0 : Math.max(0, totalAmount - currentBalance),
+          pendingTopUpAmount: isPaid
+            ? 0
+            : Math.max(0, totalAmount - currentBalance),
         },
       },
     });
@@ -2790,11 +2878,19 @@ exports.payPendingBooking = catchAsync(async (req, res, next) => {
   }
 
   if (booking.status === "cancelled") {
-    return next(new AppError("Cancelled booking cannot be paid", 400, "INVALID_BOOKING_STATE"));
+    return next(
+      new AppError(
+        "Cancelled booking cannot be paid",
+        400,
+        "INVALID_BOOKING_STATE",
+      ),
+    );
   }
 
   if (booking.isPaid && booking.status === "confirmed") {
-    return next(new AppError("Booking is already paid", 400, "BOOKING_ALREADY_PAID"));
+    return next(
+      new AppError("Booking is already paid", 400, "BOOKING_ALREADY_PAID"),
+    );
   }
 
   if (booking.status !== "pending") {
@@ -2906,4 +3002,3 @@ exports.payPendingBooking = catchAsync(async (req, res, next) => {
     },
   });
 });
-
