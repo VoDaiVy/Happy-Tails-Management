@@ -1,4 +1,5 @@
 export { AccountScreen } from "./AccountScreen";
+export { AIHealthScanScreen } from "./AIHealthScanScreen";
 export { ProfileScreen } from "./ProfileScreen";
 export { MyPetsScreen } from "./MyPetsScreen";
 export { ShoppingCartScreen } from "./ShoppingCartScreen";

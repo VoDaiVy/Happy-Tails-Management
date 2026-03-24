@@ -5,10 +5,13 @@ export interface ServiceItem {
   price: number;
   duration: number;
   images?: string[];
+  features?: string[];
   petTypes?: string[];
   rating?: number;
   totalReviews?: number;
   isActive?: boolean;
+  maxCapacity?: number;
+  group?: "wet" | "dry";
   category?: {
     _id?: string;
     name?: string;

@@ -58,6 +58,7 @@ export type InfoStackParamList = {
 
 export type AccountStackParamList = {
   AccountHome: undefined;
+  AIHealthScan: undefined;
   Profile: undefined;
   MyPets: undefined;
   ShoppingCart: undefined;

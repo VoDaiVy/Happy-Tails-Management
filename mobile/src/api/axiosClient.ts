@@ -94,7 +94,7 @@ axiosClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (!error?.response) {
-      return Promise.reject(new ApiError("Khong the ket noi may chu. Vui long kiem tra mang.", undefined, true, "NETWORK_ERROR"));
+      return Promise.reject(new ApiError("Cannot connect to the server. Please check your network.", undefined, true, "NETWORK_ERROR"));
     }
 
     const statusCode = error.response.status as number;
@@ -124,13 +124,13 @@ axiosClient.interceptors.response.use(
       setAccessToken(null);
       setRefreshToken(null);
       onAuthInvalid?.();
-      return Promise.reject(new ApiError("Phien dang nhap da het han. Vui long dang nhap lai.", 401, false, "TOKEN_EXPIRED"));
+      return Promise.reject(new ApiError("Your session has expired. Please sign in again.", 401, false, "TOKEN_EXPIRED"));
     }
 
     const backendCode = extractApiCode(error.response.data);
     const backendDetails = extractApiDetails(error.response.data);
     const backendMessage = extractApiMessage(error.response.data);
-    const fallbackMessage = typeof error.message === "string" ? error.message : "Yeu cau that bai";
+    const fallbackMessage = typeof error.message === "string" ? error.message : "Request failed.";
     const finalMessage = mapBackendErrorMessage({
       code: backendCode,
       statusCode,

@@ -15,6 +15,15 @@ export interface MedicalRecordItem {
   notes?: string;
   followUpDate?: string;
   workflowStage?: "received" | "processing" | "completed";
+  receivedPhotos?: string[];
+  processingPhotos?: string[];
+  completedPhotos?: string[];
+  images?: string[];
+  stageHistory?: Array<{
+    stage?: "received" | "processing" | "completed";
+    notes?: string;
+    updatedAt?: string;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -39,6 +48,15 @@ export async function getAllMedicalRecords(query: MedicalRecordsQuery = {}) {
     records: payload.records || [],
     pagination: payload.pagination,
   };
+}
+
+export async function getMyPetsMedicalRecords(query: MedicalRecordsQuery = {}) {
+  const response = await axiosClient.get("/medical-records/my-pets", { params: query });
+  const payload = extractPayload<{
+    records?: MedicalRecordItem[];
+  }>(response.data);
+
+  return payload.records || [];
 }
 
 export async function getMedicalRecordById(recordId: string) {

@@ -19,6 +19,7 @@ import type { AccountStackParamList } from "../../navigation/types";
 import type { Cart, CartItem } from "../../types/cart";
 import type { Pet } from "../../types/pet";
 import type { AvailableVoucher } from "../../types/voucher";
+import { formatVnd } from "../../utils/currency";
 import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "ShoppingCart">;
@@ -68,10 +69,6 @@ function slotToMinutes(slot: string) {
   return h * 60 + m;
 }
 
-function formatMoneyVnd(value: number) {
-  return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
-}
-
 function formatDisplayDate(iso: string) {
   const date = new Date(`${iso}T00:00:00`);
   return date.toLocaleDateString("en-GB", {
@@ -107,6 +104,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
   const [selectedPetId, setSelectedPetId] = useState("");
   const [petPickerVisible, setPetPickerVisible] = useState(false);
   const [voucherPickerVisible, setVoucherPickerVisible] = useState(false);
+  const [showVoucherHint, setShowVoucherHint] = useState(false);
   const [vouchers, setVouchers] = useState<AvailableVoucher[]>([]);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [slotLoading, setSlotLoading] = useState(false);
@@ -196,7 +194,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
       const data = await getCart();
       setCart(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong tai duoc gio hang");
+      setError(e instanceof Error ? e.message : "Unable to load cart");
     } finally {
       setLoading(false);
     }
@@ -220,7 +218,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
           setSelectedPetId((current) => current || activePets[0]._id);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Khong tai duoc du lieu ban dau");
+        setError(e instanceof Error ? e.message : "Unable to load initial data");
       } finally {
         setPetsLoading(false);
       }
@@ -252,7 +250,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
       .catch((e) => {
         if (!alive) return;
         setDisabledSlots([]);
-        setSlotError(e instanceof Error ? e.message : "Khong tai duoc slot");
+        setSlotError(e instanceof Error ? e.message : "Unable to load time slots");
       })
       .finally(() => {
         if (!alive) return;
@@ -295,7 +293,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
   if (!canAccess) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Tinh nang nay chi danh cho tai khoan customer.</Text>
+        <Text style={styles.errorText}>This feature is only available for customer accounts.</Text>
       </View>
     );
   }
@@ -309,7 +307,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
       const updated = await updateCartItem(item._id, nextQty);
       setCart(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cap nhat so luong that bai");
+      setError(e instanceof Error ? e.message : "Failed to update quantity.");
     } finally {
       setActionLoading(false);
     }
@@ -323,7 +321,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
       const updated = await removeCartItem(itemId);
       setCart(updated);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Xoa item that bai");
+      setError(e instanceof Error ? e.message : "Failed to remove item.");
     } finally {
       setActionLoading(false);
     }
@@ -336,9 +334,9 @@ export function ShoppingCartScreen({ navigation }: Props) {
     try {
       const updated = await clearCart();
       setCart(updated);
-      setMessage("Da xoa toan bo gio hang");
+      setMessage("All cart items removed");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong the xoa gio hang");
+      setError(e instanceof Error ? e.message : "Unable to clear cart");
     } finally {
       setActionLoading(false);
     }
@@ -346,7 +344,7 @@ export function ShoppingCartScreen({ navigation }: Props) {
 
   const onCheckout = async () => {
     if (!selectedPetId) {
-      setError("Vui long chon pet truoc khi dat lich");
+      setError("Please select a pet before booking");
       return;
     }
 
@@ -356,20 +354,20 @@ export function ShoppingCartScreen({ navigation }: Props) {
 
     if (!selectedDate || !selectedTime) {
       setActionLoading(false);
-      setError("Vui long chon ngay va gio hen truoc khi dat lich");
+      setError("Please choose date and time before booking");
       return;
     }
 
     const appointment = new Date(`${selectedDate}T${selectedTime}:00`);
     if (Number.isNaN(appointment.getTime())) {
       setActionLoading(false);
-      setError("Ngay gio hen khong hop le");
+      setError("Invalid appointment date or time");
       return;
     }
 
     if (appointment.getTime() < Date.now()) {
       setActionLoading(false);
-      setError("Khong the dat lich trong qua khu");
+      setError("Cannot book in the past");
       return;
     }
 
@@ -385,15 +383,15 @@ export function ShoppingCartScreen({ navigation }: Props) {
       if (bookingId) {
         navigation.navigate("BookingDetail", {
           bookingId,
-          toastMessage: "Dat lich thanh cong",
+          toastMessage: "Booking successful",
         });
       } else {
-        setMessage(response?.message || "Dat lich thanh cong");
+        setMessage(response?.message || "Booking successful");
       }
       setSelectedTime("");
       await loadCart();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Dat lich that bai");
+      setError(e instanceof Error ? e.message : "Booking failed");
     } finally {
       setActionLoading(false);
     }
@@ -416,19 +414,17 @@ export function ShoppingCartScreen({ navigation }: Props) {
       >
         <View style={styles.pageInner}>
         <View style={styles.headerRow}>
-          <View style={styles.headerIconWrap}>
-            <Text style={styles.headerIcon}>🛒</Text>
-          </View>
+          
           <View style={{ flex: 1 }}>
-            <Text style={styles.pageTitle}>Gio hang & Booking</Text>
-            <Text style={styles.pageSubtitle}>Chon dich vu, luu tru va xac nhan lich hen</Text>
+            <Text style={styles.pageTitle}>Cart & Booking</Text>
+            <Text style={styles.pageSubtitle}>Select services, save preferences, and confirm your appointment</Text>
           </View>
         </View>
 
         {cartItems.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Gio hang dang trong</Text>
-            <Text style={styles.emptyText}>Hay them dich vu truoc khi tao booking.</Text>
+            <Text style={styles.emptyTitle}>Your cart is empty</Text>
+            <Text style={styles.emptyText}>Please add services before creating a booking.</Text>
           </View>
         ) : (
           <>
@@ -440,11 +436,11 @@ export function ShoppingCartScreen({ navigation }: Props) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemMeta}>{item.duration} phut x {item.quantity}</Text>
+                    <Text style={styles.itemMeta}>{item.duration} mins x {item.quantity}</Text>
                   </View>
                   <View style={styles.itemPriceCol}>
-                    <Text style={styles.itemSubtotal}>{formatMoneyVnd(item.subtotal)}</Text>
-                    <Text style={styles.itemUnitPrice}>{formatMoneyVnd(item.price)} / don vi</Text>
+                    <Text style={styles.itemSubtotal}>{formatVnd(item.subtotal)}</Text>
+                    <Text style={styles.itemUnitPrice}>{formatVnd(item.price)} / unit</Text>
                   </View>
                 </View>
 
@@ -468,14 +464,14 @@ export function ShoppingCartScreen({ navigation }: Props) {
                   </View>
 
                   <Pressable style={styles.removeLink} onPress={() => onRemove(item._id)} disabled={actionLoading}>
-                    <Text style={styles.removeLinkText}>Xoa</Text>
+                    <Text style={styles.removeLinkText}>Remove</Text>
                   </Pressable>
                 </View>
               </View>
             ))}
 
             <Pressable onPress={onClear} disabled={actionLoading}>
-              <Text style={styles.clearAllText}>Xoa toan bo gio hang</Text>
+              <Text style={styles.clearAllText}>Clear all cart items</Text>
             </Pressable>
           </>
         )}
@@ -483,39 +479,30 @@ export function ShoppingCartScreen({ navigation }: Props) {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Booking Summary</Text>
 
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phi dich vu</Text>
-            <Text style={styles.summaryValue}>{formatMoneyVnd(summary.serviceSubtotal)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Thoi gian dich vu</Text>
-            <Text style={styles.summaryValue}>{summary.serviceDurationTotal} phut</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phi luu tru</Text>
-            <Text style={styles.summaryValue}>{formatMoneyVnd(summary.staySubtotal)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Thoi gian luu tru</Text>
-            <Text style={styles.summaryValue}>{summary.stayDurationTotal} dem</Text>
-          </View>
-
-          <View style={styles.summaryDivider} />
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Tong thanh toan</Text>
-            <Text style={styles.totalValue}>{formatMoneyVnd(summary.grandTotal)}</Text>
-          </View>
-
           <View style={styles.checkoutCard}>
             <Text style={styles.checkoutHint}>CHECKOUT FORM (SERVICE ONLY)</Text>
 
-            <Text style={styles.sectionLabel}>Ngay hen</Text>
-            <View style={styles.selectedDateWrap}>
+            <Text style={styles.sectionLabel}>Pet</Text>
+            {petsLoading ? (
+              <ActivityIndicator size="small" />
+            ) : pets.length === 0 ? (
+              <Text style={styles.emptyText}>You do not have any eligible pets.</Text>
+            ) : (
+              <Pressable style={styles.selectorButton} onPress={() => setPetPickerVisible(true)}>
+                <Text style={styles.selectorButtonText}>{selectedPet ? selectedPet.petName : "Choose pet"}</Text>
+              </Pressable>
+            )}
+
+            <Text style={styles.sectionLabel}>Appointment Date</Text>
+            <View style={[styles.selectedDateWrap, !selectedPet && styles.selectedDateWrapDisabled]}>
               <Text style={styles.selectedDateText}>
-                {selectedDate ? formatDisplayDate(selectedDate) : "Select a date..."}
+                {!selectedPet
+                  ? "Please select a pet before choosing appointment date."
+                  : selectedDate
+                    ? formatDisplayDate(selectedDate)
+                    : "Select a date"}
               </Text>
-              {selectedDate ? (
+              {selectedDate && selectedPet ? (
                 <Pressable
                   onPress={() => {
                     setSelectedDate("");
@@ -528,35 +515,39 @@ export function ShoppingCartScreen({ navigation }: Props) {
               ) : null}
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.dateChipsContent}
-            >
-              {dateOptions.map((date) => {
-                const isSelected = date === selectedDate;
-                const dateObj = new Date(`${date}T00:00:00`);
-                const label = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
-                return (
-                  <Pressable
-                    key={date}
-                    style={[styles.dateChip, isSelected && styles.dateChipActive]}
-                    onPress={() => {
-                      setSelectedDate(date);
-                      setSelectedTime("");
-                      setError("");
-                      setMessage("");
-                    }}
-                  >
-                    <Text style={[styles.dateChipText, isSelected && styles.dateChipTextActive]}>{label}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            {selectedPet ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dateChipsContent}
+              >
+                {dateOptions.map((date) => {
+                  const isSelected = date === selectedDate;
+                  const dateObj = new Date(`${date}T00:00:00`);
+                  const label = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+                  return (
+                    <Pressable
+                      key={date}
+                      style={[styles.dateChip, isSelected && styles.dateChipActive]}
+                      onPress={() => {
+                        setSelectedDate(date);
+                        setSelectedTime("");
+                        setError("");
+                        setMessage("");
+                      }}
+                    >
+                      <Text style={[styles.dateChipText, isSelected && styles.dateChipTextActive]}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
 
-            <Text style={styles.sectionLabel}>Gio hen</Text>
+            <Text style={styles.sectionLabel}>Appointment Time</Text>
 
-            {dateType === "none" ? (
+            {!selectedPet ? (
+              <Text style={styles.disabledFieldHint}>Please select a pet first.</Text>
+            ) : dateType === "none" ? (
               <View style={styles.slotSkeletonWrap}>
                 {Array.from({ length: 8 }).map((_, index) => (
                   <View key={`slot-skeleton-${index}`} style={styles.slotSkeleton} />
@@ -564,16 +555,16 @@ export function ShoppingCartScreen({ navigation }: Props) {
               </View>
             ) : dateType === "past" ? (
               <View style={styles.slotInfoBox}>
-                <Text style={styles.slotInfoText}>Ngay nay da qua. Vui long chon ngay hien tai hoac tuong lai.</Text>
+                <Text style={styles.slotInfoText}>This date has passed. Please choose today or a future date.</Text>
               </View>
             ) : slotLoading ? (
               <View style={styles.slotLoadingWrap}>
                 <ActivityIndicator size="small" />
-                <Text style={styles.slotLoadingText}>Dang kiem tra slot...</Text>
+                <Text style={styles.slotLoadingText}>Checking available slots...</Text>
               </View>
             ) : visibleSlots.length === 0 ? (
               <View style={styles.slotInfoBox}>
-                <Text style={styles.slotInfoText}>Khong con slot trong ngay hom nay.</Text>
+                <Text style={styles.slotInfoText}>No slots available today.</Text>
               </View>
             ) : (
               <>
@@ -656,48 +647,48 @@ export function ShoppingCartScreen({ navigation }: Props) {
 
             {slotError ? <Text style={styles.errorText}>{slotError}</Text> : null}
 
-            <Text style={styles.sectionLabel}>Thu cung</Text>
-            {petsLoading ? (
-              <ActivityIndicator size="small" />
-            ) : pets.length === 0 ? (
-              <Text style={styles.emptyText}>Ban chua co pet kha dung.</Text>
-            ) : (
-              <Pressable style={styles.selectorButton} onPress={() => setPetPickerVisible(true)}>
-                <Text style={styles.selectorButtonText}>{selectedPet ? selectedPet.petName : "Chon pet"}</Text>
-              </Pressable>
-            )}
-
-            <Text style={styles.sectionLabel}>Ghi chu</Text>
+            <Text style={styles.sectionLabel}>Notes</Text>
             <TextInput
               style={styles.noteInput}
               value={note}
               onChangeText={setNote}
-              placeholder="Vi du: thu cung nhay cam voi tieng on"
+              placeholder="Example: pet is sensitive to loud noise"
               multiline
               numberOfLines={3}
             />
+          </View>
 
-            <Text style={styles.sectionLabel}>Voucher (optional)</Text>
-            <TextInput
-              style={styles.noteInput}
-              value={voucherCode}
-              onChangeText={setVoucherCode}
-              autoCapitalize="characters"
-              placeholder="Nhap voucher code"
-            />
+          <View style={styles.voucherSummaryCard}>
+            <Text style={styles.checkoutHint}>VOUCHER</Text>
 
-            <Pressable style={styles.selectorButton} onPress={() => setVoucherPickerVisible((current) => !current)}>
-              <Text style={styles.selectorButtonText}>
-                {voucherCode ? `Voucher: ${voucherCode}` : "Chon voucher tu danh sach"}
-              </Text>
-            </Pressable>
+            <View style={styles.voucherInlineRow}>
+              <TextInput
+                style={[styles.noteInput, styles.voucherInput]}
+                value={voucherCode}
+                onChangeText={setVoucherCode}
+                autoCapitalize="characters"
+                placeholder="Enter voucher code"
+              />
+
+              <Pressable
+                style={styles.applyButton}
+                onPress={() => {
+                  setShowVoucherHint(true);
+                  setVoucherPickerVisible((current) => !current);
+                }}
+              >
+                <Text style={styles.applyButtonText}>Apply</Text>
+              </Pressable>
+            </View>
+
+            {voucherCode ? <Text style={styles.appliedVoucherText}>Voucher: {voucherCode}</Text> : null}
 
             {voucherPickerVisible ? (
               <View style={styles.voucherCard}>
                 {voucherLoading ? (
                   <ActivityIndicator size="small" />
                 ) : vouchers.length === 0 ? (
-                  <Text style={styles.emptyText}>Khong co voucher kha dung</Text>
+                  <Text style={styles.emptyText}>No available vouchers</Text>
                 ) : (
                   vouchers.map((item) => (
                     <Pressable
@@ -710,12 +701,51 @@ export function ShoppingCartScreen({ navigation }: Props) {
                     >
                       <Text style={styles.voucherCode}>{item.code}</Text>
                       <Text style={styles.voucherMeta}>{formatVoucherPreview(item)}</Text>
-                      <Text style={styles.voucherMeta}>Min spend: {(item.minSpend || 0).toLocaleString()} VND</Text>
+                      <Text style={styles.voucherMeta}>Min spend: {formatVnd(item.minSpend || 0)}</Text>
                     </Pressable>
                   ))
                 )}
               </View>
             ) : null}
+
+            {showVoucherHint ? <Text style={styles.voucherHint}>Voucher is validated when booking is processed.</Text> : null}
+          </View>
+
+          <View style={styles.paymentBillCard}>
+            <Text style={styles.checkoutHint}>PAYMENT BILL</Text>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service Fee</Text>
+              <Text style={styles.summaryValue}>{formatVnd(summary.serviceSubtotal)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service Duration</Text>
+              <Text style={styles.summaryValue}>{summary.serviceDurationTotal} minutes</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Accommodation Fee</Text>
+              <Text style={styles.summaryValue}>{formatVnd(summary.staySubtotal)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Accommodation Duration</Text>
+              <Text style={styles.summaryValue}>{summary.stayDurationTotal} nights</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Voucher Discount</Text>
+              <Text style={styles.discountValue}>-0đ</Text>
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.totalLabel}>Total Payment</Text>
+              <Text style={styles.totalValue}>{formatVnd(summary.grandTotal)}</Text>
+            </View>
+          </View>
+
+          <View style={styles.walletBalanceCard}>
+            <Text style={styles.walletLabel}>Wallet Balance</Text>
+            <Text style={styles.walletValue}>0đ</Text>
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -736,12 +766,12 @@ export function ShoppingCartScreen({ navigation }: Props) {
             {actionLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.primaryBtnText}>Thanh toan & Tao booking</Text>
+              <Text style={styles.primaryBtnText}>Process Payment & Create Booking</Text>
             )}
           </Pressable>
 
-          <Text style={styles.footerHint}>Khong chon duoc ngay qua khu, slot het cho se tu khoa.</Text>
-          <Text style={styles.footerHint}>Slot dang kiem tra theo dich vu cu the, tranh chan nham toan he thong.</Text>
+          <Text style={styles.footerHint}>Past dates cannot be selected, and full slots are automatically locked.</Text>
+          <Text style={styles.footerHint}>Slots are checked per specific service to avoid blocking the whole system.</Text>
         </View>
         </View>
       </ScrollView>
@@ -750,7 +780,15 @@ export function ShoppingCartScreen({ navigation }: Props) {
         visible={petPickerVisible}
         pets={pets}
         selectedPetId={selectedPetId}
-        title="Chon pet cho booking"
+        title="Choose a pet for booking"
+        onAddNewPet={() => {
+          setPetPickerVisible(false);
+          navigation.navigate("MyPets");
+        }}
+        onManagePets={() => {
+          setPetPickerVisible(false);
+          navigation.navigate("MyPets");
+        }}
         onClose={() => setPetPickerVisible(false)}
         onSelect={(petId) => {
           setSelectedPetId(petId);
@@ -799,34 +837,71 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 20, fontWeight: "800", color: "#1F2A37" },
   summaryCard: {
     borderWidth: 1,
-    borderColor: "#D8D2C8",
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    padding: 20,
-    gap: 8,
-    shadowColor: "#1F2A37",
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  summaryTitle: { fontSize: 36, lineHeight: 40, fontWeight: "900", color: "#1F2A37", marginBottom: 6 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  summaryLabel: { color: "#6D6F7A", fontSize: 24, lineHeight: 30 },
-  summaryValue: { color: "#6D6F7A", fontSize: 24, lineHeight: 30 },
-  summaryDivider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: "#D7D6D3", marginVertical: 6 },
-  totalLabel: { fontSize: 30, lineHeight: 34, fontWeight: "800", color: "#1F2A37" },
-  totalValue: { fontSize: 30, lineHeight: 34, fontWeight: "900", color: "#E07A5F" },
-  checkoutCard: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#D8D2C8",
+    borderColor: "#DAD6D0",
     borderRadius: 18,
-    backgroundColor: "#F9F6F1",
+    backgroundColor: "#F7F6F4",
+    padding: 12,
+    gap: 10,
+  },
+  summaryTitle: { fontSize: 28, lineHeight: 32, fontWeight: "900", color: "#1F2A37", marginBottom: 2 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summaryLabel: { color: "#5F6772", fontSize: 14, lineHeight: 20 },
+  summaryValue: { color: "#5F6772", fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  summaryDivider: { borderTopWidth: 1, borderStyle: "dashed", borderColor: "#D7D6D3", marginVertical: 6 },
+  totalLabel: { fontSize: 22, lineHeight: 26, fontWeight: "800", color: "#1F2A37" },
+  totalValue: { fontSize: 22, lineHeight: 26, fontWeight: "900", color: "#E07A5F" },
+  discountValue: { color: "#12B76A", fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  checkoutCard: {
+    borderWidth: 1,
+    borderColor: "#D4D0C8",
+    borderRadius: 14,
+    backgroundColor: "#F0EFEC",
     padding: 14,
     gap: 8,
   },
-  checkoutHint: { fontSize: 20, lineHeight: 24, fontWeight: "800", color: "#7A7F88" },
+  checkoutHint: { fontSize: 12, lineHeight: 16, fontWeight: "800", color: "#7A7F88", letterSpacing: 0.4 },
+  voucherSummaryCard: {
+    borderWidth: 1,
+    borderColor: "#D4D0C8",
+    borderRadius: 14,
+    backgroundColor: "#F0EFEC",
+    padding: 10,
+    gap: 8,
+  },
+  voucherInlineRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  voucherInput: { flex: 1, marginBottom: 0, paddingVertical: 9, borderRadius: 10, fontSize: 13 },
+  applyButton: {
+    borderRadius: 8,
+    backgroundColor: "#E8B5A5",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  applyButtonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  appliedVoucherText: { color: "#6D6F7A", fontSize: 13, lineHeight: 18 },
+  voucherHint: { color: "#98A2B3", fontSize: 12, lineHeight: 16 },
+  paymentBillCard: {
+    borderWidth: 1,
+    borderColor: "#D4D0C8",
+    borderRadius: 14,
+    backgroundColor: "#F0EFEC",
+    padding: 10,
+    gap: 6,
+  },
+  walletBalanceCard: {
+    borderWidth: 1,
+    borderColor: "#D4D0C8",
+    borderRadius: 12,
+    backgroundColor: "#F7F6F4",
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  walletLabel: { color: "#6D6F7A", fontSize: 14 },
+  walletValue: { color: "#5F6772", fontSize: 14, fontWeight: "600" },
   emptyText: { color: "#64748B", textAlign: "center", marginTop: 14 },
   itemCard: {
     borderWidth: 1,
@@ -876,28 +951,34 @@ const styles = StyleSheet.create({
   noteInput: {
     borderWidth: 1,
     borderColor: "#D3D7DF",
-    borderRadius: 14,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     textAlignVertical: "top",
     color: "#1F2A37",
-    fontSize: 16,
+    fontSize: 13,
   },
-  sectionLabel: { marginTop: 8, marginBottom: 4, color: "#48505D", fontWeight: "700", fontSize: 30, lineHeight: 34 },
+  sectionLabel: { marginTop: 4, marginBottom: 3, color: "#48505D", fontWeight: "700", fontSize: 14, lineHeight: 20 },
   selectedDateWrap: {
     borderWidth: 1,
     borderColor: "#D3D7DF",
-    borderRadius: 16,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  selectedDateText: { color: "#1F2A37", fontSize: 17, fontWeight: "700" },
-  clearDateText: { color: "#8A8D94", fontSize: 15, fontWeight: "700", paddingHorizontal: 3 },
+  selectedDateWrapDisabled: {
+    borderStyle: "dashed",
+    borderColor: "#CFCFCF",
+    backgroundColor: "#F7F7F6",
+  },
+  selectedDateText: { color: "#7A808A", fontSize: 13, fontWeight: "500", flex: 1 },
+  clearDateText: { color: "#8A8D94", fontSize: 13, fontWeight: "700", paddingHorizontal: 3 },
+  disabledFieldHint: { color: "#8A8D94", fontSize: 12, lineHeight: 16 },
   dateChipsContent: { paddingTop: 8, paddingBottom: 4, paddingRight: 8, gap: 9 },
   dateChip: {
     borderWidth: 1,
@@ -985,13 +1066,13 @@ const styles = StyleSheet.create({
   selectorButton: {
     borderWidth: 1,
     borderColor: "#D3D7DF",
-    borderRadius: 14,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     marginBottom: 6,
   },
-  selectorButtonText: { color: "#1F2A37", fontWeight: "700", fontSize: 16 },
+  selectorButtonText: { color: "#1F2A37", fontWeight: "500", fontSize: 13 },
   voucherCard: {
     marginTop: 10,
     borderWidth: 1,
@@ -1014,13 +1095,13 @@ const styles = StyleSheet.create({
   errorText: { marginTop: 8, color: "#DC2626", fontSize: 14 },
   successText: { marginTop: 8, color: "#047857", fontSize: 14 },
   primaryBtn: {
-    marginTop: 14,
-    borderRadius: 16,
-    backgroundColor: "#E5B2A6",
+    marginTop: 4,
+    borderRadius: 12,
+    backgroundColor: "#E6AA99",
     alignItems: "center",
-    paddingVertical: 15,
+    paddingVertical: 12,
   },
-  primaryBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 20 },
-  footerHint: { marginTop: 6, color: "#8A8D94", fontSize: 13, lineHeight: 18 },
+  primaryBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 16 },
+  footerHint: { marginTop: 4, color: "#8A8D94", fontSize: 12, lineHeight: 16 },
   disabled: { opacity: 0.65 },
 });

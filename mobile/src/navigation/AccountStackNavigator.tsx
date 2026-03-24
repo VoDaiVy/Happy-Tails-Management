@@ -1,16 +1,19 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { AccountScreen } from "../screens/account/AccountScreen";
-import { BookingDetailScreen } from "../screens/account/BookingDetailScreen";
-import { BookingCameraScreen } from "../screens/account/BookingCameraScreen";
-import { ChangePasswordScreen } from "../screens/account/ChangePasswordScreen";
-import { FeedbackScreen } from "../screens/account/FeedbackScreen";
-import { MyBookingsScreen } from "../screens/account/MyBookingsScreen";
-import { MyPetsScreen } from "../screens/account/MyPetsScreen";
-import { NotificationCenterScreen } from "../screens/account/NotificationCenterScreen";
-import { ProfileScreen } from "../screens/account/ProfileScreen";
-import { ShoppingCartScreen } from "../screens/account/ShoppingCartScreen";
-import { WalletScreen } from "../screens/account/WalletScreen";
-import { WalletTransactionDetailScreen } from "../screens/account/WalletTransactionDetailScreen";
+import {
+  AccountScreen,
+  AIHealthScanScreen,
+  BookingCameraScreen,
+  BookingDetailScreen,
+  ChangePasswordScreen,
+  FeedbackScreen,
+  MyBookingsScreen,
+  MyPetsScreen,
+  NotificationCenterScreen,
+  ProfileScreen,
+  ShoppingCartScreen,
+  WalletScreen,
+  WalletTransactionDetailScreen,
+} from "../screens/account";
 import type { AccountStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<AccountStackParamList>();
@@ -19,6 +22,7 @@ export function AccountStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AccountHome" component={AccountScreen} />
+      <Stack.Screen name="AIHealthScan" component={AIHealthScanScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="MyPets" component={MyPetsScreen} />
       <Stack.Screen name="ShoppingCart" component={ShoppingCartScreen} />

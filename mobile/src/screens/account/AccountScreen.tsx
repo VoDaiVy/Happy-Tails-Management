@@ -9,6 +9,7 @@ import { canUseCustomerFeatures } from "../../utils/role";
 type Props = NativeStackScreenProps<AccountStackParamList, "AccountHome">;
 
 type AccountMenuRoute =
+  | "AIHealthScan"
   | "Profile"
   | "MyPets"
   | "ShoppingCart"
@@ -20,6 +21,7 @@ type AccountMenuRoute =
   | "Feedback";
 
 const MENU_ITEMS: Array<{ label: string; route: AccountMenuRoute; customerOnly?: boolean }> = [
+  { label: "AI Health Scan", route: "AIHealthScan", customerOnly: true },
   { label: "Profile", route: "Profile" },
   { label: "My Pets", route: "MyPets", customerOnly: true },
   { label: "Shopping Cart", route: "ShoppingCart", customerOnly: true },
@@ -35,16 +37,7 @@ export function AccountScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.emptyText}>Khong co thong tin nguoi dung.</Text>
-      </View>
-    );
-  }
-
-  const avatarText = (user.name || user.email || "U").trim().charAt(0).toUpperCase();
-  const showCustomerFeatures = canUseCustomerFeatures(user.role);
+  const showCustomerFeatures = canUseCustomerFeatures(user?.role);
   const visibleMenuItems = MENU_ITEMS.filter((item) => !item.customerOnly || showCustomerFeatures);
 
   const loadUnreadCount = useCallback(async () => {
@@ -59,6 +52,16 @@ export function AccountScreen({ navigation }: Props) {
   useEffect(() => {
     loadUnreadCount();
   }, [loadUnreadCount]);
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.emptyText}>No user information found.</Text>
+      </View>
+    );
+  }
+
+  const avatarText = (user.name || user.email || "U").trim().charAt(0).toUpperCase();
 
   return (
     <View style={styles.container}>

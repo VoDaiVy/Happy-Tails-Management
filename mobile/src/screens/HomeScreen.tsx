@@ -4,7 +4,7 @@ import { getApiHealth } from "../api/modules/healthApi";
 
 export function HomeScreen() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string>("Chua kiem tra ket noi backend");
+  const [result, setResult] = useState<string>("Backend connection has not been tested yet.");
 
   const handlePingBackend = async () => {
     setLoading(true);
@@ -12,8 +12,8 @@ export function HomeScreen() {
       const health = await getApiHealth();
       setResult(`Backend OK: ${health.message}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Khong the ket noi backend";
-      setResult(`Loi: ${message}`);
+      const message = error instanceof Error ? error.message : "Cannot connect to backend";
+      setResult(`Error: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -29,7 +29,7 @@ export function HomeScreen() {
       </Pressable>
 
       <Text style={styles.resultText}>{result}</Text>
-      <Text style={styles.hint}>Cau hinh API trong file .env (EXPO_PUBLIC_API_URL)</Text>
+      <Text style={styles.hint}>Configure API URL in .env (EXPO_PUBLIC_API_URL)</Text>
     </View>
   );
 }

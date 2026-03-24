@@ -1,54 +1,62 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { addToCart } from "../../api/modules/cartApi";
 import { getServices } from "../../api/modules/serviceApi";
-import { useAuth } from "../../context/AuthContext";
-import { resetServiceHeaderScroll, serviceHeaderScrollY } from "../../navigation/serviceHeaderScroll";
 import type { ServicesStackParamList } from "../../navigation/types";
 import type { ServiceItem } from "../../types/service";
-import { canUseCustomerFeatures } from "../../utils/role";
+import { formatVnd } from "../../utils/currency";
 
 const PAGE_LIMIT = 10;
+const PROMO_DOG_IMAGE = "https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=crop&w=1200&q=80";
+
 type Props = NativeStackScreenProps<ServicesStackParamList, "ServiceList">;
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<ServiceItem>);
+
+type ListRow =
+  | { kind: "featured"; item: ServiceItem }
+  | { kind: "service"; item: ServiceItem; index: number }
+  | { kind: "promo" };
+
+function toPriceValue(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+
+  return Math.round(value);
+}
 
 function getServiceIcon(name = "") {
   const value = name.toLowerCase();
 
-  if (value.includes("dye") || value.includes("color")) return "🖌️";
-  if (value.includes("dental") || value.includes("teeth")) return "☺";
-  if (value.includes("ear") || value.includes("eye")) return "◉";
-  if (value.includes("nail") || value.includes("style") || value.includes("groom")) return "✂";
-  if (value.includes("bath") || value.includes("spa")) return "◍";
-  return "✦";
+  if (value.includes("nail") || value.includes("groom") || value.includes("style")) return "scissors";
+  if (value.includes("bath") || value.includes("dry") || value.includes("spa")) return "droplet";
+  if (value.includes("dye") || value.includes("color")) return "aperture";
+  if (value.includes("dental") || value.includes("teeth")) return "activity";
+  if (value.includes("paw") || value.includes("pedicure")) return "home";
+  return "circle";
 }
 
 export function ServiceListScreen({ navigation }: Props) {
-  const { user } = useAuth();
-  const canAddToCart = canUseCustomerFeatures(user?.role);
-
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [activeServiceId, setActiveServiceId] = useState("");
 
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
+  const [addingServiceId, setAddingServiceId] = useState<string | null>(null);
 
   const fetchServices = useCallback(
     async (nextPage: number, append: boolean) => {
@@ -66,17 +74,11 @@ export function ServiceListScreen({ navigation }: Props) {
           sortOrder: "asc",
         });
 
-        setServices((prev) => {
-          const next = append ? [...prev, ...response.data] : response.data;
-          if (!append && next.length > 0) {
-            setActiveServiceId((current) => current || next[0]._id);
-          }
-          return next;
-        });
+        setServices((prev) => (append ? [...prev, ...response.data] : response.data));
         setHasNextPage(Boolean(response.pagination?.hasNextPage));
         setPage(nextPage);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Khong tai duoc danh sach services");
+        setErrorMessage(error instanceof Error ? error.message : "Unable to load services");
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -90,204 +92,514 @@ export function ServiceListScreen({ navigation }: Props) {
     fetchServices(1, false);
   }, [fetchServices]);
 
-  useFocusEffect(
-    useCallback(() => {
-      resetServiceHeaderScroll();
-      return () => {
-        resetServiceHeaderScroll();
-      };
-    }, []),
-  );
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchServices(1, false);
   }, [fetchServices]);
 
   const loadMore = useCallback(() => {
-    if (!hasNextPage || loadingMore || loading) return;
+    if (!hasNextPage || loading || loadingMore) return;
     fetchServices(page + 1, true);
   }, [fetchServices, hasNextPage, loading, loadingMore, page]);
 
-  const handleAddToCart = useCallback(async (serviceId: string) => {
-    if (!canAddToCart) {
-      setActionMessage("Chi tai khoan customer moi co the them vao gio hang");
-      return;
-    }
+  const rows = useMemo<ListRow[]>(() => {
+    if (services.length === 0) return [];
 
-    setAddingId(serviceId);
-    setActionMessage("");
+    const featured = [{ kind: "featured", item: services[0] } as const];
+    const secondary = services.slice(1).map((item, index) => ({ kind: "service", item, index: index + 1 } as const));
+    return [...featured, ...secondary, { kind: "promo" } as const];
+  }, [services]);
+
+  const onAddToCart = useCallback(async (serviceId: string) => {
+    if (!serviceId || addingServiceId) return;
+
+    setAddingServiceId(serviceId);
     try {
       await addToCart({ serviceId, quantity: 1 });
-      setActionMessage("Da them service vao gio hang");
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Khong the them vao gio hang");
+      setErrorMessage(error instanceof Error ? error.message : "Cannot add service to cart");
     } finally {
-      setAddingId(null);
+      setAddingServiceId(null);
     }
-  }, [canAddToCart]);
+  }, [addingServiceId]);
 
-  const shownServices = useMemo(() => services, [services]);
+  if (loading) {
+    return (
+      <View style={styles.centerBox}>
+        <ActivityIndicator size="large" color="#D45714" />
+      </View>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <View style={styles.centerBox}>
+        <Text style={styles.errorText}>{errorMessage}</Text>
+        <Pressable style={styles.retryButton} onPress={() => fetchServices(1, false)}>
+          <Text style={styles.retryText}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      <FlatList
+        data={rows}
+        keyExtractor={(item) => (item.kind === "promo" ? "promo-card" : `${item.kind}-${item.item._id}`)}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.2}
+        ListHeaderComponent={
+          <View style={styles.headerWrap}>
+            <Text style={styles.heroTitle}>
+              <Text style={styles.heroTitlePrimary}>Pet Spa </Text>
+              <Text style={styles.heroTitleAccent}>Services</Text>
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Treat your companion to our signature sanctuary treatments, designed for ultimate comfort.
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={<Text style={styles.emptyText}>No services available right now.</Text>}
+        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.loadingMore} color="#D45714" /> : null}
+        renderItem={({ item }) => {
+          if (item.kind === "featured") {
+            const featuredPrice = toPriceValue(item.item.price);
+            const isExpanded = expandedServiceId === item.item._id;
 
-      {actionMessage ? <Text style={styles.actionMessage}>{actionMessage}</Text> : null}
-
-      {loading ? (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" />
-        </View>
-      ) : errorMessage ? (
-        <View style={styles.centerBox}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-          <Pressable style={styles.retryButton} onPress={() => fetchServices(1, false)}>
-            <Text style={styles.retryText}>Thu lai</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <AnimatedFlatList
-          data={shownServices}
-          keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.serviceList}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.3}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: serviceHeaderScrollY } } }], {
-            useNativeDriver: false,
-          })}
-          scrollEventThrottle={16}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<Text style={styles.emptyText}>Khong co service phu hop</Text>}
-          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: 12 }} /> : null}
-          renderItem={({ item }) => {
-            const isActive = activeServiceId === item._id;
             return (
-              <Pressable
-                style={[styles.card, isActive && styles.cardActive]}
-                onPress={() => setActiveServiceId(item._id)}
-              >
-                <View style={styles.cardHeadRow}>
-                  <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                    <Text style={[styles.iconText, isActive && styles.iconTextActive]}>{getServiceIcon(item.name)}</Text>
+              <View style={styles.featuredCard}>
+                <View style={styles.featuredCornerGlow} />
+
+                <Pressable
+                  style={styles.featuredTopRow}
+                  onPress={() => {
+                    setExpandedServiceId((prev) => (prev === item.item._id ? null : item.item._id));
+                  }}
+                >
+                  <View style={styles.featuredIconWrap}>
+                    <Feather name="scissors" size={29} color="#7A3F00" />
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, isActive && styles.cardTitleActive]}>{item.name}</Text>
-                    <Text style={[styles.cardDescription, isActive && styles.cardDescriptionActive]} numberOfLines={3}>
-                      {item.description || "Professional pet care service."}
+                  <View style={styles.featuredTextWrap}>
+                    <Text style={styles.featuredTitle} numberOfLines={1}>{item.item.name || "Full Grooming"}</Text>
+                    <Text style={styles.featuredDescription} numberOfLines={3}>
+                      {item.item.description || "Complete precision styling, nail care, and sensory ear cleaning."}
                     </Text>
                   </View>
 
-                  <Text style={[styles.priceText, isActive && styles.priceTextActive]}>${item.price}</Text>
-                </View>
+                  <View style={styles.featuredPriceCol}>
+                    <Text style={styles.featuredPriceNumber}>{featuredPrice.toLocaleString("vi-VN")}</Text>
+                    <Text style={styles.featuredPriceUnit}>VND</Text>
+                    <Text style={styles.featuredPriceNote}>STARTING AT</Text>
+                  </View>
+                </Pressable>
 
-                {isActive ? (
-                  <View style={styles.actionsRow}>
-                    <Pressable
-                      style={[styles.addButton, (!canAddToCart || addingId === item._id) && styles.addButtonDisabled]}
-                      onPress={() => handleAddToCart(item._id)}
-                      disabled={!canAddToCart || addingId === item._id}
-                    >
-                      {addingId === item._id ? (
-                        <ActivityIndicator size="small" color="#E07A5F" />
-                      ) : (
-                        <Text style={styles.addButtonText}>ADD TO CART</Text>
-                      )}
-                    </Pressable>
-
-                    <Pressable
-                      style={styles.bookNowButton}
-                      onPress={() => navigation.navigate("ServiceDetail", { serviceId: item._id })}
-                    >
+                {isExpanded ? (
+                  <View style={styles.featuredButtonStack}>
+                    <Pressable style={styles.bookNowButton} onPress={() => navigation.navigate("ServiceDetail", { serviceId: item.item._id })}>
                       <Text style={styles.bookNowButtonText}>BOOK NOW</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.addToCartButton, addingServiceId === item.item._id && styles.buttonDisabled]}
+                      onPress={() => onAddToCart(item.item._id)}
+                      disabled={addingServiceId === item.item._id}
+                    >
+                      {addingServiceId === item.item._id ? (
+                        <ActivityIndicator size="small" color="#8A4507" />
+                      ) : (
+                        <Text style={styles.addToCartButtonText}>ADD TO CART</Text>
+                      )}
                     </Pressable>
                   </View>
                 ) : null}
-              </Pressable>
+              </View>
             );
-          }}
-        />
-      )}
+          }
+
+          if (item.kind === "promo") {
+            return (
+              <View style={styles.promoCard}>
+                <Image source={{ uri: PROMO_DOG_IMAGE }} style={styles.promoImage} />
+                <View style={styles.promoOverlay} />
+                <View style={styles.promoTextWrap}>
+                  <Text style={styles.promoTitle}>Join Our VIP Paw Club</Text>
+                  <Text style={styles.promoSubtitle}>Save 20% on all monthly grooming sessions.</Text>
+                </View>
+              </View>
+            );
+          }
+
+          const price = toPriceValue(item.item.price);
+          const iconName = getServiceIcon(item.item.name);
+          const isExpanded = expandedServiceId === item.item._id;
+
+          return (
+            <View style={[styles.secondaryCard, isExpanded && styles.secondaryCardExpanded]}>
+              {isExpanded ? <View style={styles.secondaryCornerGlow} /> : null}
+
+              <Pressable
+                style={styles.secondaryTapArea}
+                onPress={() => {
+                  setExpandedServiceId((prev) => (prev === item.item._id ? null : item.item._id));
+                }}
+              >
+                <View style={styles.secondaryIconWrap}>
+                  <Feather name={iconName as any} size={22} color="#8A4507" />
+                </View>
+
+                <View style={styles.secondaryTextWrap}>
+                  <Text style={styles.secondaryTitle} numberOfLines={1}>{item.item.name}</Text>
+                  <Text style={styles.secondaryDesc} numberOfLines={2}>
+                    {item.item.description || "Tailored spa treatment for your pet."}
+                  </Text>
+                </View>
+
+                {isExpanded ? (
+                  <View style={styles.secondaryPriceColExpanded}>
+                    <Text style={styles.secondaryPriceNumberExpanded}>{price.toLocaleString("vi-VN")}</Text>
+                    <Text style={styles.secondaryPriceUnitExpanded}>VND</Text>
+                    <Text style={styles.secondaryPriceNoteExpanded}>STARTING AT</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.secondaryPrice}>{formatVnd(price)}</Text>
+                )}
+              </Pressable>
+
+              {isExpanded ? (
+                <View style={styles.secondaryButtonStack}>
+                  <Pressable style={styles.bookNowButton} onPress={() => navigation.navigate("ServiceDetail", { serviceId: item.item._id })}>
+                    <Text style={styles.bookNowButtonText}>BOOK NOW</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.addToCartButton, addingServiceId === item.item._id && styles.buttonDisabled]}
+                    onPress={() => onAddToCart(item.item._id)}
+                    disabled={addingServiceId === item.item._id}
+                  >
+                    {addingServiceId === item.item._id ? (
+                      <ActivityIndicator size="small" color="#8A4507" />
+                    ) : (
+                      <Text style={styles.addToCartButtonText}>ADD TO CART</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          );
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F1EB", paddingTop: 0 },
-  title: {
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: "900",
-    color: "#1F2A37",
+  container: {
+    flex: 1,
+    backgroundColor: "#FFF6F0",
+  },
+  content: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingBottom: 28,
   },
-  serviceList: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 20 },
-  card: {
-    borderWidth: 1,
-    borderColor: "#D8D2C8",
+  headerWrap: {
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  heroTitle: {
+    color: "#3E2723",
+    fontSize: 56,
+    lineHeight: 62,
+    fontWeight: "900",
+  },
+  heroTitlePrimary: {
+    color: "#3E2723",
+  },
+  heroTitleAccent: {
+    color: "#9B4F00",
+    fontStyle: "italic",
+  },
+  heroSubtitle: {
+    marginTop: 8,
+    color: "#6B3D22",
+    fontSize: 17,
+    lineHeight: 31,
+    maxWidth: "95%",
+  },
+  featuredCard: {
+    marginTop: 10,
+    marginBottom: 18,
+    borderRadius: 34,
     backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: "#1F2A37",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F0E1D3",
+    padding: 16,
+    overflow: "hidden",
+    shadowColor: "#7E4A23",
+    shadowOpacity: 0.09,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 4,
   },
-  cardActive: {
-    backgroundColor: "#1B263B",
-    borderColor: "#1B263B",
+  featuredCornerGlow: {
+    position: "absolute",
+    right: -8,
+    top: -8,
+    width: 120,
+    height: 92,
+    borderBottomLeftRadius: 64,
+    backgroundColor: "#F7E6D8",
   },
-  cardHeadRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#F4F6FA",
+  featuredTopRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+  },
+  featuredIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#F8C89F",
     alignItems: "center",
     justifyContent: "center",
   },
-  iconWrapActive: { backgroundColor: "#E07A5F" },
-  iconText: { color: "#7FB069", fontWeight: "800", fontSize: 18 },
-  iconTextActive: { color: "#fff" },
-  cardTitle: { fontSize: 28, lineHeight: 32, fontWeight: "800", color: "#1F2A37" },
-  cardTitleActive: { color: "#FFFFFF" },
-  cardDescription: { marginTop: 4, color: "#6D6F7A", fontSize: 14, lineHeight: 20 },
-  cardDescriptionActive: { color: "#D4D8E2" },
-  priceText: { color: "#7FB069", fontWeight: "900", fontSize: 34, lineHeight: 38 },
-  priceTextActive: { color: "#E07A5F" },
-  actionsRow: { marginTop: 12, flexDirection: "row", gap: 8 },
-  addButton: {
+  featuredTextWrap: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E7EAF0",
-    alignItems: "center",
-    paddingVertical: 10,
   },
-  addButtonText: { color: "#E07A5F", fontWeight: "800", fontSize: 13 },
-  bookNowButton: {
-    flex: 1,
-    backgroundColor: "#E07A5F",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
+  featuredTitle: {
+    color: "#3E2723",
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: "900",
   },
-  bookNowButtonText: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  addButtonDisabled: { opacity: 0.65 },
-  actionMessage: {
-    marginTop: 2,
-    marginHorizontal: 16,
-    color: "#065F46",
+  featuredDescription: {
+    marginTop: 3,
+    color: "#6D4123",
     fontSize: 13,
+    lineHeight: 21,
   },
-  centerBox: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
-  errorText: { color: "#B91C1C", textAlign: "center", marginBottom: 10 },
-  retryButton: { backgroundColor: "#D87D4A", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
-  retryText: { color: "#fff", fontWeight: "700" },
-  emptyText: { textAlign: "center", color: "#6B7280", marginTop: 14 },
+  featuredPriceCol: {
+    width: 76,
+    alignItems: "flex-end",
+  },
+  featuredPriceNumber: {
+    color: "#8A4507",
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  featuredPriceUnit: {
+    color: "#8A4507",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "900",
+  },
+  featuredPriceNote: {
+    marginTop: 2,
+    color: "#A59284",
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  featuredButtonStack: {
+    marginTop: 14,
+    gap: 10,
+  },
+  bookNowButton: {
+    borderRadius: 999,
+    backgroundColor: "#E56516",
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#D45714",
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  bookNowButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  addToCartButton: {
+    borderRadius: 999,
+    backgroundColor: "#F5DDC8",
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.65,
+  },
+  addToCartButtonText: {
+    color: "#8A4507",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  secondaryCard: {
+    marginBottom: 14,
+    borderRadius: 999,
+    backgroundColor: "#F6E8DA",
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
+    overflow: "hidden",
+  },
+  secondaryCardExpanded: {
+    borderRadius: 34,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#F0E1D3",
+    shadowColor: "#7E4A23",
+    shadowOpacity: 0.09,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 9 },
+    elevation: 4,
+  },
+  secondaryCornerGlow: {
+    position: "absolute",
+    right: -8,
+    top: -8,
+    width: 120,
+    height: 92,
+    borderBottomLeftRadius: 64,
+    backgroundColor: "#F7E6D8",
+  },
+  secondaryTapArea: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+  },
+  secondaryIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#F8DBC0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryTextWrap: {
+    flex: 1,
+  },
+  secondaryTitle: {
+    color: "#3E2723",
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "900",
+  },
+  secondaryDesc: {
+    marginTop: 2,
+    color: "#6D4123",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  secondaryPrice: {
+    color: "#8A4507",
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "900",
+    minWidth: 72,
+    textAlign: "right",
+  },
+  secondaryPriceColExpanded: {
+    width: 76,
+    alignItems: "flex-end",
+  },
+  secondaryPriceNumberExpanded: {
+    color: "#8A4507",
+    fontSize: 34,
+    lineHeight: 38,
+    fontWeight: "900",
+    textAlign: "right",
+  },
+  secondaryPriceUnitExpanded: {
+    color: "#8A4507",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "900",
+  },
+  secondaryPriceNoteExpanded: {
+    marginTop: 2,
+    color: "#A59284",
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  secondaryButtonStack: {
+    marginTop: 10,
+    gap: 8,
+    width: "100%",
+  },
+  promoCard: {
+    marginTop: 10,
+    borderRadius: 30,
+    minHeight: 230,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+    marginBottom: 18,
+  },
+  promoImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
+  },
+  promoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(25, 15, 10, 0.38)",
+  },
+  promoTextWrap: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  promoTitle: {
+    color: "#FFFFFF",
+    fontSize: 37,
+    lineHeight: 41,
+    fontWeight: "900",
+  },
+  promoSubtitle: {
+    marginTop: 4,
+    color: "#F4ECE5",
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  centerBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF6F0",
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    color: "#B91C1C",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: "#D45714",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  emptyText: {
+    color: "#7C6252",
+    textAlign: "center",
+    marginTop: 18,
+  },
+  loadingMore: {
+    marginVertical: 12,
+  },
 });

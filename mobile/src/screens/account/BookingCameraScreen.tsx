@@ -23,14 +23,14 @@ export function BookingCameraScreen({ route }: Props) {
   if (!canAccess) {
     return (
       <View style={styles.centerBox}>
-        <Text style={styles.errorText}>Tinh nang camera chi danh cho customer.</Text>
+        <Text style={styles.errorText}>Camera access is only available for customer accounts.</Text>
       </View>
     );
   }
 
   const onEnable = async () => {
     if (!bookingId.trim()) {
-      setError("Vui long nhap bookingId");
+      setError("Please enter bookingId");
       return;
     }
 
@@ -41,9 +41,9 @@ export function BookingCameraScreen({ route }: Props) {
       const data = await enableBookingCameraAccess(bookingId.trim());
       setAccessToken(data.accessToken || "");
       setCameras(data.cameras || []);
-      setMessage("Da kich hoat quyen camera cho booking");
+      setMessage("Camera access enabled for this booking.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong the bat camera access");
+      setError(e instanceof Error ? e.message : "Unable to request camera access");
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export function BookingCameraScreen({ route }: Props) {
 
   const onVerify = async () => {
     if (!bookingId.trim() || !accessToken.trim()) {
-      setError("Can bookingId va accessToken");
+      setError("Booking ID and access token are required.");
       return;
     }
 
@@ -61,9 +61,9 @@ export function BookingCameraScreen({ route }: Props) {
     try {
       const data = await verifyBookingCameraAccess(bookingId.trim(), accessToken.trim());
       setCameras(data.cameras || []);
-      setMessage("Xac minh camera access thanh cong");
+      setMessage("Camera access verified successfully.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Xac minh camera access that bai");
+      setError(e instanceof Error ? e.message : "Failed to verify camera access.");
     } finally {
       setLoading(false);
     }
@@ -78,12 +78,12 @@ export function BookingCameraScreen({ route }: Props) {
     try {
       const stream = await getBookingCameraStream(bookingId.trim(), cameraId, accessToken.trim());
       if (!stream.streamUrl) {
-        setError("Khong lay duoc stream URL");
+        setError("Unable to get stream URL");
       } else {
         await Linking.openURL(stream.streamUrl);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Khong mo duoc stream");
+      setError(e instanceof Error ? e.message : "Unable to open stream");
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export function BookingCameraScreen({ route }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Booking Camera</Text>
-      <Text style={styles.subtitle}>Xem camera theo booking (customer scope)</Text>
+      <Text style={styles.subtitle}>View booking cameras (customer scope)</Text>
 
       <TextInput style={styles.input} value={bookingId} onChangeText={setBookingId} placeholder="Booking ID" />
       <TextInput style={styles.input} value={accessToken} onChangeText={setAccessToken} placeholder="Access token" />
@@ -114,7 +114,7 @@ export function BookingCameraScreen({ route }: Props) {
         data={cameras}
         keyExtractor={(item, index) => `${item._id || item.id || "cam"}-${index}`}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>Chua co camera nao</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No cameras available yet.</Text>}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{item.cameraName || item.name || "Camera"}</Text>

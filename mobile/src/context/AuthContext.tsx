@@ -99,7 +99,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRefreshToken(storedRefreshToken || null);
         setToken(storedToken);
         setRefreshTokenState(storedRefreshToken || null);
-        setUser(parsedUser);
+
+        // Always sync profile from backend to avoid stale role/permission in local storage.
+        try {
+          const freshUser = await getMe();
+          setUser(freshUser);
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+        } catch {
+          // If profile refresh fails (expired token, revoked user...), fallback to stored user.
+          setUser(parsedUser);
+        }
       } catch {
         await clearAuth();
       } finally {
