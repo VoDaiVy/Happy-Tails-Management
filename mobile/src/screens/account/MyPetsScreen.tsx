@@ -872,15 +872,15 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#8B3E0B",
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "900",
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "800",
   },
   heroTitle: {
     color: "#8B3E0B",
-    fontSize: 46,
-    lineHeight: 48,
-    fontWeight: "900",
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: "800",
     marginBottom: 18,
   },
   searchFilterRow: {
@@ -903,8 +903,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: "#6F4A2D",
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "600",
   },
   filterDropdownTrigger: {
@@ -921,8 +921,8 @@ const styles = StyleSheet.create({
   },
   filterDropdownTriggerText: {
     color: "#9A4E1D",
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "700",
   },
   addSectionCard: {
     borderRadius: 22,
@@ -947,15 +947,15 @@ const styles = StyleSheet.create({
   addSectionTextWrap: { flex: 1 },
   addSectionTitle: {
     color: "#2E1708",
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "800",
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
   },
   addSectionDesc: {
     marginTop: 2,
     color: "#8A674E",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "600",
   },
   formCard: {
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 20,
   },
-  formTitle: { color: "#2D1709", fontWeight: "900", fontSize: 34, lineHeight: 36 },
+  formTitle: { color: "#2D1709", fontWeight: "800", fontSize: 22, lineHeight: 26 },
   formSubtitle: { color: "#9A7559", fontWeight: "700", fontSize: 12, lineHeight: 18, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 2 },
   selectorLabel: {
     color: "#9C7354",
@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     backgroundColor: "#F5E8DB",
     color: "#433124",
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: "500",
   },
   formGridRow: {
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
   dateDropdownText: {
     flex: 1,
     color: "#A68A72",
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: "500",
   },
   dateDropdownTextActive: {
@@ -1181,7 +1181,7 @@ const styles = StyleSheet.create({
   selectorChipText: {
     color: "#744A2A",
     fontWeight: "700",
-    fontSize: 18,
+    fontSize: 12,
   },
   selectorChipTextActive: {
     color: "#B45C20",
@@ -1200,7 +1200,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
-  formActionButtonText: { color: "#fff", fontWeight: "900", fontSize: 17, letterSpacing: 0.8 },
+  formActionButtonText: { color: "#fff", fontWeight: "800", fontSize: 13, letterSpacing: 0.4 },
   formCancelButton: {
     minWidth: 104,
     borderRadius: 999,
@@ -1212,7 +1212,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  formCancelButtonText: { color: "#915832", fontWeight: "800", fontSize: 15 },
+  formCancelButtonText: { color: "#915832", fontWeight: "700", fontSize: 12 },
   dropdownOverlay: {
     flex: 1,
     backgroundColor: "rgba(31, 20, 10, 0.24)",
@@ -1229,8 +1229,8 @@ const styles = StyleSheet.create({
   },
   dropdownTitle: {
     color: "#6A3B19",
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "700",
     marginBottom: 3,
   },
   dropdownOption: {
@@ -1250,7 +1250,7 @@ const styles = StyleSheet.create({
   },
   dropdownOptionText: {
     color: "#744B2B",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
   },
   dropdownOptionTextActive: {
@@ -1264,15 +1264,15 @@ const styles = StyleSheet.create({
   },
   registeredTitle: {
     color: "#2B1609",
-    fontSize: 36,
-    lineHeight: 38,
-    fontWeight: "900",
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "800",
   },
   counterText: {
     color: "#A85A25",
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: "800",
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "700",
   },
   loadingCard: {
     borderWidth: 1,
@@ -1306,9 +1306,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     marginTop: 14,
     color: "#312113",
-    fontSize: 34,
-    lineHeight: 38,
-    fontWeight: "900",
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "800",
   },
   emptySubtitle: {
     marginTop: 8,
@@ -1335,9 +1335,9 @@ const styles = StyleSheet.create({
   },
   emptyActionButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 18,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "800",
   },
   listWrap: { gap: 12 },
   petCard: {
@@ -1362,10 +1362,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EDC7A3",
   },
-  petAvatarText: { color: "#713E1F", fontSize: 22, fontWeight: "900" },
+  petAvatarText: { color: "#713E1F", fontSize: 16, fontWeight: "800" },
   petInfo: { flex: 1 },
-  petName: { color: "#2A160A", fontSize: 30, lineHeight: 34, fontWeight: "900" },
-  petMetaPrimary: { marginTop: 2, color: "#7E5940", fontSize: 13, lineHeight: 18, fontWeight: "700" },
+  petName: { color: "#2A160A", fontSize: 16, lineHeight: 20, fontWeight: "800" },
+  petMetaPrimary: { marginTop: 2, color: "#7E5940", fontSize: 12, lineHeight: 16, fontWeight: "600" },
   petMetaPillRow: { marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 6 },
   petMetaPill: {
     borderRadius: 999,
@@ -1375,7 +1375,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  petMetaPillText: { color: "#94562F", fontWeight: "800", fontSize: 11 },
+  petMetaPillText: { color: "#94562F", fontWeight: "700", fontSize: 10 },
   petActions: { gap: 7, paddingTop: 2 },
   inlineEditButton: {
     borderRadius: 999,
@@ -1389,7 +1389,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 5,
   },
-  inlineEditText: { color: "#86512B", fontWeight: "800", fontSize: 12 },
+  inlineEditText: { color: "#86512B", fontWeight: "700", fontSize: 11 },
   inlineDeleteButton: {
     borderRadius: 999,
     backgroundColor: "#FFF3F1",
@@ -1402,7 +1402,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 5,
   },
-  inlineDeleteText: { color: "#C7372F", fontWeight: "800", fontSize: 12 },
+  inlineDeleteText: { color: "#C7372F", fontWeight: "700", fontSize: 11 },
   disabled: { opacity: 0.65 },
   errorText: {
     marginTop: 10,
