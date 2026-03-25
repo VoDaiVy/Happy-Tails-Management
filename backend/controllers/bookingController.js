@@ -621,6 +621,16 @@ const normalizeMedicalPhotos = (photos = []) => {
     .filter(Boolean);
 };
 
+const appendUniquePhotos = (existing = [], incoming = []) => {
+  const merged = [...(Array.isArray(existing) ? existing : [])];
+  for (const item of incoming) {
+    if (item && !merged.includes(item)) {
+      merged.push(item);
+    }
+  }
+  return merged;
+};
+
 const appendMedicalNote = (existingNotes, label, notes) => {
   const current = typeof existingNotes === "string" ? existingNotes.trim() : "";
   const incoming = String(notes || "").trim();
@@ -1172,7 +1182,7 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
 
   let booking = null;
   const populatePaths =
-    "customer items.service items.pet assignedStaff room cancelledBy boardingPet";
+    "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room";
 
   if (requesterRole === "customer") {
     if (!requesterId) {
@@ -1340,7 +1350,7 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   // Require check-in notes/photos and sync them to medical records.
-  if (status === "in-progress" && oldStatus === "confirmed") {
+  if (status === "in-progress") {
     if (hasTrackablePets) {
       if (!medicalNotes) {
         return next(
@@ -1378,6 +1388,12 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
         });
       }
     }
+
+    booking.serviceProgress = booking.serviceProgress || {};
+    booking.serviceProgress.checkInPhotos = appendUniquePhotos(
+      booking.serviceProgress.checkInPhotos,
+      medicalPhotos,
+    );
   }
 
   // Require check-out notes/photos and mark medical records as completed.
@@ -1419,6 +1435,12 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
         });
       }
     }
+
+    booking.serviceProgress = booking.serviceProgress || {};
+    booking.serviceProgress.checkOutPhotos = appendUniquePhotos(
+      booking.serviceProgress.checkOutPhotos,
+      medicalPhotos,
+    );
   }
 
   // Auto-assign room when staff confirms booking
@@ -1470,6 +1492,9 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
       actorId: req.user.id,
     });
     booking.completedAt = undefined;
+    if (booking.serviceProgress?.checkOutPhotos?.length) {
+      booking.serviceProgress.checkOutPhotos = [];
+    }
   }
 
   if (status === "completed") {

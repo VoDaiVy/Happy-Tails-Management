@@ -31,6 +31,10 @@ export interface Booking {
   paymentMethod?: string;
   notes?: string;
   items: BookingItem[];
+  serviceProgress?: {
+    checkInPhotos?: string[];
+    checkOutPhotos?: string[];
+  };
 }
 
 export interface BookingCheckoutPayload {

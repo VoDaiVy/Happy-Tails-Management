@@ -175,6 +175,16 @@ const bookingSchema = new mongoose.Schema({
     ref: 'User'
   },
   completedAt: Date,
+  serviceProgress: {
+    checkInPhotos: {
+      type: [String],
+      default: []
+    },
+    checkOutPhotos: {
+      type: [String],
+      default: []
+    }
+  },
   // Camera access for pet monitoring (for boarding services)
   cameraAccess: {
     enabled: {

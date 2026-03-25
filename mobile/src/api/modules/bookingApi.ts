@@ -157,6 +157,28 @@ export async function updateBookingStatus(bookingId: string, payload: UpdateBook
   return data.booking as Booking;
 }
 
+export async function uploadBookingProgressImage(payload: {
+  uri: string;
+  type?: string;
+  fileName?: string;
+}) {
+  const formData = new FormData();
+  formData.append("image", {
+    uri: payload.uri,
+    type: payload.type || "image/jpeg",
+    name: payload.fileName || `booking-progress-${Date.now()}.jpg`,
+  } as unknown as Blob);
+
+  const response = await axiosClient.post<{ data?: { url?: string } }>("/uploads/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  const data = extractPayload<{ url?: string }>(response.data);
+  return data.url || "";
+}
+
 export async function assignStaffToBooking(bookingId: string, staffId: string) {
   const response = await axiosClient.put(`/bookings/${bookingId}/assign-staff`, { staffId });
   const data = extractPayload<{ booking?: Booking }>(response.data);

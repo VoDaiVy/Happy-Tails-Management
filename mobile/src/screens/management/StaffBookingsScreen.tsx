@@ -1,7 +1,10 @@
+import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -14,10 +17,11 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import { getAllBookings, updateBookingStatus } from "../../api/modules/bookingApi";
+import { getAllBookings, updateBookingStatus, uploadBookingProgressImage } from "../../api/modules/bookingApi";
 import { useAuth } from "../../context/AuthContext";
 import type { StaffManagementStackParamList } from "../../navigation/types";
 import type { Booking, BookingItem } from "../../types/booking";
+import { resolveImageList } from "../../utils/image";
 import { isStaffOrAdminRole } from "../../utils/role";
 
 type StatusTabKey = "all" | "pending" | "accepted" | "in-progress" | "completed" | "cancelled";
@@ -146,6 +150,33 @@ function getPaymentMeta(booking: Booking) {
     paidBg: isPaid ? "#E9F7EE" : "#FDF0F1",
     paidText: isPaid ? "#2A7F4A" : "#B14756",
   };
+}
+
+type StaffAction = {
+  nextStatus: "confirmed" | "in-progress" | "completed" | null;
+  label: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  requiresPhoto: boolean;
+};
+
+function getNextStaffAction(status?: string): StaffAction {
+  const normalized = normalizeStatus(status);
+  if (normalized === "pending") {
+    return { nextStatus: "confirmed", label: "Accept Order", icon: "user-plus", requiresPhoto: false };
+  }
+  if (normalized === "accepted") {
+    return { nextStatus: "in-progress", label: "Check-in & Start", icon: "camera", requiresPhoto: true };
+  }
+  if (normalized === "in-progress") {
+    return { nextStatus: "completed", label: "Check-out & Complete", icon: "camera", requiresPhoto: true };
+  }
+  return { nextStatus: null, label: "Order Already Processed", icon: "check", requiresPhoto: false };
+}
+
+function getProgressImages(booking?: Booking | null) {
+  const checkIn = resolveImageList(booking?.serviceProgress?.checkInPhotos || []);
+  const checkOut = resolveImageList(booking?.serviceProgress?.checkOutPhotos || []);
+  return { checkIn, checkOut };
 }
 
 function getStatusBadge(status?: string) {
@@ -361,23 +392,76 @@ export function StaffBookingsScreen({
     return searchedData.filter((item) => normalizeStatus(item.status) === activeTab);
   }, [activeTab, searchedData]);
 
-  const onAcceptOrder = useCallback(
-    async (bookingId: string) => {
+  const onUpdateStatus = useCallback(
+    async (bookingId: string, targetStatus: "confirmed" | "in-progress" | "completed") => {
       setProcessingId(bookingId);
       setSuccessMessage("");
       setError("");
 
       try {
-        await updateBookingStatus(bookingId, { status: "confirmed" });
-        setSuccessMessage("Order accepted successfully.");
+        if (targetStatus === "confirmed") {
+          await updateBookingStatus(bookingId, { status: "confirmed" });
+          setSuccessMessage("Order accepted successfully.");
+        } else {
+          const permission = await ImagePicker.requestCameraPermissionsAsync();
+          if (!permission.granted) {
+            throw new Error("Camera permission is required for check-in/check-out photo.");
+          }
+
+          let photoResult: ImagePicker.ImagePickerResult;
+          try {
+            photoResult = await ImagePicker.launchCameraAsync({
+              quality: 0.8,
+              allowsEditing: false,
+              exif: false,
+            });
+          } catch (cameraErr) {
+            const rawMessage = cameraErr instanceof Error ? cameraErr.message : "";
+            if (rawMessage.toLowerCase().includes("failed to resolve activity")) {
+              throw new Error(
+                "Cannot open camera on this emulator/device. Please test on a real phone or install/enable a Camera app.",
+              );
+            }
+            throw cameraErr;
+          }
+
+          if (photoResult.canceled || !photoResult.assets?.length) {
+            throw new Error("You must capture a photo to continue.");
+          }
+
+          const asset = photoResult.assets[0];
+          const uploadedUrl = await uploadBookingProgressImage({
+            uri: asset.uri,
+            type: asset.mimeType || "image/jpeg",
+            fileName: asset.fileName || `booking-${targetStatus}-${Date.now()}.jpg`,
+          });
+
+          if (!uploadedUrl) {
+            throw new Error("Unable to upload progress image.");
+          }
+
+          const stageLabel = targetStatus === "in-progress" ? "check-in" : "check-out";
+          await updateBookingStatus(bookingId, {
+            status: targetStatus,
+            medicalRecord: {
+              notes: `Staff ${stageLabel} captured via mobile camera`,
+              photos: [uploadedUrl],
+            },
+          });
+
+          setSuccessMessage(targetStatus === "in-progress" ? "Service started with check-in photo." : "Service completed with check-out photo.");
+        }
+
         await loadData();
 
         setSelectedBooking((prev) => {
           if (!prev || prev._id !== bookingId) return prev;
-          return { ...prev, status: "confirmed" };
+          return { ...prev, status: targetStatus };
         });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Unable to accept order");
+        const message = e instanceof Error ? e.message : "Unable to update booking status";
+        setError(message);
+        Alert.alert("Update failed", message);
       } finally {
         setProcessingId(null);
       }
@@ -402,9 +486,13 @@ export function StaffBookingsScreen({
   const selectedPayment = selectedBooking ? getPaymentMeta(selectedBooking) : null;
   const selectedCustomer = selectedBooking ? extractCustomer(selectedBooking) : null;
   const selectedServices = selectedBooking?.items || [];
-  const canAcceptSelected = selectedBooking
-    ? !isReadOnly && user?.role === "staff" && normalizeStatus(selectedBooking.status) === "pending"
+  const selectedAction = selectedBooking
+    ? getNextStaffAction(selectedBooking.status)
+    : ({ nextStatus: null, label: "Order Already Processed", icon: "check", requiresPhoto: false } as StaffAction);
+  const canRunSelectedAction = selectedBooking
+    ? !isReadOnly && user?.role === "staff" && Boolean(selectedAction.nextStatus)
     : false;
+  const selectedProgressImages = getProgressImages(selectedBooking);
 
   if (!canAccess) {
     return (
@@ -524,7 +612,8 @@ export function StaffBookingsScreen({
           const statusBadge = getStatusBadge(item.status);
           const serviceTags = extractServiceTags(item.items);
           const paymentMeta = getPaymentMeta(item);
-          const canAccept = !isReadOnly && user?.role === "staff" && normalizeStatus(item.status) === "pending";
+          const action = getNextStaffAction(item.status);
+          const canAct = !isReadOnly && user?.role === "staff" && Boolean(action.nextStatus);
 
           return (
             <View style={styles.card}>
@@ -584,18 +673,21 @@ export function StaffBookingsScreen({
                 <Text style={styles.totalPrice}>{formatMoney(item.totalAmount)}</Text>
               </View>
 
-              {canAccept ? (
+              {canAct && action.nextStatus ? (
                 <Pressable
                   style={[styles.acceptButton, processingId === item._id && styles.disabled]}
-                  onPress={() => onAcceptOrder(item._id)}
+                  onPress={() => {
+                    if (!action.nextStatus) return;
+                    onUpdateStatus(item._id, action.nextStatus);
+                  }}
                   disabled={processingId === item._id}
                 >
                   {processingId === item._id ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <>
-                      <Feather name="user-plus" size={16} color="#FFFFFF" />
-                      <Text style={styles.acceptButtonText}>Accept Order</Text>
+                      <Feather name={action.icon} size={16} color="#FFFFFF" />
+                      <Text style={styles.acceptButtonText}>{action.label}</Text>
                     </>
                   )}
                 </Pressable>
@@ -699,10 +791,34 @@ export function StaffBookingsScreen({
 
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Service Progress Images</Text>
-                <View style={styles.emptyStateRow}>
-                  <Feather name="image" size={13} color="#AEB8C6" />
-                  <Text style={styles.emptyStateText}>No progress images yet.</Text>
-                </View>
+
+                <Text style={styles.progressGroupTitle}>Check-in</Text>
+                {selectedProgressImages.checkIn.length ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.progressImagesRow}>
+                    {selectedProgressImages.checkIn.map((uri, index) => (
+                      <Image key={`${uri}-${index}`} source={{ uri }} style={styles.progressImageThumb} />
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyStateRow}>
+                    <Feather name="image" size={13} color="#AEB8C6" />
+                    <Text style={styles.emptyStateText}>No check-in images yet.</Text>
+                  </View>
+                )}
+
+                <Text style={[styles.progressGroupTitle, { marginTop: 8 }]}>Check-out</Text>
+                {selectedProgressImages.checkOut.length ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.progressImagesRow}>
+                    {selectedProgressImages.checkOut.map((uri, index) => (
+                      <Image key={`${uri}-${index}`} source={{ uri }} style={styles.progressImageThumb} />
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyStateRow}>
+                    <Feather name="image" size={13} color="#AEB8C6" />
+                    <Text style={styles.emptyStateText}>No check-out images yet.</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.modalSection}>
@@ -731,19 +847,19 @@ export function StaffBookingsScreen({
             {!isReadOnly ? (
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalActionBtn, (!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id) && styles.modalActionBtnDisabled]}
-                  disabled={!canAcceptSelected || !selectedBooking || processingId === selectedBooking._id}
+                  style={[styles.modalActionBtn, (!canRunSelectedAction || !selectedBooking || processingId === selectedBooking._id) && styles.modalActionBtnDisabled]}
+                  disabled={!canRunSelectedAction || !selectedBooking || processingId === selectedBooking._id}
                   onPress={() => {
-                    if (!selectedBooking) return;
-                    onAcceptOrder(selectedBooking._id);
+                    if (!selectedBooking || !selectedAction.nextStatus) return;
+                    onUpdateStatus(selectedBooking._id, selectedAction.nextStatus);
                   }}
                 >
                   {selectedBooking && processingId === selectedBooking._id ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <>
-                      <Feather name="user-plus" size={16} color="#FFFFFF" />
-                      <Text style={styles.modalActionText}>{canAcceptSelected ? "Accept This Order" : "Order Already Processed"}</Text>
+                      <Feather name={selectedAction.icon} size={16} color="#FFFFFF" />
+                      <Text style={styles.modalActionText}>{canRunSelectedAction ? selectedAction.label : "Order Already Processed"}</Text>
                     </>
                   )}
                 </Pressable>
@@ -1607,6 +1723,26 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: "#8693A4",
     fontSize: 11,
+  },
+  progressGroupTitle: {
+    color: "#7A8A9D",
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  progressImagesRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  progressImageThumb: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E8DBCD",
+    backgroundColor: "#F4EEE8",
   },
   staffBoxTexts: {
     flex: 1,
