@@ -30,6 +30,32 @@ const resolveRoomNightPrice = (room) => {
   return FALLBACK_ROOM_PRICE_BY_TYPE[String(room?.type || 'standard').toLowerCase()] || 0;
 };
 
+const isVersionConflictError = (error) => {
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    error?.name === 'VersionError' ||
+    (message.includes('no matching document found for id') && message.includes('version'))
+  );
+};
+
+const runCartMutationWithRetry = async (operation, maxRetries = 2) => {
+  let attempt = 0;
+
+  // Retry optimistic concurrency conflicts caused by parallel cart requests.
+  while (attempt <= maxRetries) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isVersionConflictError(error) || attempt >= maxRetries) {
+        throw error;
+      }
+
+      attempt += 1;
+      logger.warn(`Cart version conflict detected, retrying mutation (attempt ${attempt}/${maxRetries})`);
+    }
+  }
+};
+
 /**
  * Get user's cart (create if not exists)
  * @param {string} userId - User's ID
@@ -41,8 +67,8 @@ const getCart = async (userId) => {
   if (!cart) {
     cart = await Cart.create({ userId, items: [] });
   } else {
+    // Keep the response summary fresh without mutating DB on read.
     cart.recalculate();
-    await cart.save();
   }
   
   return cart;
@@ -58,6 +84,7 @@ const getCart = async (userId) => {
  * @returns {Promise<Cart>} Updated cart
  */
 const addToCart = async (userId, payload) => {
+  return runCartMutationWithRetry(async () => {
   const {
     type = 'service',
     serviceId,
@@ -221,6 +248,7 @@ const addToCart = async (userId, payload) => {
   });
   
   return cart;
+  });
 };
 
 /**
@@ -232,6 +260,7 @@ const addToCart = async (userId, payload) => {
  * @returns {Promise<Cart>} Updated cart
  */
 const updateCartItem = async (userId, itemId, { quantity }) => {
+  return runCartMutationWithRetry(async () => {
   const cart = await Cart.findOne({ userId });
   
   if (!cart) {
@@ -249,6 +278,7 @@ const updateCartItem = async (userId, itemId, { quantity }) => {
   await cart.save();
   
   return cart;
+  });
 };
 
 /**
@@ -258,6 +288,7 @@ const updateCartItem = async (userId, itemId, { quantity }) => {
  * @returns {Promise<Cart>} Updated cart
  */
 const removeCartItem = async (userId, itemId) => {
+  return runCartMutationWithRetry(async () => {
   const cart = await Cart.findOne({ userId });
   
   if (!cart) {
@@ -275,6 +306,7 @@ const removeCartItem = async (userId, itemId) => {
   await cart.save();
   
   return cart;
+  });
 };
 
 /**
@@ -283,6 +315,7 @@ const removeCartItem = async (userId, itemId) => {
  * @returns {Promise<Cart>} Cleared cart
  */
 const clearCart = async (userId) => {
+  return runCartMutationWithRetry(async () => {
   let cart = await Cart.findOne({ userId });
   
   if (!cart) {
@@ -295,6 +328,7 @@ const clearCart = async (userId) => {
   await cart.save();
   
   return cart;
+  });
 };
 
 /**

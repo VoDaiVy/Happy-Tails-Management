@@ -1170,11 +1170,6 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   const requesterRole = String(req.user?.role || "").toLowerCase();
   const requesterId = toObjectIdString(req.user?._id || req.user?.id);
 
-<<<<<<< HEAD
-    .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room",
-    );
-=======
   let booking = null;
   const populatePaths =
     "customer items.service items.pet assignedStaff room cancelledBy boardingPet";
@@ -1210,13 +1205,11 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   } else {
     booking = await Booking.findById(req.params.id).populate(populatePaths);
   }
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
 
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
 
-<<<<<<< HEAD
   // Check permission: customer can only see their own bookings
   const bookingCustomerId =
     typeof booking.customer === "object" && booking.customer !== null
@@ -1236,8 +1229,6 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
     );
   }
 
-=======
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
   res.status(200).json({
     status: "success",
     data: { booking },

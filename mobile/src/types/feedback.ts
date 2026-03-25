@@ -1,11 +1,47 @@
 export interface FeedbackItem {
   _id: string;
-  booking?: string;
-  service?: string;
+  user?:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+        email?: string;
+      };
+  booking?:
+    | string
+    | {
+        _id?: string;
+        bookingNumber?: string;
+        bookingDate?: string;
+      };
+  service?:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+      };
+  staff?:
+    | string
+    | {
+        _id?: string;
+        name?: string;
+        email?: string;
+      };
   rating: number;
   comment?: string;
   images?: string[];
   isPublished?: boolean;
+  response?: {
+    message?: string;
+    respondedBy?:
+      | string
+      | {
+          _id?: string;
+          name?: string;
+          email?: string;
+        };
+    respondedAt?: string;
+  };
   createdAt: string;
 }
 

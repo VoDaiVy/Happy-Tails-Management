@@ -16,9 +16,11 @@ import { Feather } from "@expo/vector-icons";
 import { diagnoseImageWithAI } from "../../api/modules/aiApi";
 import { getMyPets } from "../../api/modules/petApi";
 import { PetPickerModal } from "../../components/PetPickerModal";
+import { useAuth } from "../../context/AuthContext";
 import type { AccountStackParamList } from "../../navigation/types";
 import type { AIHealthDiagnosis } from "../../types/ai";
 import type { Pet } from "../../types/pet";
+import { canUseCustomerFeatures } from "../../utils/role";
 
 type Props = NativeStackScreenProps<AccountStackParamList, "AIHealthScan">;
 
@@ -29,6 +31,9 @@ const severityMeta: Record<string, { label: string; color: string; bg: string }>
 };
 
 export function AIHealthScanScreen({ navigation }: Props) {
+  const { user } = useAuth();
+  const canAccess = canUseCustomerFeatures(user?.role);
+
   const [pets, setPets] = useState<Pet[]>([]);
   const [petsLoading, setPetsLoading] = useState(false);
   const [petModalVisible, setPetModalVisible] = useState(false);
@@ -146,6 +151,14 @@ export function AIHealthScanScreen({ navigation }: Props) {
 
   const severityStyle = result ? severityMeta[result.severity] || severityMeta.medium : null;
 
+  if (!canAccess) {
+    return (
+      <View style={styles.centerBox}>
+        <Text style={styles.errorText}>AI Health Scan is available for customer accounts only.</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.heroIconWrap}>
@@ -237,7 +250,7 @@ export function AIHealthScanScreen({ navigation }: Props) {
 
       <View style={styles.guestCard}>
         <Feather name="star" size={16} color="#2D68C4" />
-        <Text style={styles.guestCardText}>You have 1 free scan as a guest. Sign in for unlimited access.</Text>
+        <Text style={styles.guestCardText}>Customer accounts can use AI Health Scan without guest usage limits.</Text>
       </View>
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -353,6 +366,7 @@ export function AIHealthScanScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F2EC" },
+  centerBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   content: { paddingHorizontal: 16, paddingTop: 18, gap: 14, paddingBottom: 110 },
   heroIconWrap: { alignItems: "center", justifyContent: "center", marginTop: 2, marginBottom: 2 },
   heroGlow: {

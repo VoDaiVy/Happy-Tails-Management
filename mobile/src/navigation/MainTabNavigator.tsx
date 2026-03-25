@@ -28,6 +28,7 @@ type CustomerMenuKey =
   | "newsPolicy"
   | "management"
   | "profile"
+  | "aiHealthScan"
   | "myPets"
   | "shoppingCart"
   | "bookings"
@@ -116,7 +117,11 @@ function SideMenu({
 
   return (
     <View style={styles.menuOverlayRoot} pointerEvents="box-none">
-      <Animated.View style={[styles.menuPanel, { transform: [{ translateX: panelTranslateX }] }]}>
+      <Animated.View style={[styles.menuDimLayer, { opacity: dimOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      </Animated.View>
+
+      <Animated.View style={[styles.menuPanel, { transform: [{ translateX: panelTranslateX }] }]}> 
         <View style={[styles.menuTopBar, { marginTop: Math.max(insets.top, 6) + 6 }]}> 
           <View style={styles.menuBrandWrap}>
             <Image source={BRAND_ICON} style={styles.menuBrandIcon} resizeMode="cover" />
@@ -197,6 +202,13 @@ function SideMenu({
               <Text style={[styles.menuItemText, activeMenuKey === "profile" && styles.menuItemTextActive]}>Profile</Text>
             </Pressable>
 
+            <Pressable style={[styles.menuItem, activeMenuKey === "aiHealthScan" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "AIHealthScan")}>
+              <View style={[styles.menuIconWrap, activeMenuKey === "aiHealthScan" && styles.menuIconWrapActive]}>
+                <Feather name="activity" size={18} color={iconColor(activeMenuKey === "aiHealthScan")} />
+              </View>
+              <Text style={[styles.menuItemText, activeMenuKey === "aiHealthScan" && styles.menuItemTextActive]}>AI Health Scan</Text>
+            </Pressable>
+
             <Pressable style={[styles.menuItem, activeMenuKey === "myPets" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "MyPets")}>
               <View style={[styles.menuIconWrap, activeMenuKey === "myPets" && styles.menuIconWrapActive]}>
                 <Feather name="heart" size={18} color={iconColor(activeMenuKey === "myPets")} />
@@ -238,10 +250,6 @@ function SideMenu({
             <Text style={styles.signOutText}>Sign Out</Text>
           </Pressable>
         </ScrollView>
-      </Animated.View>
-
-      <Animated.View style={[styles.menuDimLayer, { opacity: dimOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
       </Animated.View>
     </View>
   );
@@ -298,6 +306,7 @@ export function MainTabNavigator() {
     if (["MyBookings", "BookingDetail", "BookingCamera"].includes(activeScreenName)) return "booking";
     if (["NewsPolicyHome", "NewsDetail", "PolicyDetail"].includes(activeScreenName)) return "newsPolicy";
     if (["Profile", "ChangePassword"].includes(activeScreenName)) return "profile";
+    if (activeScreenName === "AIHealthScan") return "aiHealthScan";
     if (activeScreenName === "MyPets") return "myPets";
     if (activeScreenName === "ShoppingCart") return "shoppingCart";
     if (activeScreenName === "Wallet" || activeScreenName === "WalletTransactionDetail") return "wallet";
@@ -542,7 +551,7 @@ export function MainTabNavigator() {
       </Tab.Navigator>
 
       {showFloatingTopBar ? (
-        <View style={styles.floatingTopBar} pointerEvents="box-none">
+        <View style={[styles.floatingTopBar, { top: Math.max(insets.top + 8, 40) }]} pointerEvents="box-none">
           <Animated.View style={[styles.floatingTopBarInner, animatedTopBarStyle]}>
             <Pressable onPress={() => setMenuVisible(true)} style={styles.menuBtn}>
               <Feather name="menu" size={19} color="#314760" />
@@ -851,8 +860,10 @@ const styles = StyleSheet.create({
   menuDimLayer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(21, 33, 53, 0.24)",
+    zIndex: 1,
   },
   menuPanel: {
+    zIndex: 2,
     width: 280,
     maxWidth: "84%",
     backgroundColor: "#FFFCF8",

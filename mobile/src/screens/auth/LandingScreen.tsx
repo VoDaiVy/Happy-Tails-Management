@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, Modal, TouchableOpacity, Animated, Dimensions } from "react-native";
 import { useState, useRef } from "react";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { AuthStackParamList } from "../../navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Landing">;
@@ -12,6 +13,7 @@ const SERVICE_ITEMS = ["Organic Spa", "AI Health Scan", "Luxury Boarding", "Styl
 const COMPANY_ITEMS = ["About Us", "Our Team", "Blog and News", "Careers"];
 
 export function LandingScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const [menuVisible, setMenuVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(Dimensions.get("window").width)).current;
 
@@ -37,7 +39,7 @@ export function LandingScreen({ navigation }: Props) {
       <Modal visible={menuVisible} animationType="none" transparent onRequestClose={closeMenu}>
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={closeMenu} />
         <Animated.View style={[styles.menuDrawer, { transform: [{ translateX: slideAnim }] }]}>  
-          <View style={styles.menuHeader}>
+          <View style={[styles.menuHeader, { paddingTop: Math.max(insets.top + 12, 18) }]}>
             <View style={styles.menuBrandWrap}>
               <Image source={BRAND_ICON} style={styles.menuBrandIcon} resizeMode="cover" />
               <View>
@@ -66,7 +68,7 @@ export function LandingScreen({ navigation }: Props) {
       </Modal>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.topLightBar}>
+        <View style={[styles.topLightBar, { marginTop: Math.max(insets.top + 8, 18) }]}>
           <View style={styles.topLightBrandWrap}>
             <Image source={BRAND_ICON} style={styles.topLightIcon} resizeMode="cover" />
             <View style={styles.topLightTextWrap}>
