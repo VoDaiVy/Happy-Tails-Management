@@ -621,6 +621,16 @@ const normalizeMedicalPhotos = (photos = []) => {
     .filter(Boolean);
 };
 
+const appendUniquePhotos = (existing = [], incoming = []) => {
+  const merged = [...(Array.isArray(existing) ? existing : [])];
+  for (const item of incoming) {
+    if (item && !merged.includes(item)) {
+      merged.push(item);
+    }
+  }
+  return merged;
+};
+
 const appendMedicalNote = (existingNotes, label, notes) => {
   const current = typeof existingNotes === "string" ? existingNotes.trim() : "";
   const incoming = String(notes || "").trim();
@@ -1169,15 +1179,9 @@ exports.getAllBookings = catchAsync(async (req, res, next) => {
 exports.getBookingById = catchAsync(async (req, res, next) => {
   const requesterRole = String(req.user?.role || "").toLowerCase();
   const requesterId = toObjectIdString(req.user?._id || req.user?.id);
-
-<<<<<<< HEAD
-    .populate(
-      "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room",
-    );
-=======
   let booking = null;
   const populatePaths =
-    "customer items.service items.pet assignedStaff room cancelledBy boardingPet";
+    "customer items.service items.pet assignedStaff room cancelledBy boardingPet stayInfo.room";
 
   if (requesterRole === "customer") {
     if (!requesterId) {
@@ -1210,34 +1214,10 @@ exports.getBookingById = catchAsync(async (req, res, next) => {
   } else {
     booking = await Booking.findById(req.params.id).populate(populatePaths);
   }
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
 
   if (!booking) {
     return next(new AppError("Booking not found", 404, "BOOKING_NOT_FOUND"));
   }
-
-<<<<<<< HEAD
-  // Check permission: customer can only see their own bookings
-  const bookingCustomerId =
-    typeof booking.customer === "object" && booking.customer !== null
-      ? String(booking.customer._id || booking.customer.id || "")
-      : String(booking.customer || "");
-
-  if (
-    req.user.role === "customer" &&
-    bookingCustomerId !== String(req.user.id)
-  ) {
-    return next(
-      new AppError(
-        "You do not have permission to view this booking",
-        403,
-        "FORBIDDEN",
-      ),
-    );
-  }
-
-=======
->>>>>>> e65b3ef8dff5c9e71a33a8721ff839cacd1a58fb
   res.status(200).json({
     status: "success",
     data: { booking },
@@ -1349,7 +1329,7 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
   }
 
   // Require check-in notes/photos and sync them to medical records.
-  if (status === "in-progress" && oldStatus === "confirmed") {
+  if (status === "in-progress") {
     if (hasTrackablePets) {
       if (!medicalNotes) {
         return next(
@@ -1387,6 +1367,12 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
         });
       }
     }
+
+    booking.serviceProgress = booking.serviceProgress || {};
+    booking.serviceProgress.checkInPhotos = appendUniquePhotos(
+      booking.serviceProgress.checkInPhotos,
+      medicalPhotos,
+    );
   }
 
   // Require check-out notes/photos and mark medical records as completed.
@@ -1428,6 +1414,12 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
         });
       }
     }
+
+    booking.serviceProgress = booking.serviceProgress || {};
+    booking.serviceProgress.checkOutPhotos = appendUniquePhotos(
+      booking.serviceProgress.checkOutPhotos,
+      medicalPhotos,
+    );
   }
 
   // Auto-assign room when staff confirms booking
@@ -1479,6 +1471,9 @@ exports.updateBookingStatus = catchAsync(async (req, res, next) => {
       actorId: req.user.id,
     });
     booking.completedAt = undefined;
+    if (booking.serviceProgress?.checkOutPhotos?.length) {
+      booking.serviceProgress.checkOutPhotos = [];
+    }
   }
 
   if (status === "completed") {
