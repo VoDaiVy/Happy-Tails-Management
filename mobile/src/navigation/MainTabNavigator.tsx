@@ -321,7 +321,7 @@ function BottomNavItem({
           ) : null}
         </View>
         <Text style={[styles.bottomNavLabel, active && styles.bottomNavLabelActive]} numberOfLines={1}>
-          {label.toUpperCase()}
+          {label}
         </Text>
       </View>
     </Pressable>
@@ -864,13 +864,13 @@ const styles = StyleSheet.create({
   bottomNavLabel: {
     marginTop: 5,
     color: "#6A5445",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.4,
+    fontSize: 9,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
   bottomNavLabelActive: {
     color: "#B35B28",
-    fontWeight: "800",
+    fontWeight: "700",
   },
   alertBadge: {
     position: "absolute",

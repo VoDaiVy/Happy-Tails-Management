@@ -837,8 +837,8 @@ const styles = StyleSheet.create({
   },
   topBarTitle: {
     color: "#2D1207",
-    fontSize: 38,
-    lineHeight: 40,
+    fontSize: 20,
+    lineHeight: 24,
     fontWeight: "800",
   },
   heroCard: {
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
   },
   heroImage: { width: "100%", height: 336, backgroundColor: "#D1D5DB" },
   heroPlaceholder: { alignItems: "center", justifyContent: "center" },
-  heroPlaceholderText: { color: "#6B7280", fontWeight: "700", fontSize: 18 },
+  heroPlaceholderText: { color: "#6B7280", fontWeight: "700", fontSize: 14 },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 20, 30, 0.20)",
@@ -865,8 +865,8 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 14,
     letterSpacing: 1.2,
     fontWeight: "800",
   },
@@ -882,7 +882,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(17, 24, 39, 0.35)",
   },
-  nextImageButtonText: { color: "#fff", fontSize: 24, lineHeight: 28 },
+  nextImageButtonText: { color: "#fff", fontSize: 18, lineHeight: 22 },
   mainCard: {
     marginHorizontal: 16,
     marginTop: -62,
@@ -909,8 +909,8 @@ const styles = StyleSheet.create({
   serviceTitleWrap: { flex: 1 },
   serviceTitle: {
     color: "#2A1208",
-    fontSize: 52,
-    lineHeight: 56,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: "800",
   },
   ratingRow: {
@@ -919,10 +919,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  ratingText: { color: "#5D3A24", fontSize: 18, lineHeight: 24 },
+  ratingText: { color: "#5D3A24", fontSize: 12, lineHeight: 16 },
   priceWrap: { alignItems: "flex-end", marginTop: 4 },
-  priceText: { color: "#A34C18", fontWeight: "900", fontSize: 48, lineHeight: 50 },
-  priceCaption: { color: "#8D5A3B", fontSize: 16, lineHeight: 20, letterSpacing: 0.5 },
+  priceText: { color: "#A34C18", fontWeight: "800", fontSize: 18, lineHeight: 22 },
+  priceCaption: { color: "#8D5A3B", fontSize: 11, lineHeight: 14, letterSpacing: 0.3 },
   quickChipsColumn: { gap: 10 },
   quickChip: {
     alignSelf: "flex-start",
@@ -936,14 +936,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  quickChipText: { color: "#4C2712", fontSize: 33, lineHeight: 38, fontWeight: "700" },
+  quickChipText: { color: "#4C2712", fontSize: 14, lineHeight: 18, fontWeight: "700" },
   sectionBlock: { borderTopWidth: 1, borderTopColor: "#EBDCCF", paddingTop: 12, gap: 8 },
   sectionBlockNoBorder: { paddingTop: 4, gap: 12 },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   sectionTitle: {
     color: "#2A1208",
-    fontSize: 40,
-    lineHeight: 44,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "800",
   },
   sectionDivider: {
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E7D6C8",
     marginTop: 4,
   },
-  sectionBody: { color: "#5C3924", fontSize: 26, lineHeight: 38 },
+  sectionBody: { color: "#5C3924", fontSize: 13, lineHeight: 20 },
   includedList: { gap: 12 },
   includedCard: {
     borderRadius: 999,
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#F2B37E",
   },
-  includedText: { color: "#2E160C", fontSize: 21, lineHeight: 26, fontWeight: "700", flex: 1 },
+  includedText: { color: "#2E160C", fontSize: 12, lineHeight: 16, fontWeight: "700", flex: 1 },
   ctaWrap: {
     marginHorizontal: 16,
     marginTop: 4,
@@ -995,14 +995,14 @@ const styles = StyleSheet.create({
   },
   topCtaButtonText: {
     color: "#FFFFFF",
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: "800",
   },
   topCtaNote: {
     color: "#A08167",
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     fontStyle: "italic",
     textAlign: "center",
   },
@@ -1015,11 +1015,11 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 10,
   },
-  bookingTitle: { fontSize: 40, lineHeight: 44, fontWeight: "900", color: "#1F2A37" },
+  bookingTitle: { fontSize: 18, lineHeight: 22, fontWeight: "800", color: "#1F2A37" },
   bookingPriceRow: { flexDirection: "row", alignItems: "flex-end", gap: 6 },
-  bookingPrice: { color: "#E07A5F", fontSize: 52, lineHeight: 56, fontWeight: "900" },
-  bookingPriceUnit: { color: "#7FB069", fontSize: 20, fontWeight: "700", paddingBottom: 8 },
-  bookingHint: { color: "#8B93A5", fontSize: 16 },
+  bookingPrice: { color: "#E07A5F", fontSize: 20, lineHeight: 24, fontWeight: "800" },
+  bookingPriceUnit: { color: "#7FB069", fontSize: 12, fontWeight: "700", paddingBottom: 3 },
+  bookingHint: { color: "#8B93A5", fontSize: 12 },
   addServiceButton: {
     borderWidth: 1,
     borderColor: "#F2C9BC",
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFF4EF",
   },
-  addServiceButtonText: { color: "#E07A5F", fontWeight: "800", fontSize: 22 },
+  addServiceButtonText: { color: "#E07A5F", fontWeight: "800", fontSize: 13 },
   stepHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
   stepNumber: {
     width: 24,
@@ -1043,9 +1043,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     overflow: "hidden",
   },
-  stepTitle: { color: "#1F2A37", fontSize: 18, fontWeight: "800", flex: 1 },
+  stepTitle: { color: "#1F2A37", fontSize: 14, fontWeight: "700", flex: 1 },
   lockIcon: { color: "#C7CCD6", fontSize: 12 },
-  helperText: { color: "#6B7280", fontSize: 13 },
+  helperText: { color: "#6B7280", fontSize: 12 },
   warningBox: {
     borderWidth: 1,
     borderColor: "#F2D17D",
@@ -1053,8 +1053,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFBEB",
     padding: 12,
   },
-  warningTitle: { color: "#C2410C", fontWeight: "700", fontSize: 14 },
-  warningText: { color: "#EA580C", marginTop: 4, fontSize: 13 },
+  warningTitle: { color: "#C2410C", fontWeight: "700", fontSize: 12 },
+  warningText: { color: "#EA580C", marginTop: 4, fontSize: 12 },
   addPetButton: {
     marginTop: 8,
     alignSelf: "flex-start",
@@ -1077,9 +1077,9 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   petChipActive: { borderColor: "#E07A5F", backgroundColor: "#FFF4EF" },
-  petChipTitle: { color: "#1F2A37", fontWeight: "800", fontSize: 14 },
+  petChipTitle: { color: "#1F2A37", fontWeight: "700", fontSize: 12 },
   petChipTitleActive: { color: "#E07A5F" },
-  petChipMeta: { color: "#7A8293", fontSize: 12, marginTop: 2 },
+  petChipMeta: { color: "#7A8293", fontSize: 11, marginTop: 2 },
   noteInput: {
     borderWidth: 1,
     borderColor: "#E3E7EF",
@@ -1103,7 +1103,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dateChipActive: { backgroundColor: "#E07A5F", borderColor: "#E07A5F" },
-  dateChipText: { color: "#5C6372", fontWeight: "700", fontSize: 13 },
+  dateChipText: { color: "#5C6372", fontWeight: "700", fontSize: 12 },
   dateChipTextActive: { color: "#fff" },
   slotSkeletonWrap: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 2 },
   slotSkeleton: { width: "31.5%", height: 38, borderRadius: 12, backgroundColor: "#ECEFF4", marginBottom: 8 },
@@ -1133,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   slotButtonDisabled: { backgroundColor: "#F2F4F7", borderColor: "#E4E7EC" },
   slotButtonSelected: { backgroundColor: "#E07A5F", borderColor: "#E07A5F" },
-  slotButtonText: { color: "#1F2A37", fontWeight: "800", fontSize: 14 },
+  slotButtonText: { color: "#1F2A37", fontWeight: "700", fontSize: 12 },
   slotButtonTextDisabled: { color: "#98A2B3", textDecorationLine: "line-through" },
   slotButtonTextSelected: { color: "#fff" },
   showMoreButton: {
@@ -1169,7 +1169,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   confirmButtonDisabled: { backgroundColor: "#E5E7EB" },
-  confirmButtonText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  confirmButtonText: { color: "#fff", fontWeight: "800", fontSize: 14 },
   disabled: { opacity: 0.65 },
   bookingModalOverlay: {
     flex: 1,
@@ -1211,9 +1211,9 @@ const styles = StyleSheet.create({
   bookingModalTitle: {
     marginTop: 12,
     color: "#0F2744",
-    fontSize: 36,
-    lineHeight: 40,
-    fontWeight: "900",
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "800",
   },
   bookingModalDetailBox: {
     width: "100%",
@@ -1266,7 +1266,7 @@ const styles = StyleSheet.create({
   },
   bookingModalActionText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "800",
   },
 });

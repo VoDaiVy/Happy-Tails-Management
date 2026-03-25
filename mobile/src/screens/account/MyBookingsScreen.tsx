@@ -20,6 +20,7 @@ import { formatVnd } from "../../utils/currency";
 import { canUseCustomerFeatures } from "../../utils/role";
 
 const STATUS_FILTERS = ["all", "pending", "in-progress", "confirmed", "completed", "cancelled"] as const;
+const BOOKINGS_PER_PAGE = 6;
 type BookingStatusFilter = (typeof STATUS_FILTERS)[number];
 
 type Props = NativeStackScreenProps<AccountStackParamList, "MyBookings">;
@@ -106,6 +107,7 @@ export function MyBookingsScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const canCancelBooking = (status?: string) => status === "pending" || status === "confirmed";
   const canTrackBooking = (status?: string) => status === "confirmed" || status === "in-progress";
@@ -181,6 +183,25 @@ export function MyBookingsScreen({ navigation }: Props) {
     return bookings.filter((booking) => getSearchBlob(booking).includes(keyword));
   }, [bookings, searchQuery]);
 
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(displayedBookings.length / BOOKINGS_PER_PAGE));
+  }, [displayedBookings.length]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeStatus, searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedBookings = useMemo(() => {
+    const startIndex = (currentPage - 1) * BOOKINGS_PER_PAGE;
+    return displayedBookings.slice(startIndex, startIndex + BOOKINGS_PER_PAGE);
+  }, [currentPage, displayedBookings]);
+
   const emptyText = useMemo(() => {
     if (searchQuery.trim()) return "No booking matches your search.";
     if (activeStatus === "completed") return "You have no completed bookings yet.";
@@ -214,7 +235,7 @@ export function MyBookingsScreen({ navigation }: Props) {
               }
             }}
           >
-            <Feather name="search" size={19} color="#A14F22" />
+            <Feather name="search" size={17} color="#A14F22" />
           </Pressable>
         </View>
 
@@ -300,13 +321,13 @@ export function MyBookingsScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={displayedBookings}
+          data={paginatedBookings}
           keyExtractor={(item, index) => `${item._id}-${index}`}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D9763F" />}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
-              <Feather name="inbox" size={34} color="#C0A790" />
+              <Feather name="inbox" size={30} color="#C0A790" />
               <Text style={styles.emptyTitle}>{emptyText}</Text>
               {!searchQuery.trim() ? (
                 <Pressable style={styles.bookNowButton} onPress={() => navigation.goBack()}>
@@ -314,6 +335,29 @@ export function MyBookingsScreen({ navigation }: Props) {
                 </Pressable>
               ) : null}
             </View>
+          }
+          ListFooterComponent={
+            displayedBookings.length > BOOKINGS_PER_PAGE ? (
+              <View style={styles.paginationWrap}>
+                <Pressable
+                  style={[styles.pageButton, currentPage <= 1 && styles.pageButtonDisabled]}
+                  onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  <Text style={[styles.pageButtonText, currentPage <= 1 && styles.pageButtonTextDisabled]}>Previous</Text>
+                </Pressable>
+
+                <Text style={styles.pageInfoText}>{`Page ${currentPage}/${totalPages}`}</Text>
+
+                <Pressable
+                  style={[styles.pageButton, currentPage >= totalPages && styles.pageButtonDisabled]}
+                  onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <Text style={[styles.pageButtonText, currentPage >= totalPages && styles.pageButtonTextDisabled]}>Next</Text>
+                </Pressable>
+              </View>
+            ) : null
           }
           renderItem={({ item }) => {
             const statusMeta = getStatusMeta(item.status);
@@ -350,11 +394,11 @@ export function MyBookingsScreen({ navigation }: Props) {
 
                 <View style={styles.infoRow}>
                   <View style={styles.infoGroup}>
-                    <Feather name="calendar" size={14} color="#9B6A44" />
+                    <Feather name="calendar" size={12} color="#9B6A44" />
                     <Text style={styles.infoText}>{formatDate(item.bookingDate)}</Text>
                   </View>
                   <View style={styles.infoGroup}>
-                    <Feather name="clock" size={14} color="#9B6A44" />
+                    <Feather name="clock" size={12} color="#9B6A44" />
                     <Text style={styles.infoText}>{formatTime(item.bookingTime || item.bookingDate)}</Text>
                   </View>
                 </View>
@@ -377,7 +421,7 @@ export function MyBookingsScreen({ navigation }: Props) {
                     style={[styles.actionButton, styles.secondaryBtn]}
                     onPress={() => navigation.navigate("BookingDetail", { bookingId: item._id })}
                   >
-                    <Feather name="eye" size={15} color="#8E552F" />
+                    <Feather name="eye" size={14} color="#8E552F" />
                     <Text style={styles.secondaryBtnText}>View Detail</Text>
                   </Pressable>
 
@@ -386,7 +430,7 @@ export function MyBookingsScreen({ navigation }: Props) {
                       style={[styles.actionButton, styles.primaryBtn]}
                       onPress={() => navigation.navigate("Feedback", { bookingId: item._id })}
                     >
-                      <Feather name="star" size={15} color="#FFFFFF" />
+                      <Feather name="star" size={14} color="#FFFFFF" />
                       <Text style={styles.primaryBtnText}>Rate Service</Text>
                     </Pressable>
                   ) : canTrack ? (
@@ -394,7 +438,7 @@ export function MyBookingsScreen({ navigation }: Props) {
                       style={[styles.actionButton, styles.primaryBtn]}
                       onPress={() => navigation.navigate("BookingCamera", { bookingId: item._id })}
                     >
-                      <Feather name="navigation" size={15} color="#FFFFFF" />
+                      <Feather name="navigation" size={14} color="#FFFFFF" />
                       <Text style={styles.primaryBtnText}>Track Status</Text>
                     </Pressable>
                   ) : canCancel ? (
@@ -407,7 +451,7 @@ export function MyBookingsScreen({ navigation }: Props) {
                         <ActivityIndicator color="#A6473E" size="small" />
                       ) : (
                         <>
-                          <Feather name="x-circle" size={15} color="#A6473E" />
+                          <Feather name="x-circle" size={14} color="#A6473E" />
                           <Text style={styles.cancelBtnText}>Cancel Booking</Text>
                         </>
                       )}
@@ -456,9 +500,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#8B3E0B",
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: "900",
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: "800",
   },
   searchBox: {
     marginTop: 10,
@@ -475,7 +519,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: "#5D422D",
-    fontSize: 14,
+    fontSize: 13,
     paddingVertical: 0,
   },
   clearSearchButton: {
@@ -489,9 +533,9 @@ const styles = StyleSheet.create({
   filterRowWrap: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2 },
   filterList: { paddingRight: 12, gap: 8 },
   filterChip: {
-    minHeight: 36,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    minHeight: 32,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: "#F5E8DA",
     borderWidth: 1,
@@ -506,8 +550,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  filterChipText: { color: "#7A553B", fontWeight: "600", fontSize: 13 },
-  filterChipTextActive: { color: "#FFFFFF", fontWeight: "800" },
+  filterChipText: { color: "#7A553B", fontWeight: "600", fontSize: 12 },
+  filterChipTextActive: { color: "#FFFFFF", fontWeight: "700" },
 
   errorBanner: {
     marginHorizontal: 16,
@@ -522,7 +566,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
-  errorBannerText: { color: "#B24A45", flex: 1, fontWeight: "600" },
+  errorBannerText: { color: "#B24A45", flex: 1, fontWeight: "600", fontSize: 12 },
   retryButton: {
     borderRadius: 10,
     backgroundColor: "#FFFFFF",
@@ -531,7 +575,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  retryButtonText: { color: "#B0504A", fontWeight: "700" },
+  retryButtonText: { color: "#B0504A", fontWeight: "700", fontSize: 12 },
 
   successBanner: {
     marginTop: 8,
@@ -543,16 +587,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  successBannerText: { color: "#4E7B3B", fontWeight: "700" },
+  successBannerText: { color: "#4E7B3B", fontWeight: "700", fontSize: 12 },
 
   listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30 },
   card: {
-    marginBottom: 14,
+    marginBottom: 12,
     borderRadius: 26,
     borderWidth: 1,
     borderColor: "#F0E3D6",
     backgroundColor: "#FFFCF8",
-    padding: 14,
+    padding: 12,
     shadowColor: "#8B6446",
     shadowOpacity: 0.08,
     shadowRadius: 10,
@@ -562,47 +606,47 @@ const styles = StyleSheet.create({
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   cardTitleWrap: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
   petAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#FAE8D7",
     borderWidth: 1,
     borderColor: "#F0D7C2",
     alignItems: "center",
     justifyContent: "center",
   },
-  petAvatarText: { color: "#975A33", fontWeight: "900", fontSize: 20 },
+  petAvatarText: { color: "#975A33", fontWeight: "800", fontSize: 16 },
   cardTitleTextWrap: { flex: 1 },
   titleInlineRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardTitle: { color: "#2A1C16", fontSize: 33, lineHeight: 38, fontWeight: "800", flexShrink: 1 },
-  pawText: { fontSize: 14 },
-  bookingCode: { marginTop: 3, color: "#A18672", fontSize: 19, lineHeight: 23, fontWeight: "500" },
+  cardTitle: { color: "#2A1C16", fontSize: 17, lineHeight: 21, fontWeight: "700", flexShrink: 1 },
+  pawText: { fontSize: 12 },
+  bookingCode: { marginTop: 2, color: "#A18672", fontSize: 13, lineHeight: 17, fontWeight: "500" },
 
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     marginTop: 2,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusBadgeText: { fontSize: 14, lineHeight: 18, fontWeight: "700" },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusBadgeText: { fontSize: 11, lineHeight: 14, fontWeight: "700" },
 
   infoRow: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
+    gap: 14,
   },
   infoGroup: { flexDirection: "row", alignItems: "center", gap: 7 },
-  infoText: { color: "#795D46", fontSize: 16, lineHeight: 20, fontWeight: "500" },
+  infoText: { color: "#795D46", fontSize: 12, lineHeight: 16, fontWeight: "500" },
 
-  divider: { height: 1, backgroundColor: "#F1E5D9", marginTop: 12 },
+  divider: { height: 1, backgroundColor: "#F1E5D9", marginTop: 10 },
 
   servicePriceRow: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
@@ -614,20 +658,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9ECDD",
     borderWidth: 1,
     borderColor: "#F0DDCB",
-    paddingHorizontal: 11,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     maxWidth: "62%",
   },
-  serviceTagText: { color: "#7A5A41", fontSize: 13, fontWeight: "600" },
+  serviceTagText: { color: "#7A5A41", fontSize: 11, fontWeight: "600" },
 
   priceWrap: { alignItems: "flex-end" },
-  totalLabel: { color: "#A5866E", fontSize: 13, fontWeight: "500" },
-  totalValue: { color: "#9C4F1D", fontSize: 41, lineHeight: 46, fontWeight: "900" },
+  totalLabel: { color: "#A5866E", fontSize: 11, fontWeight: "500" },
+  totalValue: { color: "#9C4F1D", fontSize: 24, lineHeight: 28, fontWeight: "800" },
 
-  actionRow: { marginTop: 12, flexDirection: "row", gap: 10 },
+  actionRow: { marginTop: 10, flexDirection: "row", gap: 8 },
   actionButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 38,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
@@ -639,26 +683,26 @@ const styles = StyleSheet.create({
     borderColor: "#EBD4BF",
     backgroundColor: "#F7E4D0",
   },
-  secondaryBtnText: { color: "#8E552F", fontSize: 16, lineHeight: 20, fontWeight: "700" },
+  secondaryBtnText: { color: "#8E552F", fontSize: 12, lineHeight: 16, fontWeight: "700" },
   primaryBtn: {
     backgroundColor: "#D8743E",
   },
-  primaryBtnText: { color: "#FFFFFF", fontSize: 16, lineHeight: 20, fontWeight: "800" },
+  primaryBtnText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "700" },
   cancelBtn: {
     borderWidth: 1,
     borderColor: "#E8C5C2",
     backgroundColor: "#FBEAEA",
   },
-  cancelBtnText: { color: "#A6473E", fontSize: 16, lineHeight: 20, fontWeight: "700" },
+  cancelBtnText: { color: "#A6473E", fontSize: 12, lineHeight: 16, fontWeight: "700" },
 
-  feedbackHint: { marginTop: 9, color: "#9A7F6B", fontSize: 12, lineHeight: 17 },
+  feedbackHint: { marginTop: 8, color: "#9A7F6B", fontSize: 11, lineHeight: 15 },
 
   emptyWrap: {
     marginTop: 50,
     alignItems: "center",
     paddingHorizontal: 24,
   },
-  emptyTitle: { marginTop: 10, color: "#8D6F58", fontSize: 14, textAlign: "center" },
+  emptyTitle: { marginTop: 10, color: "#8D6F58", fontSize: 13, textAlign: "center" },
   bookNowButton: {
     marginTop: 14,
     borderRadius: 12,
@@ -666,7 +710,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  bookNowButtonText: { color: "#FFFFFF", fontWeight: "700" },
+  bookNowButtonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
 
   skeletonList: { paddingHorizontal: 16, paddingTop: 10, gap: 12 },
   skeletonCard: {
@@ -685,6 +729,44 @@ const styles = StyleSheet.create({
   skeletonLineMd: { height: 12, width: "72%", borderRadius: 8, backgroundColor: "#F3ECE3" },
   skeletonActionsRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   skeletonBtn: { flex: 1, height: 44, borderRadius: 22, backgroundColor: "#EFE7DD" },
+
+  paginationWrap: {
+    marginTop: 4,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  pageButton: {
+    minWidth: 84,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#E7D2BF",
+    backgroundColor: "#FFF8F0",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageButtonText: {
+    color: "#8A5633",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  pageButtonTextDisabled: {
+    color: "#B79A84",
+  },
+  pageInfoText: {
+    minWidth: 88,
+    textAlign: "center",
+    color: "#8A6E56",
+    fontSize: 12,
+    fontWeight: "600",
+  },
 
   disabled: { opacity: 0.65 },
 });

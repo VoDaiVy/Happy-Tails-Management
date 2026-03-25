@@ -480,29 +480,44 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <View style={styles.scheduleCard}>
-        <View style={styles.sectionHeadRow}>
-          <Feather name="calendar" size={15} color="#9A5A2D" />
-          <Text style={styles.sectionMiniLabel}>SCHEDULE</Text>
-        </View>
-        <Text style={styles.scheduleDate}>{scheduleDate}</Text>
-        <Text style={styles.scheduleTime}>{scheduleTime}</Text>
-      </View>
-
-      <View style={styles.petCard}>
-        <View style={styles.petAvatar}>
-          <Text style={styles.petAvatarText}>{primaryPet.name.slice(0, 1).toUpperCase()}</Text>
+      <View style={styles.overviewCard}>
+        <View style={styles.overviewRow}>
+          <View style={styles.sectionHeadRow}>
+            <Feather name="calendar" size={14} color="#9A5A2D" />
+            <Text style={styles.sectionMiniLabel}>SCHEDULE</Text>
+          </View>
+          <Text style={styles.scheduleDate}>{scheduleDate}</Text>
+          <Text style={styles.scheduleTime}>{scheduleTime}</Text>
         </View>
 
-        <View style={styles.petTextWrap}>
-          <Text style={styles.sectionMiniLabel}>GUEST OF HONOR</Text>
-          <Text style={styles.petName}>{primaryPet.name}</Text>
-          <Text style={styles.petMeta}>
-            {primaryPet.breed}
-            {primaryPet.type ? ` • ${primaryPet.type}` : ""}
-            {primaryPet.ageText ? ` • ${primaryPet.ageText}` : ""}
-          </Text>
+        <View style={styles.overviewDivider} />
+
+        <View style={styles.overviewPetRow}>
+          <View style={styles.petAvatar}>
+            <Text style={styles.petAvatarText}>{primaryPet.name.slice(0, 1).toUpperCase()}</Text>
+          </View>
+
+          <View style={styles.petTextWrap}>
+            <Text style={styles.sectionMiniLabel}>GUEST OF HONOR</Text>
+            <Text style={styles.petName}>{primaryPet.name}</Text>
+            <Text style={styles.petMeta}>
+              {primaryPet.breed}
+              {primaryPet.type ? ` • ${primaryPet.type}` : ""}
+              {primaryPet.ageText ? ` • ${primaryPet.ageText}` : ""}
+            </Text>
+          </View>
         </View>
+
+        {locationLabel ? (
+          <>
+            <View style={styles.overviewDivider} />
+            <View style={styles.overviewLocationRow}>
+              <Feather name="map-pin" size={14} color="#8D4A1E" />
+              <Text style={styles.locationTitle}>Service Location</Text>
+              <Text style={styles.locationValue} numberOfLines={1}>{locationLabel}</Text>
+            </View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.servicesSectionCard}>
@@ -652,21 +667,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         )}
       </View>
 
-      {locationLabel ? (
-        <View style={styles.locationCard}>
-          <View style={styles.locationPinWrap}>
-            <Feather name="map-pin" size={16} color="#8D4A1E" />
-          </View>
-
-          <View style={styles.locationTextWrap}>
-            <Text style={styles.locationTitle}>Service Location</Text>
-            <Text style={styles.locationValue}>{locationLabel}</Text>
-          </View>
-
-          <Feather name="navigation" size={16} color="#8D4A1E" />
-        </View>
-      ) : null}
-
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
@@ -712,7 +712,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   screenRoot: { flex: 1, backgroundColor: "#FBF5EF" },
   container: { flex: 1, backgroundColor: "#FBF5EF" },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, gap: 14 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, gap: 10 },
   centerBox: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
 
   headerWrap: {
@@ -729,8 +729,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTextWrap: { flex: 1 },
-  title: { color: "#8F3E14", fontSize: 30, lineHeight: 34, fontWeight: "900" },
-  subtitle: { marginTop: 2, color: "#A9856D", fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  title: { color: "#8F3E14", fontSize: 24, lineHeight: 28, fontWeight: "800" },
+  subtitle: { marginTop: 2, color: "#A9856D", fontSize: 11, lineHeight: 14, fontWeight: "600" },
 
   toastBox: {
     borderRadius: 12,
@@ -743,125 +743,117 @@ const styles = StyleSheet.create({
   toastText: { color: "#557A42", fontWeight: "700", fontSize: 13 },
 
   referenceCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#EFE2D5",
     backgroundColor: "#FFFCF8",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
   },
   referenceLabel: {
     color: "#B69780",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     letterSpacing: 1.6,
   },
   referenceValue: {
     color: "#351A0D",
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: "900",
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "800",
   },
   statusBadge: {
     alignSelf: "flex-start",
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontWeight: "800", fontSize: 13, lineHeight: 16 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontWeight: "700", fontSize: 11, lineHeight: 14 },
 
-  scheduleCard: {
+  overviewCard: {
     borderRadius: 22,
     borderWidth: 1,
     borderColor: "#EEDFD2",
     backgroundColor: "#F5E8DC",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     gap: 8,
   },
+  overviewRow: { gap: 4 },
+  overviewDivider: { height: 1, backgroundColor: "#E8D8CB" },
+  overviewPetRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  overviewLocationRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   sectionHeadRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionMiniLabel: {
     color: "#89512D",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.3,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.1,
   },
-  scheduleDate: { color: "#2F180D", fontSize: 32, lineHeight: 36, fontWeight: "800" },
-  scheduleTime: { color: "#775740", fontSize: 20, lineHeight: 24, fontWeight: "500" },
-
-  petCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#EEDFD2",
-    backgroundColor: "#F8EFE7",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  scheduleDate: { color: "#2F180D", fontSize: 16, lineHeight: 20, fontWeight: "700" },
+  scheduleTime: { color: "#775740", fontSize: 13, lineHeight: 17, fontWeight: "500" },
   petAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#F4DFC9",
     borderWidth: 1,
     borderColor: "#E8CDB6",
     alignItems: "center",
     justifyContent: "center",
   },
-  petAvatarText: { color: "#8A4A22", fontSize: 24, fontWeight: "900" },
+  petAvatarText: { color: "#8A4A22", fontSize: 16, fontWeight: "800" },
   petTextWrap: { flex: 1 },
-  petName: { color: "#261409", fontSize: 28, lineHeight: 32, fontWeight: "900", marginTop: 2 },
-  petMeta: { color: "#7A5840", fontSize: 23, lineHeight: 28, marginTop: 2 },
+  petName: { color: "#261409", fontSize: 16, lineHeight: 20, fontWeight: "700", marginTop: 1 },
+  petMeta: { color: "#7A5840", fontSize: 12, lineHeight: 16, marginTop: 1 },
 
   servicesSectionCard: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#EEDFD2",
     backgroundColor: "#F5E8DC",
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     gap: 12,
   },
-  servicesListWrap: { gap: 10 },
+  servicesListWrap: { gap: 8 },
   serviceItemCard: {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#ECE5DE",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   serviceIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#F9D3AE",
     alignItems: "center",
     justifyContent: "center",
   },
   serviceTextWrap: { flex: 1 },
-  serviceName: { color: "#22120A", fontSize: 27, lineHeight: 31, fontWeight: "800" },
-  serviceSubText: { color: "#7B5E49", fontSize: 18, lineHeight: 22, marginTop: 1 },
-  servicePrice: { color: "#A44B1A", fontSize: 31, lineHeight: 34, fontWeight: "900" },
+  serviceName: { color: "#22120A", fontSize: 13, lineHeight: 17, fontWeight: "700" },
+  serviceSubText: { color: "#7B5E49", fontSize: 11, lineHeight: 14, marginTop: 1 },
+  servicePrice: { color: "#A44B1A", fontSize: 15, lineHeight: 19, fontWeight: "800" },
   emptyServicesText: { color: "#7C6758", fontSize: 14 },
 
   totalCard: {
-    borderRadius: 26,
+    borderRadius: 20,
     backgroundColor: "#C86D34",
     borderWidth: 1,
     borderColor: "#B95D25",
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -869,27 +861,27 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     color: "#FBE7D6",
-    fontSize: 13,
+    fontSize: 10,
     lineHeight: 16,
     fontWeight: "700",
     letterSpacing: 1.8,
   },
-  totalAmount: { color: "#FFFFFF", fontSize: 49, lineHeight: 54, fontWeight: "900", marginTop: 3 },
+  totalAmount: { color: "#FFFFFF", fontSize: 22, lineHeight: 26, fontWeight: "800", marginTop: 2 },
   paymentPill: {
     borderRadius: 999,
     backgroundColor: "rgba(255, 224, 194, 0.35)",
     borderWidth: 1,
     borderColor: "rgba(255, 237, 220, 0.45)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     maxWidth: 122,
   },
-  paymentPillText: { color: "#FFFFFF", fontSize: 13, lineHeight: 16, fontWeight: "800" },
+  paymentPillText: { color: "#FFFFFF", fontSize: 10, lineHeight: 13, fontWeight: "700" },
 
-  medicalSectionTitle: { color: "#331A0D", fontSize: 41, lineHeight: 44, fontWeight: "900" },
+  medicalSectionTitle: { color: "#331A0D", fontSize: 18, lineHeight: 22, fontWeight: "700" },
   medicalCard: {
     borderRadius: 24,
     borderWidth: 1,
@@ -977,7 +969,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   medicalSectionPhotoStrip: { gap: 8, paddingTop: 4, paddingBottom: 1 },
-  medicalNoteText: { color: "#6B4B34", fontSize: 20, lineHeight: 27 },
+  medicalNoteText: { color: "#6B4B34", fontSize: 12, lineHeight: 16 },
   medicalNoteEmptyText: {
     color: "#9C7D64",
     fontSize: 13,
@@ -1006,8 +998,8 @@ const styles = StyleSheet.create({
   },
   medicalEmptyText: {
     color: "#825D43",
-    fontSize: 22,
-    lineHeight: 30,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: "center",
   },
   attachRecordsBtn: {
@@ -1025,28 +1017,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  locationCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#EEDFD2",
-    backgroundColor: "#F5E8DC",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  locationPinWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#F1DCC7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  locationTextWrap: { flex: 1 },
-  locationTitle: { color: "#8A5B39", fontSize: 12, fontWeight: "700", letterSpacing: 1.1 },
-  locationValue: { color: "#342012", fontSize: 26, lineHeight: 30, fontWeight: "700", marginTop: 2 },
+  locationTitle: { color: "#8A5B39", fontSize: 11, fontWeight: "600" },
+  locationValue: { color: "#342012", fontSize: 12, lineHeight: 16, fontWeight: "600", flex: 1 },
 
   viewerOverlay: {
     flex: 1,
