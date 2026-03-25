@@ -153,7 +153,7 @@ export function ServiceListScreen({ navigation }: Props) {
         onEndReachedThreshold={0.2}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <Text style={styles.heroTitle}>
+            <Text style={styles.heroTitle} numberOfLines={1}>
               <Text style={styles.heroTitlePrimary}>Pet Spa </Text>
               <Text style={styles.heroTitleAccent}>Services</Text>
             </Text>
@@ -309,8 +309,8 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: "#3E2723",
-    fontSize: 56,
-    lineHeight: 62,
+    fontSize: 40,
+    lineHeight: 46,
     fontWeight: "900",
   },
   heroTitlePrimary: {

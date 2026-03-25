@@ -114,8 +114,14 @@ function SideMenu({
     onNavigate(tab, nestedScreen);
   };
 
+  const menuItemHitSlop = { top: 6, bottom: 6, left: 6, right: 6 };
+
   return (
     <View style={styles.menuOverlayRoot} pointerEvents="box-none">
+      <Animated.View style={[styles.menuDimLayer, { opacity: dimOpacity }]} pointerEvents="auto">
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      </Animated.View>
+
       <Animated.View style={[styles.menuPanel, { transform: [{ translateX: panelTranslateX }] }]}>
         <View style={[styles.menuTopBar, { marginTop: Math.max(insets.top, 6) + 6 }]}> 
           <View style={styles.menuBrandWrap}>
@@ -138,7 +144,12 @@ function SideMenu({
           <View style={styles.sectionWrap}>
             <Text style={styles.sectionTitle}>Main</Text>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "services" && styles.menuItemActive]} onPress={() => onMenuPress("ServicesTab", "ServiceList")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "services" && styles.menuItemActive]}
+              onPress={() => onMenuPress("ServicesTab", "ServiceList")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "services" && styles.menuIconWrapActive]}>
                 <Feather name="briefcase" size={18} color={iconColor(activeMenuKey === "services")} />
               </View>
@@ -146,7 +157,12 @@ function SideMenu({
             </Pressable>
 
             {showCustomerTabs ? (
-              <Pressable style={[styles.menuItem, activeMenuKey === "booking" && styles.menuItemActive]} onPress={() => onMenuPress("BookingTab", "MyBookings")}>
+              <Pressable
+                style={[styles.menuItem, activeMenuKey === "booking" && styles.menuItemActive]}
+                onPress={() => onMenuPress("BookingTab", "MyBookings")}
+                hitSlop={menuItemHitSlop}
+                android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+              >
                 <View style={[styles.menuIconWrap, activeMenuKey === "booking" && styles.menuIconWrapActive]}>
                   <Feather name="calendar" size={18} color={iconColor(activeMenuKey === "booking")} />
                 </View>
@@ -154,7 +170,12 @@ function SideMenu({
               </Pressable>
             ) : null}
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "newsPolicy" && styles.menuItemActive]} onPress={() => onMenuPress("InfoTab", "NewsPolicyHome")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "newsPolicy" && styles.menuItemActive]}
+              onPress={() => onMenuPress("InfoTab", "NewsPolicyHome")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "newsPolicy" && styles.menuIconWrapActive]}>
                 <Feather name="file-text" size={18} color={iconColor(activeMenuKey === "newsPolicy")} />
               </View>
@@ -162,7 +183,12 @@ function SideMenu({
             </Pressable>
 
             {showManagementTab ? (
-              <Pressable style={[styles.menuItem, activeMenuKey === "management" && styles.menuItemActive]} onPress={() => onMenuPress("ManagementTab")}>
+              <Pressable
+                style={[styles.menuItem, activeMenuKey === "management" && styles.menuItemActive]}
+                onPress={() => onMenuPress("ManagementTab")}
+                hitSlop={menuItemHitSlop}
+                android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+              >
                 <View style={[styles.menuIconWrap, activeMenuKey === "management" && styles.menuIconWrapActive]}>
                   <Feather name="grid" size={18} color={iconColor(activeMenuKey === "management")} />
                 </View>
@@ -190,21 +216,36 @@ function SideMenu({
               </View>
             </View>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "profile" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "Profile")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "profile" && styles.menuItemActive]}
+              onPress={() => onMenuPress("AccountTab", "Profile")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "profile" && styles.menuIconWrapActive]}>
                 <Feather name="user" size={18} color={iconColor(activeMenuKey === "profile")} />
               </View>
               <Text style={[styles.menuItemText, activeMenuKey === "profile" && styles.menuItemTextActive]}>Profile</Text>
             </Pressable>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "myPets" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "MyPets")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "myPets" && styles.menuItemActive]}
+              onPress={() => onMenuPress("AccountTab", "MyPets")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "myPets" && styles.menuIconWrapActive]}>
                 <Feather name="heart" size={18} color={iconColor(activeMenuKey === "myPets")} />
               </View>
               <Text style={[styles.menuItemText, activeMenuKey === "myPets" && styles.menuItemTextActive]}>My Pets</Text>
             </Pressable>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "shoppingCart" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "ShoppingCart")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "shoppingCart" && styles.menuItemActive]}
+              onPress={() => onMenuPress("AccountTab", "ShoppingCart")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "shoppingCart" && styles.menuIconWrapActive]}>
                 <Feather name="shopping-cart" size={18} color={iconColor(activeMenuKey === "shoppingCart")} />
               </View>
@@ -218,14 +259,24 @@ function SideMenu({
               </View>
             </Pressable>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "bookings" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "MyBookings")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "bookings" && styles.menuItemActive]}
+              onPress={() => onMenuPress("AccountTab", "MyBookings")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "bookings" && styles.menuIconWrapActive]}>
                 <Feather name="clipboard" size={18} color={iconColor(activeMenuKey === "bookings")} />
               </View>
               <Text style={[styles.menuItemText, activeMenuKey === "bookings" && styles.menuItemTextActive]}>Bookings</Text>
             </Pressable>
 
-            <Pressable style={[styles.menuItem, activeMenuKey === "wallet" && styles.menuItemActive]} onPress={() => onMenuPress("AccountTab", "Wallet")}>
+            <Pressable
+              style={[styles.menuItem, activeMenuKey === "wallet" && styles.menuItemActive]}
+              onPress={() => onMenuPress("AccountTab", "Wallet")}
+              hitSlop={menuItemHitSlop}
+              android_ripple={{ color: "rgba(255,255,255,0.12)" }}
+            >
               <View style={[styles.menuIconWrap, activeMenuKey === "wallet" && styles.menuIconWrapActive]}>
                 <Feather name="credit-card" size={18} color={iconColor(activeMenuKey === "wallet")} />
               </View>
@@ -233,15 +284,11 @@ function SideMenu({
             </Pressable>
           </View>
 
-          <Pressable style={styles.signOutBtn} onPress={onSignOut}>
+          <Pressable style={styles.signOutBtn} onPress={onSignOut} hitSlop={menuItemHitSlop} android_ripple={{ color: "rgba(198,40,40,0.08)" }}>
             <Feather name="log-out" size={18} color="#C62828" />
             <Text style={styles.signOutText}>Sign Out</Text>
           </Pressable>
         </ScrollView>
-      </Animated.View>
-
-      <Animated.View style={[styles.menuDimLayer, { opacity: dimOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
       </Animated.View>
     </View>
   );
@@ -295,7 +342,8 @@ export function MainTabNavigator() {
 
   const activeMenuKey = useMemo<CustomerMenuKey>(() => {
     if (["ServiceList", "ServiceDetail"].includes(activeScreenName)) return "services";
-    if (["MyBookings", "BookingDetail", "BookingCamera"].includes(activeScreenName)) return "booking";
+    if (["BookingDetail", "BookingCamera"].includes(activeScreenName)) return "booking";
+    if (activeScreenName === "MyBookings") return "bookings";
     if (["NewsPolicyHome", "NewsDetail", "PolicyDetail"].includes(activeScreenName)) return "newsPolicy";
     if (["Profile", "ChangePassword"].includes(activeScreenName)) return "profile";
     if (activeScreenName === "MyPets") return "myPets";
@@ -383,12 +431,13 @@ export function MainTabNavigator() {
         }
       }
 
-      if (nestedScreen) {
-        navigation.navigate(tab, { screen: nestedScreen });
-        return;
-      }
-
-      navigation.navigate(tab);
+      requestAnimationFrame(() => {
+        if (nestedScreen) {
+          navigation.navigate(tab, { screen: nestedScreen });
+          return;
+        }
+        navigation.navigate(tab);
+      });
     },
     [navigation],
   );
@@ -851,6 +900,7 @@ const styles = StyleSheet.create({
   menuDimLayer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(21, 33, 53, 0.24)",
+    zIndex: 1,
   },
   menuPanel: {
     width: 280,
@@ -864,6 +914,7 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 2, height: 0 },
     elevation: 6,
+    zIndex: 2,
   },
   menuTopBar: {
     marginHorizontal: 12,
@@ -912,6 +963,7 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, backgroundColor: "#ECE4D8", marginVertical: 10 },
   menuItem: {
     minHeight: 41,
+    width: "100%",
     borderRadius: 12,
     paddingHorizontal: 9,
     paddingVertical: 8,
